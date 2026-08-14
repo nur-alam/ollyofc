@@ -112,7 +112,6 @@ export async function createGame(
   createdBy: string,
 ): Promise<Game> {
   const date = new Date(`${input.date}T00:00:00`);
-
   const docRef = await addDoc(collection(db, "games"), {
     title: input.title?.trim() || "",
     date: Timestamp.fromDate(date),
@@ -127,7 +126,6 @@ export async function createGame(
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
-
   const created = await getDoc(docRef);
   return mapGame(created.id, created.data() ?? {});
 }

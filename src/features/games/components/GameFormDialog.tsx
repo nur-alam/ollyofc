@@ -8,6 +8,7 @@ import type { GameInput } from "@/types/game";
 type GameFormDialogProps = {
   open: boolean;
   saving: boolean;
+  errorMessage?: string;
   onClose: () => void;
   onSubmit: (input: GameInput) => Promise<void>;
 };
@@ -32,6 +33,7 @@ const emptyForm: GameInput = {
 export function GameFormDialog({
   open,
   saving,
+  errorMessage,
   onClose,
   onSubmit,
 }: GameFormDialogProps) {
@@ -185,6 +187,8 @@ export function GameFormDialog({
               placeholder="Bring both kits"
             />
           </div>
+
+          {errorMessage && <p className="error-text">{errorMessage}</p>}
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={onClose}>

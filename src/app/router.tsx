@@ -18,7 +18,7 @@ export function AppRouter() {
       <Route path="/login" element={<LoginPage />} />
 
       <Route element={<AppLayout />}>
-        <Route path="/players" element={<PlayersPage />} />
+        <Route path="/squad" element={<PlayersPage />} />
         <Route path="/games" element={<GamesPage />} />
         <Route path="/games/:gameId" element={<GameDetailPage />} />
 

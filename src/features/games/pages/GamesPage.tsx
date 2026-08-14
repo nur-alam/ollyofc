@@ -123,6 +123,7 @@ export function GamesPage() {
       <GameFormDialog
         open={dialogOpen}
         saving={saving}
+        errorMessage={actionError}
         onClose={() => setDialogOpen(false)}
         onSubmit={handleCreate}
       />

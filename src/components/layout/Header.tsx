@@ -59,8 +59,8 @@ export function Header() {
 
       <div className="topbar-actions h-8">
         <nav className="flex items-center gap-1">
-          <NavLink to="/players" className={headerNavClassName}>
-            Players
+          <NavLink to="/squad" className={headerNavClassName}>
+            Squad
           </NavLink>
           <NavLink to="/games" end className={headerNavClassName}>
             Games
