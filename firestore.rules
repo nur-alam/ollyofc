@@ -1,9 +1,83 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isAdmin() {
+      return isSignedIn() && userDoc().data.role == 'admin';
+    }
+
+    function isStaff() {
+      return isSignedIn() &&
+        userDoc().data.role in ['admin', 'moderator'];
+    }
+
+    function isValidPlayerData() {
+      return request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.category in ['A', 'B', 'C', 'GK']
+        && request.resource.data.position in ['goalkeeper', 'defender', 'midfielder', 'forward']
+        && request.resource.data.isActive is bool
+        && request.resource.data.photoURL is string;
+    }
+
+    function isPlayerLinkUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['playerId', 'updatedAt']);
+    }
+
     match /users/{userId} {
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.role == 'user'
+        && request.resource.data.email is string
+        && request.resource.data.displayName is string;
+
+      allow update: if isAdmin() || (
+        isStaff() && isPlayerLinkUpdate()
+      ) || (
+        isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.email is string
+        && request.resource.data.displayName is string
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    match /players/{playerId} {
       allow read: if true;
-      allow create, update: if request.auth != null && request.auth.uid == userId;
+      allow create: if isStaff() && isValidPlayerData();
+      allow update: if isStaff() && isValidPlayerData();
+      allow delete: if isAdmin();
+    }
+
+    function isValidGameData() {
+      return request.resource.data.location is string
+        && request.resource.data.location.size() > 0
+        && request.resource.data.startTime is string
+        && request.resource.data.startTime.size() > 0
+        && request.resource.data.date is timestamp
+        && request.resource.data.status in ['draft', 'upcoming', 'active', 'completed', 'cancelled']
+        && request.resource.data.matchDurationMinutes is int
+        && request.resource.data.teamCount == 2
+        && request.resource.data.createdBy is string;
+    }
+
+    match /games/{gameId} {
+      allow read: if true;
+      allow create: if isStaff() && isValidGameData();
+      allow update: if isStaff() && isValidGameData();
+      allow delete: if isAdmin();
     }
   }
 }

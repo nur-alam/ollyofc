@@ -5,7 +5,7 @@ import {
   SettingsIcon,
   UserIcon,
 } from "lucide-react";
-import type { User } from "firebase/auth";
+import { Link, NavLink, useNavigate } from "react-router-dom";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -17,22 +17,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useAuthStore } from "@/features/auth/auth.store";
 import { cn } from "@/lib/utils";
 
-type HeaderProps = {
-  user: User | null;
-  loading: boolean;
-  onGoogleLogin: () => void | Promise<void>;
-  onLogout: () => void | Promise<void>;
-};
-
-function getUserInitials(user: User) {
-  const name = user.displayName || user.email?.split("@")[0] || "U";
+function getUserInitials(name: string) {
   return name.charAt(0).toUpperCase();
-}
-
-function getUserDisplayName(user: User) {
-  return user.displayName || user.email?.split("@")[0] || "User";
 }
 
 const topbarActionClassName =
@@ -43,25 +32,54 @@ const topbarButtonClassName = cn(
   "cursor-pointer rounded-lg bg-white/15 text-white hover:bg-white/30 hover:text-white",
 );
 
-function Header({ user, loading, onGoogleLogin, onLogout }: HeaderProps) {
+const headerNavClassName = ({ isActive }: { isActive: boolean }) =>
+  cn(
+    "inline-flex h-8 items-center rounded-lg px-3 text-sm font-medium no-underline transition-colors",
+    isActive
+      ? "bg-white/20 text-white"
+      : "text-white/80 hover:bg-white/15 hover:text-white",
+  );
+
+export function Header() {
+  const navigate = useNavigate();
+  const { firebaseUser, profile, loading, signInWithGoogle, logout } =
+    useAuthStore();
+
+  const displayName =
+    profile?.displayName ||
+    firebaseUser?.displayName ||
+    firebaseUser?.email?.split("@")[0] ||
+    "User";
+
   return (
     <header className="topbar">
-      <div className="brand">Ollyo FC</div>
+      <Link to="/" className="brand text-white no-underline">
+        Ollyo FC
+      </Link>
 
       <div className="topbar-actions h-8">
-        {user ? (
+        <nav className="flex items-center gap-1">
+          <NavLink to="/players" className={headerNavClassName}>
+            Players
+          </NavLink>
+          <NavLink to="/games" end className={headerNavClassName}>
+            Games
+          </NavLink>
+        </nav>
+
+        {firebaseUser ? (
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
                 <Button variant="ghost" className={topbarButtonClassName}>
                   <Avatar size="sm">
                     <AvatarImage
-                      src={user.photoURL ?? undefined}
-                      alt={getUserDisplayName(user)}
+                      src={profile?.photoURL ?? firebaseUser.photoURL ?? undefined}
+                      alt={displayName}
                     />
-                    <AvatarFallback>{getUserInitials(user)}</AvatarFallback>
+                    <AvatarFallback>{getUserInitials(displayName)}</AvatarFallback>
                   </Avatar>
-                  <span>{getUserDisplayName(user)}</span>
+                  <span>{displayName}</span>
                 </Button>
               }
             />
@@ -70,17 +88,17 @@ function Header({ user, loading, onGoogleLogin, onLogout }: HeaderProps) {
               className="min-w-40 [&_[data-slot=dropdown-menu-item]]:cursor-pointer"
             >
               <DropdownMenuGroup>
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/profile")}>
                   <UserIcon />
                   Profile
                 </DropdownMenuItem>
-                <DropdownMenuItem>
+                <DropdownMenuItem disabled>
                   <SettingsIcon />
                   Settings
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onLogout}>
+              <DropdownMenuItem onClick={() => logout()}>
                 <LogOutIcon />
                 Sign Out
               </DropdownMenuItem>
@@ -93,7 +111,7 @@ function Header({ user, loading, onGoogleLogin, onLogout }: HeaderProps) {
               loading && "cursor-not-allowed opacity-50",
             )}
             variant="ghost"
-            onClick={onGoogleLogin}
+            onClick={() => signInWithGoogle()}
             disabled={loading}
           >
             {loading ? (
@@ -113,5 +131,3 @@ function Header({ user, loading, onGoogleLogin, onLogout }: HeaderProps) {
     </header>
   );
 }
-
-export default Header;

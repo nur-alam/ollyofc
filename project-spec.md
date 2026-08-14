@@ -57,7 +57,7 @@ The system should allow admins to manage players and football sessions.
 
 3. User Roles
 
-Implement two roles:
+Implement three roles:
 
 Admin
 
@@ -78,6 +78,11 @@ Admin can:
 * View player statistics
 * View session history
 * View team history
+
+Moderator
+
+Moderator can:
+
 
 Player/User
 
