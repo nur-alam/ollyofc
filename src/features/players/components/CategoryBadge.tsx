@@ -24,7 +24,8 @@ export function CategoryBadge({
       variant="outline"
       className={cn("border-transparent font-semibold", categoryStyles[category], className)}
     >
-      {category} · {CATEGORY_LABELS[category]}
+      {category}
+      <span className="hidden sm:inline"> · {CATEGORY_LABELS[category]}</span>
     </Badge>
   );
 }

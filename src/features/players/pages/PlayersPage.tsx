@@ -122,10 +122,12 @@ export function PlayersPage() {
     }
   };
 
+  const statColumnClassName = "hidden text-muted-foreground lg:table-cell";
+
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
+    <div className="mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold tracking-tight">Players</h1>
           <p className="text-muted-foreground">
             {isStaff
@@ -134,10 +136,14 @@ export function PlayersPage() {
           </p>
         </div>
 
-        {isStaff && <Button onClick={openCreateDialog}>Add player</Button>}
+        {isStaff && (
+          <Button className="w-full sm:w-auto" onClick={openCreateDialog}>
+            Add player
+          </Button>
+        )}
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3">
         <div className="rounded-xl border bg-background p-4 shadow-sm">
           <p className="text-sm text-muted-foreground">Total players</p>
           <p className="mt-1 text-2xl font-semibold">{stats.total}</p>
@@ -148,7 +154,7 @@ export function PlayersPage() {
         </div>
       </div>
 
-      <div className="grid gap-3 rounded-xl border bg-background p-4 shadow-sm md:grid-cols-4">
+      <div className="grid gap-3 rounded-xl border bg-background p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
         <Input
           placeholder="Search players..."
           value={filters.search}
@@ -225,19 +231,19 @@ export function PlayersPage() {
         <p className="error-text">{actionError || errorMessage}</p>
       )}
 
-      <div className="overflow-hidden rounded-xl border bg-background shadow-sm">
+      <div className="overflow-x-auto rounded-xl border bg-background shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Category</TableHead>
-              <TableHead>Position</TableHead>
+              <TableHead className="hidden sm:table-cell">Position</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Matches</TableHead>
-              <TableHead>Goals</TableHead>
-              <TableHead>Assists</TableHead>
-              <TableHead>Wins</TableHead>
-              <TableHead>Losses</TableHead>
+              <TableHead className={statColumnClassName}>Matches</TableHead>
+              <TableHead className={statColumnClassName}>Goals</TableHead>
+              <TableHead className={statColumnClassName}>Assists</TableHead>
+              <TableHead className={statColumnClassName}>Wins</TableHead>
+              <TableHead className={statColumnClassName}>Losses</TableHead>
               {isStaff && <TableHead className="text-right">Actions</TableHead>}
             </TableRow>
           </TableHeader>
@@ -252,8 +258,8 @@ export function PlayersPage() {
               players.map((player) => (
                 <TableRow key={player.id}>
                   <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className="flex size-9 items-center justify-center overflow-hidden rounded-full bg-muted text-sm font-semibold">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-sm font-semibold">
                         {player.photoURL ? (
                           <img
                             src={player.photoURL}
@@ -264,28 +270,33 @@ export function PlayersPage() {
                           player.name.charAt(0).toUpperCase()
                         )}
                       </div>
-                      <div>
-                        <p className="font-medium">{player.name}</p>
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{player.name}</p>
                         {player.userId && (
                           <p className="text-xs text-muted-foreground">Account linked</p>
                         )}
+                        <p className="text-xs text-muted-foreground sm:hidden">
+                          {formatPosition(player.position)}
+                        </p>
                       </div>
                     </div>
                   </TableCell>
                   <TableCell>
                     <CategoryBadge category={player.category} />
                   </TableCell>
-                  <TableCell>{formatPosition(player.position)}</TableCell>
+                  <TableCell className="hidden sm:table-cell">
+                    {formatPosition(player.position)}
+                  </TableCell>
                   <TableCell>
                     <Badge variant={player.isActive ? "secondary" : "outline"}>
                       {player.isActive ? "Active" : "Inactive"}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">0</TableCell>
-                  <TableCell className="text-muted-foreground">0</TableCell>
-                  <TableCell className="text-muted-foreground">0</TableCell>
-                  <TableCell className="text-muted-foreground">0</TableCell>
-                  <TableCell className="text-muted-foreground">0</TableCell>
+                  <TableCell className={statColumnClassName}>0</TableCell>
+                  <TableCell className={statColumnClassName}>0</TableCell>
+                  <TableCell className={statColumnClassName}>0</TableCell>
+                  <TableCell className={statColumnClassName}>0</TableCell>
+                  <TableCell className={statColumnClassName}>0</TableCell>
                   {isStaff && (
                     <TableCell>
                       <div className="flex justify-end gap-1">

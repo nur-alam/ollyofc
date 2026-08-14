@@ -34,7 +34,7 @@ const topbarButtonClassName = cn(
 
 const headerNavClassName = ({ isActive }: { isActive: boolean }) =>
   cn(
-    "inline-flex h-8 items-center rounded-lg px-3 text-sm font-medium no-underline transition-colors",
+    "inline-flex h-8 items-center rounded-lg px-2 text-sm font-medium no-underline transition-colors sm:px-3",
     isActive
       ? "bg-white/20 text-white"
       : "text-white/80 hover:bg-white/15 hover:text-white",
@@ -79,7 +79,7 @@ export function Header() {
                     />
                     <AvatarFallback>{getUserInitials(displayName)}</AvatarFallback>
                   </Avatar>
-                  <span>{displayName}</span>
+                  <span className="hidden max-w-32 truncate sm:inline">{displayName}</span>
                 </Button>
               }
             />
