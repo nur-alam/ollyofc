@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import { onAuthStateChanged, signInWithPopup, signOut } from "firebase/auth";
+import {
+  onAuthStateChanged,
+  signInWithPopup,
+  signOut,
+  type User,
+} from "firebase/auth";
 import {
   collection,
   doc,
@@ -14,20 +19,32 @@ import {
 } from "firebase/firestore";
 import Header from "./components/headers";
 import { auth, db, googleProvider, isFirebaseConfigured } from "./firebase";
+import type { Player } from "./types/player";
 
-function App() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [players, setPlayers] = useState([]);
-  const [playersLoading, setPlayersLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState("");
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
 
-  const getPlayerName = (player) =>
-    player.displayName || player.displayname || player.name || "Unnamed player";
-  const getAuthUserName = (currentUser) =>
+function getPlayerName(player: Player) {
+  return (
+    player.displayName || player.displayname || player.name || "Unnamed player"
+  );
+}
+
+function getAuthUserName(currentUser: User) {
+  return (
     currentUser.displayName ||
     currentUser.email?.split("@")[0] ||
-    "Unnamed player";
+    "Unnamed player"
+  );
+}
+
+function App() {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [playersLoading, setPlayersLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -49,9 +66,12 @@ function App() {
       collection(db, "users"),
       (snapshot) => {
         const nextPlayers = snapshot.docs
-          .map((playerDoc) => ({ uid: playerDoc.id, ...playerDoc.data() }))
+          .map(
+            (playerDoc) =>
+              ({ uid: playerDoc.id, ...playerDoc.data() }) as Player,
+          )
           .sort((left, right) =>
-            getPlayerName(left).localeCompare(getPlayerName(right))
+            getPlayerName(left).localeCompare(getPlayerName(right)),
           );
 
         setPlayers(nextPlayers);
@@ -61,8 +81,8 @@ function App() {
       (error) => {
         setPlayers([]);
         setPlayersLoading(false);
-        setErrorMessage(error.message || "Could not load players.");
-      }
+        setErrorMessage(getErrorMessage(error, "Could not load players."));
+      },
     );
 
     return unsubscribe;
@@ -74,7 +94,7 @@ function App() {
     }
 
     const isGoogleUser = user.providerData.some(
-      (provider) => provider?.providerId === "google.com"
+      (provider) => provider?.providerId === "google.com",
     );
 
     if (!isGoogleUser) {
@@ -96,7 +116,7 @@ function App() {
           const emailQuery = query(
             collection(db, "users"),
             where("email", "==", user.email),
-            limit(1)
+            limit(1),
           );
           const emailSnapshot = await getDocs(emailQuery);
 
@@ -120,7 +140,7 @@ function App() {
         });
       } catch (error) {
         if (!cancelled) {
-          setErrorMessage(error.message || "Could not save player.");
+          setErrorMessage(getErrorMessage(error, "Could not save player."));
         }
       }
     };
@@ -142,7 +162,7 @@ function App() {
       setErrorMessage("");
       await signInWithPopup(auth, googleProvider);
     } catch (error) {
-      setErrorMessage(error.message || "Google sign-in failed.");
+      setErrorMessage(getErrorMessage(error, "Google sign-in failed."));
     }
   };
 
@@ -151,7 +171,7 @@ function App() {
       setErrorMessage("");
       await signOut(auth);
     } catch (error) {
-      setErrorMessage(error.message || "Logout failed.");
+      setErrorMessage(getErrorMessage(error, "Logout failed."));
     }
   };
 
@@ -187,26 +207,9 @@ function App() {
                 </div>
               ))
             ) : (
-              <p className="muted">
-                No players found yet.
-              </p>
+              <p className="muted">No players found yet.</p>
             )}
           </div>
-          {/* {user && (
-            <div className="welcome-box">
-              <p>
-                Welcome, <strong>{user.displayName}</strong>
-              </p>
-              <p className="muted">{user.email}</p>
-            </div>
-          )} */}
-
-          {/* {!isFirebaseConfigured && (
-            <p className="helper-text">
-              Firebase keys are missing. Copy <code>.env.example</code> to
-              <code> .env</code> and add your Firebase project values.
-            </p>
-          )} */}
 
           {errorMessage && <p className="error-text">{errorMessage}</p>}
         </section>
