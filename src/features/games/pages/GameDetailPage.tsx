@@ -1,15 +1,28 @@
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { GameStatusBadge } from "@/features/games/components/GameStatusBadge";
-import { useGame } from "@/features/games/game.hooks";
+import { JoinUsersDialog } from "@/features/games/components/JoinUsersDialog";
+import { useGame, useParticipants } from "@/features/games/game.hooks";
+import {
+  getErrorMessage,
+  joinGame,
+  leaveGame,
+} from "@/features/games/game.service";
+import { useAuthStore } from "@/features/auth/auth.store";
 import { cn } from "@/lib/utils";
+import { isStaffRole } from "@/types/user";
+import type { UserProfile } from "@/types/user";
+import type { PlayerPosition } from "@/types/player";
+import { formatPosition } from "@/types/player";
 import {
   formatGameDate,
   formatGameTime,
   getGameDisplayTitle,
   getGameListBadge,
   hasGameHappened,
+  isUpcomingGame,
 } from "@/types/game";
 
 function DetailItem({ label, value }: { label: string; value: string }) {
@@ -23,7 +36,89 @@ function DetailItem({ label, value }: { label: string; value: string }) {
 
 export function GameDetailPage() {
   const { gameId } = useParams();
+  const { firebaseUser, profile } = useAuthStore();
+  const isStaff = profile ? isStaffRole(profile.role) : false;
   const { game, loading, errorMessage } = useGame(gameId);
+  const { participants } = useParticipants(gameId);
+
+  const [actionError, setActionError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [savingId, setSavingId] = useState("");
+
+  const happened = game ? hasGameHappened(game) : false;
+  const upcoming = game ? isUpcomingGame(game) : false;
+  const alreadyJoined = Boolean(
+    profile && participants.some((participant) => participant.userId === profile.id),
+  );
+  const atCapacity = Boolean(
+    game?.maxPlayers && participants.length >= game.maxPlayers,
+  );
+
+  const handleJoinSelf = async () => {
+    if (!gameId || !profile) {
+      return;
+    }
+
+    setSaving(true);
+    setActionError("");
+
+    try {
+      await joinGame(gameId, profile, profile.id);
+    } catch (error) {
+      setActionError(getErrorMessage(error, "Could not join this game."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleLeaveSelf = async () => {
+    if (!gameId || !profile) {
+      return;
+    }
+
+    setSaving(true);
+    setActionError("");
+
+    try {
+      await leaveGame(gameId, profile.id);
+    } catch (error) {
+      setActionError(getErrorMessage(error, "Could not leave this game."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleStaffJoin = async (user: UserProfile) => {
+    if (!gameId || !profile) {
+      return;
+    }
+
+    setSavingId(user.id);
+    setActionError("");
+
+    try {
+      await joinGame(gameId, user, profile.id);
+    } catch (error) {
+      setActionError(getErrorMessage(error, "Could not add this player."));
+    } finally {
+      setSavingId("");
+    }
+  };
+
+  const handleStaffRemove = async (userId: string) => {
+    if (!gameId) {
+      return;
+    }
+
+    setActionError("");
+
+    try {
+      await leaveGame(gameId, userId);
+    } catch (error) {
+      setActionError(getErrorMessage(error, "Could not remove this player."));
+    }
+  };
 
   if (loading) {
     return (
@@ -50,7 +145,6 @@ export function GameDetailPage() {
     );
   }
 
-  const happened = hasGameHappened(game);
   const badge = getGameListBadge(game);
 
   return (
@@ -81,8 +175,12 @@ export function GameDetailPage() {
           value={`${game.matchDurationMinutes} minutes`}
         />
         <DetailItem
-          label="Max players"
-          value={game.maxPlayers ? String(game.maxPlayers) : "No cap"}
+          label="Players joined"
+          value={
+            game.maxPlayers
+              ? `${participants.length} / ${game.maxPlayers}`
+              : String(participants.length)
+          }
         />
         {game.notes && (
           <div className="sm:col-span-2">
@@ -92,32 +190,94 @@ export function GameDetailPage() {
         )}
       </dl>
 
-      {happened ? (
+      {actionError && <p className="error-text">{actionError}</p>}
+
+      {upcoming && (
+        <section className="rounded-xl border bg-background p-5 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold">Join this game</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {firebaseUser
+                  ? "Confirm you can play, or staff can add someone from the squad."
+                  : "Sign in to join this upcoming game."}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {profile && alreadyJoined ? (
+                <Button variant="outline" disabled={saving} onClick={handleLeaveSelf}>
+                  {saving ? "Leaving..." : "Leave game"}
+                </Button>
+              ) : profile ? (
+                <Button disabled={saving || atCapacity} onClick={handleJoinSelf}>
+                  {saving ? "Joining..." : atCapacity ? "Game full" : "Join game"}
+                </Button>
+              ) : (
+                <Link to="/login" className={cn(buttonVariants(), "no-underline")}>
+                  Sign in to join
+                </Link>
+              )}
+              {isStaff && (
+                <Button variant="outline" onClick={() => setAddOpen(true)}>
+                  Add player
+                </Button>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
+      <section className="rounded-xl border bg-background p-5 shadow-sm">
+        <h2 className="text-lg font-semibold">Joined players</h2>
+        {participants.length ? (
+          <ul className="mt-3 divide-y rounded-lg border">
+            {participants.map((participant) => (
+              <li
+                key={participant.userId}
+                className="flex items-center justify-between gap-3 p-3"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{participant.displayName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatPosition(participant.position as PlayerPosition | "")}
+                  </p>
+                </div>
+                {isStaff && upcoming && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleStaffRemove(participant.userId)}
+                  >
+                    Remove
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-2 text-sm text-muted-foreground">
+            No one has joined yet.
+          </p>
+        )}
+      </section>
+
+      {happened && (
         <section className="rounded-xl border bg-background p-5 shadow-sm">
           <h2 className="text-lg font-semibold">Match details</h2>
           <p className="mt-2 text-sm text-muted-foreground">
             Teams, score, and goal events will appear here once live match
             tracking ships.
           </p>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-lg border bg-muted/40 p-4">
-              <p className="text-sm text-muted-foreground">Team Red</p>
-              <p className="mt-1 text-2xl font-semibold">—</p>
-            </div>
-            <div className="rounded-lg border bg-muted/40 p-4">
-              <p className="text-sm text-muted-foreground">Team Blue</p>
-              <p className="mt-1 text-2xl font-semibold">—</p>
-            </div>
-          </div>
-        </section>
-      ) : (
-        <section className="rounded-xl border bg-background p-5 shadow-sm">
-          <h2 className="text-lg font-semibold">Not played yet</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Match details open after this game has been played.
-          </p>
         </section>
       )}
+
+      <JoinUsersDialog
+        open={addOpen}
+        savingId={savingId}
+        participants={participants}
+        onClose={() => setAddOpen(false)}
+        onJoin={handleStaffJoin}
+      />
     </div>
   );
 }

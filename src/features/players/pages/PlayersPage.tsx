@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { PencilIcon, Trash2Icon, UserXIcon } from "lucide-react";
+import { PencilIcon, UserXIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,128 +19,89 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { CategoryBadge } from "@/features/players/components/CategoryBadge";
-import { PlayerFormDialog } from "@/features/players/components/PlayerFormDialog";
-import { usePlayers } from "@/features/players/player.hooks";
+import { useSquad } from "@/features/players/player.hooks";
+import { getErrorMessage } from "@/lib/errors";
 import {
-  createPlayer,
-  deletePlayer,
-  getErrorMessage,
-  setPlayerActive,
-  updatePlayer,
-} from "@/features/players/player.service";
+  setUserActive,
+  updateUserPosition,
+} from "@/features/auth/auth.service";
 import { useAuthStore } from "@/features/auth/auth.store";
 import { isStaffRole } from "@/types/user";
-import type { Player, PlayerFilterState, PlayerInput } from "@/types/player";
+import type { UserProfile } from "@/types/user";
+import type { PlayerFilterState, PlayerPosition } from "@/types/player";
 import {
-  PLAYER_CATEGORIES,
   PLAYER_POSITIONS,
-  CATEGORY_LABELS,
   POSITION_LABELS,
   formatPosition,
 } from "@/types/player";
+import { PlayerFormDialog } from "@/features/players/components/PlayerFormDialog";
 
 const defaultFilters: PlayerFilterState = {
   search: "",
-  category: "all",
   position: "all",
   status: "all",
 };
 
 export function PlayersPage() {
-  const profile = useAuthStore((state) => state.profile);
+  const { profile, setProfile } = useAuthStore();
   const isStaff = profile ? isStaffRole(profile.role) : false;
-  const isAdmin = profile?.role === "admin";
 
   const [filters, setFilters] = useState<PlayerFilterState>(defaultFilters);
-  const { players, loading, stats, errorMessage } = usePlayers(filters);
+  const { users, loading, stats, errorMessage } = useSquad(filters);
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogMode, setDialogMode] = useState<"create" | "edit">("create");
-  const [selectedPlayer, setSelectedPlayer] = useState<Player | undefined>();
+  const [selectedUser, setSelectedUser] = useState<UserProfile | undefined>();
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState("");
 
-  const openCreateDialog = () => {
+  const openEditDialog = (user: UserProfile) => {
     setActionError("");
-    setDialogMode("create");
-    setSelectedPlayer(undefined);
+    setSelectedUser(user);
     setDialogOpen(true);
   };
 
-  const openEditDialog = (player: Player) => {
-    setActionError("");
-    setDialogMode("edit");
-    setSelectedPlayer(player);
-    setDialogOpen(true);
-  };
+  const handleSavePosition = async (position: PlayerPosition | "") => {
+    if (!selectedUser) {
+      return;
+    }
 
-  const handleSubmit = async (input: PlayerInput) => {
     setSaving(true);
     setActionError("");
 
     try {
-      if (dialogMode === "create") {
-        await createPlayer(input);
-      } else if (selectedPlayer) {
-        await updatePlayer(selectedPlayer.id, input, selectedPlayer.userId);
+      await updateUserPosition(selectedUser.id, position);
+      if (profile?.id === selectedUser.id) {
+        setProfile({ ...profile, position });
       }
-
       setDialogOpen(false);
     } catch (error) {
-      setActionError(getErrorMessage(error, "Could not save player."));
+      setActionError(getErrorMessage(error, "Could not update position."));
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDeactivate = async (player: Player) => {
+  const handleDeactivate = async (user: UserProfile) => {
     setActionError("");
 
     try {
-      await setPlayerActive(player.id, !player.isActive);
+      await setUserActive(user.id, !user.isActive);
+      if (profile?.id === user.id) {
+        setProfile({ ...profile, isActive: !user.isActive });
+      }
     } catch (error) {
       setActionError(getErrorMessage(error, "Could not update player status."));
     }
   };
 
-  const handleDelete = async (player: Player) => {
-    if (
-      !window.confirm(
-        `Delete ${player.name}? This permanently removes the player record.`,
-      )
-    ) {
-      return;
-    }
-
-    setActionError("");
-
-    try {
-      await deletePlayer(player.id);
-    } catch (error) {
-      setActionError(getErrorMessage(error, "Could not delete player."));
-    }
-  };
-
-  const statColumnClassName = "hidden text-muted-foreground lg:table-cell";
-
   return (
     <div className="mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight">Players</h1>
-          <p className="text-muted-foreground">
-            {isStaff
-              ? "Manage squad members, categories, positions, and linked accounts."
-              : "Squad members, categories, positions, and current status."}
-          </p>
-        </div>
-
-        {isStaff && (
-          <Button className="w-full sm:w-auto" onClick={openCreateDialog}>
-            Add player
-          </Button>
-        )}
+      <div className="min-w-0">
+        <h1 className="text-2xl font-bold tracking-tight">Squad</h1>
+        <p className="text-muted-foreground">
+          Everyone who signs in is a player. Set a position on your profile, or
+          staff can update it here.
+        </p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -154,7 +115,7 @@ export function PlayersPage() {
         </div>
       </div>
 
-      <div className="grid gap-3 rounded-xl border bg-background p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 rounded-xl border bg-background p-4 shadow-sm sm:grid-cols-3">
         <Input
           placeholder="Search players..."
           value={filters.search}
@@ -164,35 +125,17 @@ export function PlayersPage() {
         />
 
         <Select
-          value={filters.category}
-          onValueChange={(value) =>
-            setFilters((current) => ({
-              ...current,
-              category: value as PlayerFilterState["category"],
-            }))
-          }
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All categories</SelectItem>
-            {PLAYER_CATEGORIES.map((category) => (
-              <SelectItem key={category} value={category}>
-                {category} · {CATEGORY_LABELS[category]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
           value={filters.position}
-          onValueChange={(value) =>
+          onValueChange={(value) => {
+            if (!value) {
+              return;
+            }
+
             setFilters((current) => ({
               ...current,
               position: value as PlayerFilterState["position"],
-            }))
-          }
+            }));
+          }}
         >
           <SelectTrigger className="w-full">
             <SelectValue placeholder="Position" />
@@ -209,12 +152,16 @@ export function PlayersPage() {
 
         <Select
           value={filters.status}
-          onValueChange={(value) =>
+          onValueChange={(value) => {
+            if (!value) {
+              return;
+            }
+
             setFilters((current) => ({
               ...current,
               status: value as PlayerFilterState["status"],
-            }))
-          }
+            }));
+          }}
         >
           <SelectTrigger className="w-full">
             <SelectValue placeholder="Status" />
@@ -236,100 +183,71 @@ export function PlayersPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead className="hidden sm:table-cell">Position</TableHead>
+              <TableHead>Position</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className={statColumnClassName}>Matches</TableHead>
-              <TableHead className={statColumnClassName}>Goals</TableHead>
-              <TableHead className={statColumnClassName}>Assists</TableHead>
-              <TableHead className={statColumnClassName}>Wins</TableHead>
-              <TableHead className={statColumnClassName}>Losses</TableHead>
               {isStaff && <TableHead className="text-right">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={isStaff ? 10 : 9} className="py-8 text-center text-muted-foreground">
-                  Loading players...
+                <TableCell colSpan={isStaff ? 4 : 3} className="py-8 text-center text-muted-foreground">
+                  Loading squad...
                 </TableCell>
               </TableRow>
-            ) : players.length ? (
-              players.map((player) => (
-                <TableRow key={player.id}>
+            ) : users.length ? (
+              users.map((user) => (
+                <TableRow key={user.id}>
                   <TableCell>
                     <div className="flex min-w-0 items-center gap-3">
                       <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-sm font-semibold">
-                        {player.photoURL ? (
+                        {user.photoURL ? (
                           <img
-                            src={player.photoURL}
-                            alt={player.name}
+                            src={user.photoURL}
+                            alt={user.displayName}
                             className="size-full object-cover"
                           />
                         ) : (
-                          player.name.charAt(0).toUpperCase()
+                          user.displayName.charAt(0).toUpperCase()
                         )}
                       </div>
                       <div className="min-w-0">
-                        <p className="truncate font-medium">{player.name}</p>
-                        {player.userId && (
-                          <p className="text-xs text-muted-foreground">Account linked</p>
-                        )}
-                        <p className="text-xs text-muted-foreground sm:hidden">
-                          {formatPosition(player.position)}
+                        <p className="truncate font-medium">{user.displayName}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {user.email}
                         </p>
                       </div>
                     </div>
                   </TableCell>
+                  <TableCell>{formatPosition(user.position)}</TableCell>
                   <TableCell>
-                    <CategoryBadge category={player.category} />
-                  </TableCell>
-                  <TableCell className="hidden sm:table-cell">
-                    {formatPosition(player.position)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={player.isActive ? "secondary" : "outline"}>
-                      {player.isActive ? "Active" : "Inactive"}
+                    <Badge variant={user.isActive ? "secondary" : "outline"}>
+                      {user.isActive ? "Active" : "Inactive"}
                     </Badge>
                   </TableCell>
-                  <TableCell className={statColumnClassName}>0</TableCell>
-                  <TableCell className={statColumnClassName}>0</TableCell>
-                  <TableCell className={statColumnClassName}>0</TableCell>
-                  <TableCell className={statColumnClassName}>0</TableCell>
-                  <TableCell className={statColumnClassName}>0</TableCell>
                   {isStaff && (
                     <TableCell>
                       <div className="flex justify-end gap-1">
                         <Button
                           variant="ghost"
                           size="icon-sm"
-                          onClick={() => openEditDialog(player)}
-                          aria-label={`Edit ${player.name}`}
+                          onClick={() => openEditDialog(user)}
+                          aria-label={`Edit ${user.displayName} position`}
                         >
                           <PencilIcon />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon-sm"
-                          onClick={() => handleDeactivate(player)}
+                          onClick={() => handleDeactivate(user)}
                           aria-label={
-                            player.isActive
-                              ? `Deactivate ${player.name}`
-                              : `Activate ${player.name}`
+                            user.isActive
+                              ? `Deactivate ${user.displayName}`
+                              : `Activate ${user.displayName}`
                           }
                         >
                           <UserXIcon />
                         </Button>
-                        {isAdmin && (
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => handleDelete(player)}
-                            aria-label={`Delete ${player.name}`}
-                          >
-                            <Trash2Icon />
-                          </Button>
-                        )}
                       </div>
                     </TableCell>
                   )}
@@ -337,7 +255,7 @@ export function PlayersPage() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={isStaff ? 10 : 9} className="py-8 text-center text-muted-foreground">
+                <TableCell colSpan={isStaff ? 4 : 3} className="py-8 text-center text-muted-foreground">
                   No players match your filters.
                 </TableCell>
               </TableRow>
@@ -346,17 +264,12 @@ export function PlayersPage() {
         </Table>
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        Match stats show 0 until Phase 6 derives them from confirmed goal events.
-      </p>
-
       <PlayerFormDialog
         open={dialogOpen}
-        mode={dialogMode}
-        player={selectedPlayer}
+        user={selectedUser}
         saving={saving}
         onClose={() => setDialogOpen(false)}
-        onSubmit={handleSubmit}
+        onSubmit={handleSavePosition}
       />
     </div>
   );

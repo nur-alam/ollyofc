@@ -20,6 +20,7 @@ type AuthState = {
   initialize: () => () => void;
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
+  setProfile: (profile: UserProfile | null) => void;
   clearError: () => void;
 };
 
@@ -92,4 +93,5 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   clearError: () => set({ errorMessage: "" }),
+  setProfile: (profile) => set({ profile }),
 }));

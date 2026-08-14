@@ -16,11 +16,10 @@ import {
   formatGameTime,
   getGameDisplayTitle,
   getGameListBadge,
-  hasGameHappened,
 } from "@/types/game";
 
 function GameRowContent({ game }: { game: Game }) {
-  const happened = hasGameHappened(game);
+  const canOpen = game.status !== "cancelled";
 
   return (
     <div className="flex items-center gap-4 p-4">
@@ -33,7 +32,7 @@ function GameRowContent({ game }: { game: Game }) {
           {formatGameDate(game)} · {formatGameTime(game.startTime)} · {game.location}
         </p>
       </div>
-      {happened && (
+      {canOpen && (
         <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
       )}
     </div>
@@ -73,7 +72,7 @@ export function GamesPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Games</h1>
           <p className="text-muted-foreground">
-            Upcoming matches are listed here. Played games open their match details.
+            Open a game to join. Played games show match details.
           </p>
         </div>
         {isStaff && (
@@ -93,11 +92,11 @@ export function GamesPage() {
         ) : games.length ? (
           <ul className="divide-y">
             {games.map((game) => {
-              const happened = hasGameHappened(game);
+              const canOpen = game.status !== "cancelled";
 
               return (
                 <li key={game.id}>
-                  {happened ? (
+                  {canOpen ? (
                     <Link
                       to={`/games/${game.id}`}
                       className={cn(

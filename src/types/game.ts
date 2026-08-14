@@ -23,6 +23,15 @@ export type Game = {
   updatedAt?: Timestamp;
 };
 
+export type GameParticipant = {
+  userId: string;
+  displayName: string;
+  photoURL?: string;
+  position: string;
+  joinedBy: string;
+  joinedAt?: Timestamp;
+};
+
 export type GameInput = {
   title?: string;
   date: string;

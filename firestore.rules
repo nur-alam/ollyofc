@@ -19,46 +19,35 @@ service cloud.firestore {
         && userDoc().data.role in ['admin', 'moderator'];
     }
 
-    function isValidPlayerData() {
-      return request.resource.data.name is string
-        && request.resource.data.name.size() > 0
-        && request.resource.data.category in ['A', 'B', 'C', 'GK']
-        && request.resource.data.position in ['goalkeeper', 'defender', 'midfielder', 'forward']
-        && request.resource.data.isActive is bool
-        && request.resource.data.photoURL is string;
-    }
-
-    function isPlayerLinkUpdate() {
+    function isStaffUserFieldsUpdate() {
       return request.resource.data.diff(resource.data).affectedKeys()
-        .hasOnly(['playerId', 'updatedAt']);
+        .hasOnly(['position', 'isActive', 'updatedAt']);
     }
 
     match /users/{userId} {
-      allow read: if isSignedIn();
+      // Public squad list: guests can list every user document.
+      allow get, list: if true;
 
       allow create: if isSignedIn()
         && request.auth.uid == userId
         && request.resource.data.role == 'user'
         && request.resource.data.email is string
-        && request.resource.data.displayName is string;
+        && request.resource.data.displayName is string
+        && request.resource.data.isActive == true
+        && request.resource.data.position is string;
 
       allow update: if isAdmin() || (
-        isStaff() && isPlayerLinkUpdate()
+        isStaff() && isStaffUserFieldsUpdate()
       ) || (
         isSignedIn()
         && request.auth.uid == userId
         && request.resource.data.role == resource.data.role
         && request.resource.data.email is string
         && request.resource.data.displayName is string
+        && request.resource.data.position is string
+        && request.resource.data.isActive is bool
       );
 
-      allow delete: if isAdmin();
-    }
-
-    match /players/{playerId} {
-      allow read: if true;
-      allow create: if isStaff() && isValidPlayerData();
-      allow update: if isStaff() && isValidPlayerData();
       allow delete: if isAdmin();
     }
 
@@ -66,6 +55,18 @@ service cloud.firestore {
       allow read: if true;
       allow create, update: if isSignedIn();
       allow delete: if isAdmin();
+
+      match /participants/{participantId} {
+        allow read: if true;
+
+        allow create: if isSignedIn() && (
+          isStaff() || request.auth.uid == participantId
+        );
+
+        allow delete: if isSignedIn() && (
+          isStaff() || request.auth.uid == participantId
+        );
+      }
     }
   }
 }

@@ -1,15 +1,19 @@
 import {
+  collection,
   doc,
   getDoc,
+  onSnapshot,
   serverTimestamp,
   setDoc,
   updateDoc,
   type DocumentData,
+  type Unsubscribe,
 } from "firebase/firestore";
 import type { User } from "firebase/auth";
 
 import { auth, db } from "@/lib/firebase";
 import type { UserProfile, UserRole } from "@/types/user";
+import type { PlayerPosition } from "@/types/player";
 
 function getDisplayName(user: User) {
   return user.displayName || user.email?.split("@")[0] || "User";
@@ -21,6 +25,19 @@ function parseUserRole(value: unknown): UserRole {
   }
 
   return "user";
+}
+
+function parsePosition(value: unknown): PlayerPosition | "" {
+  if (
+    value === "goalkeeper" ||
+    value === "defender" ||
+    value === "midfielder" ||
+    value === "forward"
+  ) {
+    return value;
+  }
+
+  return "";
 }
 
 export function mapUserProfile(id: string, data: DocumentData): UserProfile {
@@ -35,7 +52,8 @@ export function mapUserProfile(id: string, data: DocumentData): UserProfile {
           : "User",
     photoURL: typeof data.photoURL === "string" ? data.photoURL : undefined,
     role: parseUserRole(data.role),
-    playerId: typeof data.playerId === "string" ? data.playerId : undefined,
+    isActive: typeof data.isActive === "boolean" ? data.isActive : true,
+    position: parsePosition(data.position),
     createdAt: data.createdAt,
     updatedAt: data.updatedAt,
   };
@@ -65,6 +83,8 @@ export async function ensureUserProfile(user: User): Promise<UserProfile> {
       displayName,
       photoURL: photoURL || "",
       role: "user",
+      isActive: true,
+      position: "",
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
@@ -74,16 +94,23 @@ export async function ensureUserProfile(user: User): Promise<UserProfile> {
   }
 
   const existing = mapUserProfile(snapshot.id, snapshot.data());
+  const data = snapshot.data();
+  const missingPlayerFields =
+    typeof data.isActive !== "boolean" || typeof data.position !== "string";
+
   const shouldSyncProfile =
     existing.displayName !== displayName ||
     existing.email !== email ||
-    (photoURL && existing.photoURL !== photoURL);
+    (photoURL && existing.photoURL !== photoURL) ||
+    missingPlayerFields;
 
   if (shouldSyncProfile) {
     await updateDoc(userRef, {
       displayName,
       email,
       photoURL: photoURL || existing.photoURL || "",
+      isActive: existing.isActive,
+      position: existing.position,
       updatedAt: serverTimestamp(),
     });
 
@@ -96,6 +123,42 @@ export async function ensureUserProfile(user: User): Promise<UserProfile> {
   }
 
   return existing;
+}
+
+export async function updateUserPosition(
+  userId: string,
+  position: PlayerPosition | "",
+): Promise<void> {
+  await updateDoc(doc(db, "users", userId), {
+    position,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function setUserActive(userId: string, isActive: boolean): Promise<void> {
+  await updateDoc(doc(db, "users", userId), {
+    isActive,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export function subscribeToUsers(
+  onData: (users: UserProfile[]) => void,
+  onError?: (message: string) => void,
+): Unsubscribe {
+  return onSnapshot(
+    collection(db, "users"),
+    (snapshot) => {
+      const users = snapshot.docs
+        .map((userDoc) => mapUserProfile(userDoc.id, userDoc.data()))
+        .sort((left, right) => left.displayName.localeCompare(right.displayName));
+      onData(users);
+    },
+    (error) => {
+      onData([]);
+      onError?.(error instanceof Error ? error.message : "Could not load squad.");
+    },
+  );
 }
 
 export function getErrorMessage(error: unknown, fallback: string) {

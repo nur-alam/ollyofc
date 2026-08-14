@@ -1,5 +1,7 @@
 import type { Timestamp } from "firebase/firestore";
 
+import type { PlayerPosition } from "@/types/player";
+
 export type UserRole = "admin" | "moderator" | "user";
 
 export type UserProfile = {
@@ -8,7 +10,8 @@ export type UserProfile = {
   displayName: string;
   photoURL?: string;
   role: UserRole;
-  playerId?: string;
+  isActive: boolean;
+  position: PlayerPosition | "";
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 };

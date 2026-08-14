@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { subscribeToGame, subscribeToGames } from "@/features/games/game.service";
-import type { Game } from "@/types/game";
+import { subscribeToGame, subscribeToGames, subscribeToParticipants } from "@/features/games/game.service";
+import type { Game, GameParticipant } from "@/types/game";
 import { isUpcomingGame, sortGames } from "@/types/game";
 
 export function useGames() {
@@ -72,4 +72,36 @@ export function useGame(gameId: string | undefined) {
   }, [gameId]);
 
   return { game, loading, errorMessage };
+}
+
+export function useParticipants(gameId: string | undefined) {
+  const [participants, setParticipants] = useState<GameParticipant[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    if (!gameId) {
+      setParticipants([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+
+    return subscribeToParticipants(
+      gameId,
+      (nextParticipants) => {
+        setParticipants(nextParticipants);
+        setLoading(false);
+        setErrorMessage("");
+      },
+      (message) => {
+        setParticipants([]);
+        setLoading(false);
+        setErrorMessage(message);
+      },
+    );
+  }, [gameId]);
+
+  return { participants, loading, errorMessage };
 }

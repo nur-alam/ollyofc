@@ -1,12 +1,14 @@
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   getDoc,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
+  setDoc,
   Timestamp,
   type DocumentData,
   type Unsubscribe,
@@ -14,7 +16,8 @@ import {
 
 import { db } from "@/lib/firebase";
 import { getErrorMessage } from "@/lib/errors";
-import type { Game, GameInput, GameStatus } from "@/types/game";
+import type { Game, GameInput, GameParticipant, GameStatus } from "@/types/game";
+import type { UserProfile } from "@/types/user";
 
 function parseStatus(value: unknown): GameStatus {
   if (
@@ -128,6 +131,56 @@ export async function createGame(
   });
   const created = await getDoc(docRef);
   return mapGame(created.id, created.data() ?? {});
+}
+
+export function mapParticipant(id: string, data: DocumentData): GameParticipant {
+  return {
+    userId: typeof data.userId === "string" ? data.userId : id,
+    displayName: typeof data.displayName === "string" ? data.displayName : "Player",
+    photoURL: typeof data.photoURL === "string" ? data.photoURL : undefined,
+    position: typeof data.position === "string" ? data.position : "",
+    joinedBy: typeof data.joinedBy === "string" ? data.joinedBy : "",
+    joinedAt: data.joinedAt,
+  };
+}
+
+export function subscribeToParticipants(
+  gameId: string,
+  onData: (participants: GameParticipant[]) => void,
+  onError?: (message: string) => void,
+): Unsubscribe {
+  return onSnapshot(
+    collection(db, "games", gameId, "participants"),
+    (snapshot) => {
+      const participants = snapshot.docs
+        .map((item) => mapParticipant(item.id, item.data()))
+        .sort((left, right) => left.displayName.localeCompare(right.displayName));
+      onData(participants);
+    },
+    (error) => {
+      onData([]);
+      onError?.(getErrorMessage(error, "Could not load players for this game."));
+    },
+  );
+}
+
+export async function joinGame(
+  gameId: string,
+  user: UserProfile,
+  joinedBy: string,
+): Promise<void> {
+  await setDoc(doc(db, "games", gameId, "participants", user.id), {
+    userId: user.id,
+    displayName: user.displayName,
+    photoURL: user.photoURL || "",
+    position: user.position || "",
+    joinedBy,
+    joinedAt: serverTimestamp(),
+  });
+}
+
+export async function leaveGame(gameId: string, userId: string): Promise<void> {
+  await deleteDoc(doc(db, "games", gameId, "participants", userId));
 }
 
 export { getErrorMessage };

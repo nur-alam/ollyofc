@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 
 import { useAuthStore } from "@/features/auth/auth.store";
 import { useGames } from "@/features/games/game.hooks";
-import { usePlayers } from "@/features/players/player.hooks";
+import { useSquad } from "@/features/players/player.hooks";
 import { formatGameDate, hasGameHappened } from "@/types/game";
 import { isStaffRole } from "@/types/user";
 
@@ -27,9 +27,8 @@ function StatCard({
 export function DashboardPage() {
   const profile = useAuthStore((state) => state.profile);
   const isStaff = profile ? isStaffRole(profile.role) : false;
-  const { stats } = usePlayers({
+  const { stats } = useSquad({
     search: "",
-    category: "all",
     position: "all",
     status: "all",
   });
@@ -49,7 +48,7 @@ export function DashboardPage() {
         <StatCard
           label="Total Players"
           value={String(stats.total)}
-          hint="View in Players"
+          hint="Everyone who has signed in"
         />
         <StatCard label="Active Players" value={String(stats.active)} />
         <StatCard
@@ -65,18 +64,24 @@ export function DashboardPage() {
           <h2 className="text-lg font-semibold">Next Steps</h2>
           <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-muted-foreground">
             <li>
-              <Link to="/players" className="text-primary hover:underline">
-                {isStaff ? "Manage players" : "View the squad"}
+              Set your position on{" "}
+              <Link to="/profile" className="text-primary hover:underline">
+                Profile
               </Link>
-              {isStaff ? " and link user accounts." : "."}
+              .
             </li>
             <li>
               <Link to="/games" className="text-primary hover:underline">
-                View games
+                Join an upcoming game
               </Link>
-              {isStaff ? " or create the next match." : "."}
+              {isStaff ? " or add players for someone else." : "."}
             </li>
-            <li>Phase 4 will generate two balanced teams.</li>
+            <li>
+              <Link to="/squad" className="text-primary hover:underline">
+                View the squad
+              </Link>
+              .
+            </li>
           </ul>
         </section>
 
@@ -90,8 +95,8 @@ export function DashboardPage() {
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
             {isStaff
-              ? "You can manage players and create games. Team generation arrives later."
-              : "You can view the squad and games. Staff manage player records."}
+              ? "You can update player positions and manually join users to games."
+              : "You can update your position and join upcoming games."}
           </p>
         </section>
       </div>

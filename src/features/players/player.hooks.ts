@@ -1,25 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { subscribeToPlayers } from "@/features/players/player.service";
-import type { Player, PlayerFilterState } from "@/types/player";
+import { subscribeToUsers } from "@/features/auth/auth.service";
+import type { UserProfile } from "@/types/user";
+import type { PlayerFilterState } from "@/types/player";
 
-export function filterPlayers(players: Player[], filters: PlayerFilterState) {
+export function filterSquad(users: UserProfile[], filters: PlayerFilterState) {
   const search = filters.search.trim().toLowerCase();
 
-  return players.filter((player) => {
-    if (filters.category !== "all" && player.category !== filters.category) {
+  return users.filter((user) => {
+    if (filters.position !== "all" && user.position !== filters.position) {
       return false;
     }
 
-    if (filters.position !== "all" && player.position !== filters.position) {
+    if (filters.status === "active" && !user.isActive) {
       return false;
     }
 
-    if (filters.status === "active" && !player.isActive) {
-      return false;
-    }
-
-    if (filters.status === "inactive" && player.isActive) {
+    if (filters.status === "inactive" && user.isActive) {
       return false;
     }
 
@@ -28,53 +25,51 @@ export function filterPlayers(players: Player[], filters: PlayerFilterState) {
     }
 
     return (
-      player.name.toLowerCase().includes(search) ||
-      player.category.toLowerCase().includes(search) ||
-      player.position.toLowerCase().includes(search)
+      user.displayName.toLowerCase().includes(search) ||
+      user.email.toLowerCase().includes(search) ||
+      user.position.toLowerCase().includes(search)
     );
   });
 }
 
-export function usePlayers(filters: PlayerFilterState) {
-  const [players, setPlayers] = useState<Player[]>([]);
+export function useSquad(filters: PlayerFilterState) {
+  const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     setLoading(true);
 
-    const unsubscribe = subscribeToPlayers(
-      (nextPlayers) => {
-        setPlayers(nextPlayers);
+    return subscribeToUsers(
+      (nextUsers) => {
+        setUsers(nextUsers);
         setLoading(false);
         setErrorMessage("");
       },
       (message) => {
-        setPlayers([]);
+        setUsers([]);
         setLoading(false);
         setErrorMessage(message);
       },
     );
-
-    return unsubscribe;
   }, []);
 
-  const filteredPlayers = useMemo(
-    () => filterPlayers(players, filters),
-    [players, filters],
+  const filteredUsers = useMemo(
+    () => filterSquad(users, filters),
+    [users, filters],
   );
 
   const stats = useMemo(
     () => ({
-      total: players.length,
-      active: players.filter((player) => player.isActive).length,
+      total: users.length,
+      active: users.filter((user) => user.isActive).length,
     }),
-    [players],
+    [users],
   );
 
   return {
-    players: filteredPlayers,
-    allPlayers: players,
+    users: filteredUsers,
+    allUsers: users,
     loading,
     errorMessage,
     stats,

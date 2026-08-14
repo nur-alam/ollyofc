@@ -31,7 +31,6 @@ export type PlayerInput = {
 
 export type PlayerFilterState = {
   search: string;
-  category: PlayerCategory | "all";
   position: PlayerPosition | "all";
   status: "all" | "active" | "inactive";
 };
@@ -59,7 +58,11 @@ export const POSITION_LABELS: Record<PlayerPosition, string> = {
   forward: "Forward",
 };
 
-export function formatPosition(position: PlayerPosition) {
+export function formatPosition(position: PlayerPosition | "" | undefined) {
+  if (!position) {
+    return "Not set";
+  }
+
   return POSITION_LABELS[position];
 }
 
