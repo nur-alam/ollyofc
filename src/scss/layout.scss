@@ -1,0 +1,42 @@
+@use "variables" as *;
+@use "mixins" as *;
+
+.app-shell {
+  min-height: 100vh;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: $topbar-padding;
+  background: $color-topbar;
+  color: $color-topbar-text;
+  min-width: 0;
+
+  @include breakpoint-sm {
+    gap: 1rem;
+    padding: $topbar-padding-sm;
+  }
+}
+
+.brand {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-left: auto;
+  min-width: 0;
+}
+
+.content {
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+}

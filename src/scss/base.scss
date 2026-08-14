@@ -1,0 +1,29 @@
+@use "variables" as *;
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  font-family: $font-sans;
+  color: $color-text;
+  background: $color-page;
+}
+
+.muted {
+  color: $color-muted;
+}
+
+.helper-text {
+  margin-top: 1rem;
+  color: $color-helper;
+}
+
+.error-text {
+  margin-top: 1rem;
+  color: $color-error;
+}
