@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { XIcon } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { GameStatusBadge } from "@/features/games/components/GameStatusBadge";
@@ -85,6 +86,19 @@ export function UpcomingGameCard({ game }: { game: Game }) {
     }
   };
 
+  const handleStaffRemove = async (userId: string) => {
+    setSavingId(userId);
+    setActionError("");
+
+    try {
+      await leaveGame(game.id, userId);
+    } catch (error) {
+      setActionError(getErrorMessage(error, "Could not remove this player."));
+    } finally {
+      setSavingId("");
+    }
+  };
+
   return (
     <article className="rounded-xl border bg-background p-5 shadow-sm">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -160,7 +174,7 @@ export function UpcomingGameCard({ game }: { game: Game }) {
                     participant.displayName.charAt(0).toUpperCase()
                   )}
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{participant.displayName}</p>
                   <p className="text-xs text-muted-foreground">
                     {formatPosition(
@@ -169,6 +183,18 @@ export function UpcomingGameCard({ game }: { game: Game }) {
                     )}
                   </p>
                 </div>
+                {isStaff && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={savingId === participant.userId}
+                    onClick={() => handleStaffRemove(participant.userId)}
+                    aria-label={`Remove ${participant.displayName}`}
+                  >
+                    <XIcon />
+                  </Button>
+                )}
               </li>
             ))}
           </ul>
