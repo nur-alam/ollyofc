@@ -3,12 +3,15 @@ import { Link } from "react-router-dom";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { GameStatusBadge } from "@/features/games/components/GameStatusBadge";
+import { JoinUsersDialog } from "@/features/games/components/JoinUsersDialog";
 import { useParticipants } from "@/features/games/game.hooks";
 import { getErrorMessage, joinGame, leaveGame } from "@/features/games/game.service";
 import { useAuthStore } from "@/features/auth/auth.store";
 import { useUserMap } from "@/features/players/player.hooks";
 import { cn } from "@/lib/utils";
 import { formatPosition } from "@/types/player";
+import { isStaffRole } from "@/types/user";
+import type { UserProfile } from "@/types/user";
 import {
   formatGameDate,
   formatGameTime,
@@ -18,9 +21,12 @@ import {
 
 export function UpcomingGameCard({ game }: { game: Game }) {
   const { profile } = useAuthStore();
+  const isStaff = profile ? isStaffRole(profile.role) : false;
   const usersById = useUserMap();
   const { participants, loading } = useParticipants(game.id);
   const [saving, setSaving] = useState(false);
+  const [savingId, setSavingId] = useState("");
+  const [addOpen, setAddOpen] = useState(false);
   const [actionError, setActionError] = useState("");
 
   const alreadyJoined = Boolean(
@@ -59,6 +65,23 @@ export function UpcomingGameCard({ game }: { game: Game }) {
       setActionError(getErrorMessage(error, "Could not leave this game."));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleStaffJoin = async (user: UserProfile) => {
+    if (!profile) {
+      return;
+    }
+
+    setSavingId(user.id);
+    setActionError("");
+
+    try {
+      await joinGame(game.id, user, profile.id);
+    } catch (error) {
+      setActionError(getErrorMessage(error, "Could not add this player."));
+    } finally {
+      setSavingId("");
     }
   };
 
@@ -110,9 +133,16 @@ export function UpcomingGameCard({ game }: { game: Game }) {
       {actionError && <p className="error-text mt-3">{actionError}</p>}
 
       <div className="mt-4 border-t pt-4">
-        <h3 className="text-sm font-medium">
-          Joined players ({participants.length})
-        </h3>
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-sm font-medium">
+            Joined players ({participants.length})
+          </h3>
+          {isStaff && (
+            <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
+              Add player
+            </Button>
+          )}
+        </div>
         {loading ? (
           <p className="mt-2 text-sm text-muted-foreground">Loading players...</p>
         ) : participants.length ? (
@@ -146,6 +176,16 @@ export function UpcomingGameCard({ game }: { game: Game }) {
           <p className="mt-2 text-sm text-muted-foreground">No one has joined yet.</p>
         )}
       </div>
+
+      {isStaff && (
+        <JoinUsersDialog
+          open={addOpen}
+          savingId={savingId}
+          participants={participants}
+          onClose={() => setAddOpen(false)}
+          onJoin={handleStaffJoin}
+        />
+      )}
     </article>
   );
 }
