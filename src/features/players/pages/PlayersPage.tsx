@@ -101,8 +101,7 @@ export function PlayersPage() {
         <div className="min-w-0">
           <h1 className="text-2xl font-bold tracking-tight">Squad</h1>
           <p className="text-muted-foreground">
-            Everyone who signs in is a player. Set a position on your profile, or
-            staff can update it here.
+            Everyone who signs in is a player
           </p>
         </div>
         <SeedTestPlayers />
