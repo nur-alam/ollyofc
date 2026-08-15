@@ -1,16 +1,14 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { XIcon } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { GameStatusBadge } from "@/features/games/components/GameStatusBadge";
+import { JoinedPlayersList } from "@/features/games/components/JoinedPlayersList";
 import { JoinUsersDialog } from "@/features/games/components/JoinUsersDialog";
 import { useParticipants } from "@/features/games/game.hooks";
 import { getErrorMessage, joinGame, leaveGame } from "@/features/games/game.service";
 import { useAuthStore } from "@/features/auth/auth.store";
-import { useUserMap } from "@/features/players/player.hooks";
 import { cn } from "@/lib/utils";
-import { formatPosition } from "@/types/player";
 import { isStaffRole } from "@/types/user";
 import type { UserProfile } from "@/types/user";
 import {
@@ -23,7 +21,6 @@ import {
 export function UpcomingGameCard({ game }: { game: Game }) {
   const { profile } = useAuthStore();
   const isStaff = profile ? isStaffRole(profile.role) : false;
-  const usersById = useUserMap();
   const { participants, loading } = useParticipants(game.id);
   const [saving, setSaving] = useState(false);
   const [savingId, setSavingId] = useState("");
@@ -160,44 +157,12 @@ export function UpcomingGameCard({ game }: { game: Game }) {
         {loading ? (
           <p className="mt-2 text-sm text-muted-foreground">Loading players...</p>
         ) : participants.length ? (
-          <ul className="flex flex-wrap gap-2 mt-3 divide-y rounded-lg border">
-            {participants.map((participant) => (
-              <li key={participant.userId} className="flex items-center gap-3 p-3">
-                <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-xs font-semibold">
-                  {participant.photoURL ? (
-                    <img
-                      src={participant.photoURL}
-                      alt={participant.displayName}
-                      className="size-full object-cover"
-                    />
-                  ) : (
-                    participant.displayName.charAt(0).toUpperCase()
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{participant.displayName}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatPosition(
-                      usersById.get(participant.userId)?.position ||
-                        participant.position,
-                    )}
-                  </p>
-                </div>
-                {isStaff && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    disabled={savingId === participant.userId}
-                    onClick={() => handleStaffRemove(participant.userId)}
-                    aria-label={`Remove ${participant.displayName}`}
-                  >
-                    <XIcon />
-                  </Button>
-                )}
-              </li>
-            ))}
-          </ul>
+          <JoinedPlayersList
+            participants={participants}
+            canRemove={isStaff}
+            savingId={savingId}
+            onRemove={handleStaffRemove}
+          />
         ) : (
           <p className="mt-2 text-sm text-muted-foreground">No one has joined yet.</p>
         )}

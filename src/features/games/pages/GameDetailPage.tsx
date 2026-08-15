@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { GameStatusBadge } from "@/features/games/components/GameStatusBadge";
+import { JoinedPlayersList } from "@/features/games/components/JoinedPlayersList";
 import { JoinUsersDialog } from "@/features/games/components/JoinUsersDialog";
 import { useGame, useParticipants } from "@/features/games/game.hooks";
 import {
@@ -11,11 +12,9 @@ import {
   leaveGame,
 } from "@/features/games/game.service";
 import { useAuthStore } from "@/features/auth/auth.store";
-import { useUserMap } from "@/features/players/player.hooks";
 import { cn } from "@/lib/utils";
 import { isStaffRole } from "@/types/user";
 import type { UserProfile } from "@/types/user";
-import { formatPosition } from "@/types/player";
 import {
   formatGameDate,
   formatGameTime,
@@ -38,7 +37,6 @@ export function GameDetailPage() {
   const { gameId } = useParams();
   const { firebaseUser, profile } = useAuthStore();
   const isStaff = profile ? isStaffRole(profile.role) : false;
-  const usersById = useUserMap();
   const { game, loading, errorMessage } = useGame(gameId);
   const { participants } = useParticipants(gameId);
 
@@ -112,12 +110,15 @@ export function GameDetailPage() {
       return;
     }
 
+    setSavingId(userId);
     setActionError("");
 
     try {
       await leaveGame(gameId, userId);
     } catch (error) {
       setActionError(getErrorMessage(error, "Could not remove this player."));
+    } finally {
+      setSavingId("");
     }
   };
 
@@ -231,33 +232,12 @@ export function GameDetailPage() {
       <section className="rounded-xl border bg-background p-5 shadow-sm">
         <h2 className="text-lg font-semibold">Joined players</h2>
         {participants.length ? (
-          <ul className="mt-3 divide-y rounded-lg border">
-            {participants.map((participant) => (
-              <li
-                key={participant.userId}
-                className="flex items-center justify-between gap-3 p-3"
-              >
-                <div className="min-w-0">
-                  <p className="truncate font-medium">{participant.displayName}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatPosition(
-                      usersById.get(participant.userId)?.position ||
-                        participant.position,
-                    )}
-                  </p>
-                </div>
-                {isStaff && upcoming && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleStaffRemove(participant.userId)}
-                  >
-                    Remove
-                  </Button>
-                )}
-              </li>
-            ))}
-          </ul>
+          <JoinedPlayersList
+            participants={participants}
+            canRemove={isStaff && upcoming}
+            savingId={savingId}
+            onRemove={handleStaffRemove}
+          />
         ) : (
           <p className="mt-2 text-sm text-muted-foreground">
             No one has joined yet.
