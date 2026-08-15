@@ -35,7 +35,12 @@ export function JoinedPlayersList({
 
   return (
     <ul className="mt-3 grid grid-cols-2 overflow-hidden rounded-lg border sm:grid-cols-4">
-      {participants.map((participant) => (
+      {participants.map((participant) => {
+        const isRemoveVisible =
+          activeRemoveId === participant.userId ||
+          savingId === participant.userId;
+
+        return (
         <li
           key={participant.userId}
           className={cn(
@@ -78,11 +83,10 @@ export function JoinedPlayersList({
               type="button"
               variant="ghost"
               size="icon-sm"
+              tabIndex={isRemoveVisible ? undefined : -1}
               className={cn(
-                "absolute top-1.5 right-1.5 opacity-0 transition-opacity sm:group-hover:opacity-100 sm:group-focus-within:opacity-100",
-                (activeRemoveId === participant.userId ||
-                  savingId === participant.userId) &&
-                  "opacity-100",
+                "absolute top-1.5 right-1.5 bg-muted pointer-events-none opacity-0 transition-opacity sm:group-hover:pointer-events-auto sm:group-hover:opacity-100 sm:group-focus-within:pointer-events-auto sm:group-focus-within:opacity-100",
+                isRemoveVisible && "pointer-events-auto opacity-100",
               )}
               disabled={savingId === participant.userId}
               onPointerDown={(event) => event.stopPropagation()}
@@ -91,13 +95,15 @@ export function JoinedPlayersList({
                 setActiveRemoveId("");
                 onRemove(participant.userId);
               }}
+              aria-hidden={!isRemoveVisible}
               aria-label={`Remove ${participant.displayName}`}
             >
               <XIcon />
             </Button>
           )}
         </li>
-      ))}
+        );
+      })}
     </ul>
   );
 }
