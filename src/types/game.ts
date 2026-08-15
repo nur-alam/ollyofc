@@ -128,6 +128,18 @@ export function getGameDisplayTitle(game: Game) {
   return `${game.location} · ${formatGameDate(game)}`;
 }
 
+export function gameToInput(game: Game): GameInput {
+  return {
+    title: game.title ?? "",
+    date: formatYmd(getBangladeshParts(game.date.toDate())),
+    startTime: game.startTime,
+    location: game.location,
+    maxPlayers: game.maxPlayers,
+    matchDurationMinutes: game.matchDurationMinutes,
+    notes: game.notes ?? "",
+  };
+}
+
 export function sortGames(games: Game[]) {
   return [...games].sort((left, right) => {
     const leftUpcoming = isUpcomingGame(left);

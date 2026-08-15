@@ -5,10 +5,11 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { bangladeshTomorrowYmd } from "@/lib/timezone";
-import type { GameInput } from "@/types/game";
+import { gameToInput, type Game, type GameInput } from "@/types/game";
 
 type GameFormDialogProps = {
   open: boolean;
+  game?: Game;
   saving: boolean;
   errorMessage?: string;
   onClose: () => void;
@@ -26,18 +27,22 @@ const emptyForm: GameInput = {
 
 export function GameFormDialog({
   open,
+  game,
   saving,
   errorMessage,
   onClose,
   onSubmit,
 }: GameFormDialogProps) {
   const [form, setForm] = useState<GameInput>(emptyForm);
+  const isEditing = Boolean(game);
 
   useEffect(() => {
-    if (open) {
-      setForm({ ...emptyForm, date: bangladeshTomorrowYmd() });
+    if (!open) {
+      return;
     }
-  }, [open]);
+
+    setForm(game ? gameToInput(game) : { ...emptyForm, date: bangladeshTomorrowYmd() });
+  }, [open, game]);
 
   if (!open) {
     return null;
@@ -68,9 +73,13 @@ export function GameFormDialog({
       >
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold">Create game</h2>
+            <h2 className="text-lg font-semibold">
+              {isEditing ? "Edit game" : "Create game"}
+            </h2>
             <p className="text-sm text-muted-foreground">
-              New games are listed as upcoming until they have been played.
+              {isEditing
+                ? "Update the match details. Everyone will see Bangladesh time."
+                : "New games are listed as upcoming until they have been played."}
             </p>
           </div>
           <Button type="button" variant="ghost" size="sm" onClick={onClose}>
@@ -193,7 +202,7 @@ export function GameFormDialog({
               type="submit"
               disabled={saving || !form.date || !form.startTime || !form.location.trim()}
             >
-              {saving ? "Saving..." : "Create game"}
+              {saving ? "Saving..." : isEditing ? "Save changes" : "Create game"}
             </Button>
           </div>
         </form>

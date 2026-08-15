@@ -4,12 +4,15 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
   setDoc,
   Timestamp,
+  updateDoc,
+  writeBatch,
   type DocumentData,
   type Unsubscribe,
 } from "firebase/firestore";
@@ -135,6 +138,21 @@ export async function createGame(
   return mapGame(created.id, created.data() ?? {});
 }
 
+export async function updateGame(gameId: string, input: GameInput): Promise<void> {
+  const date = bangladeshDateTimeToUtc(input.date, "00:00");
+
+  await updateDoc(doc(db, "games", gameId), {
+    title: input.title?.trim() || "",
+    date: Timestamp.fromDate(date),
+    startTime: input.startTime,
+    location: input.location.trim(),
+    maxPlayers: input.maxPlayers ? Math.round(input.maxPlayers) : 0,
+    matchDurationMinutes: Math.round(input.matchDurationMinutes),
+    notes: input.notes?.trim() || "",
+    updatedAt: serverTimestamp(),
+  });
+}
+
 export function mapParticipant(id: string, data: DocumentData): GameParticipant {
   return {
     userId: typeof data.userId === "string" ? data.userId : id,
@@ -195,6 +213,18 @@ export async function joinGame(
 
 export async function leaveGame(gameId: string, userId: string): Promise<void> {
   await deleteDoc(doc(db, "games", gameId, "participants", userId));
+}
+
+export async function deleteGame(gameId: string): Promise<void> {
+  const participants = await getDocs(collection(db, "games", gameId, "participants"));
+  const batch = writeBatch(db);
+
+  participants.docs.forEach((participant) => {
+    batch.delete(participant.ref);
+  });
+  batch.delete(doc(db, "games", gameId));
+
+  await batch.commit();
 }
 
 export { getErrorMessage };

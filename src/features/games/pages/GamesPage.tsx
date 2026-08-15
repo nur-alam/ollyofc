@@ -4,9 +4,15 @@ import { ChevronRightIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { GameFormDialog } from "@/features/games/components/GameFormDialog";
+import { GameRowMenu } from "@/features/games/components/GameRowMenu";
 import { GameStatusBadge } from "@/features/games/components/GameStatusBadge";
 import { useGames } from "@/features/games/game.hooks";
-import { createGame, getErrorMessage } from "@/features/games/game.service";
+import {
+  createGame,
+  deleteGame,
+  getErrorMessage,
+  updateGame,
+} from "@/features/games/game.service";
 import { useAuthStore } from "@/features/auth/auth.store";
 import { cn } from "@/lib/utils";
 import { isStaffRole } from "@/types/user";
@@ -42,10 +48,14 @@ function GameRowContent({ game }: { game: Game }) {
 export function GamesPage() {
   const { firebaseUser, profile } = useAuthStore();
   const isStaff = profile ? isStaffRole(profile.role) : false;
+  const isAdmin = profile?.role === "admin";
   const { games, loading, errorMessage } = useGames();
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [gameToEdit, setGameToEdit] = useState<Game | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState("");
+  const [gameToDelete, setGameToDelete] = useState<Game | null>(null);
   const [actionError, setActionError] = useState("");
 
   const handleCreate = async (input: GameInput) => {
@@ -63,6 +73,47 @@ export function GamesPage() {
       setActionError(getErrorMessage(error, "Could not create game."));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleUpdate = async (input: GameInput) => {
+    if (!gameToEdit) {
+      return;
+    }
+
+    setSaving(true);
+    setActionError("");
+
+    try {
+      await updateGame(gameToEdit.id, input);
+      setGameToEdit(null);
+    } catch (error) {
+      setActionError(getErrorMessage(error, "Could not update this game."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const closeForm = () => {
+    setDialogOpen(false);
+    setGameToEdit(null);
+  };
+
+  const handleDelete = async () => {
+    if (!gameToDelete) {
+      return;
+    }
+
+    setDeletingId(gameToDelete.id);
+    setActionError("");
+
+    try {
+      await deleteGame(gameToDelete.id);
+      setGameToDelete(null);
+    } catch (error) {
+      setActionError(getErrorMessage(error, "Could not delete this game."));
+    } finally {
+      setDeletingId("");
     }
   };
 
@@ -95,18 +146,31 @@ export function GamesPage() {
               const canOpen = game.status !== "cancelled";
 
               return (
-                <li key={game.id}>
+                <li key={game.id} className="flex items-stretch">
                   {canOpen ? (
                     <Link
                       to={`/games/${game.id}`}
                       className={cn(
-                        "block text-inherit no-underline transition-colors hover:bg-muted/60",
+                        "min-w-0 flex-1 text-inherit no-underline transition-colors hover:bg-muted/60",
                       )}
                     >
                       <GameRowContent game={game} />
                     </Link>
                   ) : (
-                    <GameRowContent game={game} />
+                    <div className="min-w-0 flex-1">
+                      <GameRowContent game={game} />
+                    </div>
+                  )}
+                  {isStaff && (
+                    <div className="flex items-center pr-3">
+                      <GameRowMenu
+                        game={game}
+                        canView={canOpen}
+                        canDelete={isAdmin}
+                        onEdit={setGameToEdit}
+                        onDelete={setGameToDelete}
+                      />
+                    </div>
                   )}
                 </li>
               );
@@ -120,12 +184,55 @@ export function GamesPage() {
       </div>
 
       <GameFormDialog
-        open={dialogOpen}
+        open={dialogOpen || Boolean(gameToEdit)}
+        game={gameToEdit ?? undefined}
         saving={saving}
         errorMessage={actionError}
-        onClose={() => setDialogOpen(false)}
-        onSubmit={handleCreate}
+        onClose={closeForm}
+        onSubmit={gameToEdit ? handleUpdate : handleCreate}
       />
+
+      {gameToDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => {
+            if (!deletingId) {
+              setGameToDelete(null);
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="w-full max-w-md rounded-xl border bg-background p-6 shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 className="text-lg font-semibold">Delete game</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Delete {getGameDisplayTitle(gameToDelete)}? Joined players will be
+              removed too. This cannot be undone.
+            </p>
+            <div className="mt-6 flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={Boolean(deletingId)}
+                onClick={() => setGameToDelete(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={Boolean(deletingId)}
+                onClick={handleDelete}
+              >
+                {deletingId ? "Deleting..." : "Delete"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
