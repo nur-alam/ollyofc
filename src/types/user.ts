@@ -12,6 +12,7 @@ export type UserProfile = {
   role: UserRole;
   isActive: boolean;
   position: PlayerPosition | "";
+  isSeed?: boolean;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 };

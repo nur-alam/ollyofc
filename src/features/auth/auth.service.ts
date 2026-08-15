@@ -41,6 +41,7 @@ export function mapUserProfile(id: string, data: DocumentData): UserProfile {
     role: parseUserRole(data.role),
     isActive: typeof data.isActive === "boolean" ? data.isActive : true,
     position: parsePosition(data.position ?? data.Position),
+    isSeed: data.isSeed === true,
     createdAt: data.createdAt,
     updatedAt: data.updatedAt,
   };

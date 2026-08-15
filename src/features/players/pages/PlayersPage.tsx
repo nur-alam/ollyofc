@@ -35,6 +35,7 @@ import {
   formatPosition,
 } from "@/types/player";
 import { PlayerFormDialog } from "@/features/players/components/PlayerFormDialog";
+import { SeedTestPlayers } from "@/features/players/components/SeedTestPlayers";
 
 const defaultFilters: PlayerFilterState = {
   search: "",
@@ -96,12 +97,15 @@ export function PlayersPage() {
 
   return (
     <div className="mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-6">
-      <div className="min-w-0">
-        <h1 className="text-2xl font-bold tracking-tight">Squad</h1>
-        <p className="text-muted-foreground">
-          Everyone who signs in is a player. Set a position on your profile, or
-          staff can update it here.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold tracking-tight">Squad</h1>
+          <p className="text-muted-foreground">
+            Everyone who signs in is a player. Set a position on your profile, or
+            staff can update it here.
+          </p>
+        </div>
+        <SeedTestPlayers />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -212,7 +216,14 @@ export function PlayersPage() {
                         )}
                       </div>
                       <div className="min-w-0">
-                        <p className="truncate font-medium">{user.displayName}</p>
+                        <p className="flex items-center gap-2 truncate font-medium">
+                          {user.displayName}
+                          {user.isSeed && (
+                            <Badge variant="outline" className="font-normal">
+                              Test
+                            </Badge>
+                          )}
+                        </p>
                         <p className="truncate text-xs text-muted-foreground">
                           {user.email}
                         </p>
