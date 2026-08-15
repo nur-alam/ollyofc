@@ -1,39 +1,40 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useAuthStore } from "@/features/auth/auth.store";
-import { updateUserPosition } from "@/features/auth/auth.service";
+import { updateUserDisplayName } from "@/features/auth/auth.service";
 import { getErrorMessage } from "@/lib/errors";
-import type { PlayerPosition } from "@/types/player";
-import { PLAYER_POSITIONS, POSITION_LABELS, formatPosition } from "@/types/player";
+import { formatPosition } from "@/types/player";
 
 export function ProfilePage() {
   const { firebaseUser, profile, setProfile } = useAuthStore();
+  const [displayName, setDisplayName] = useState(profile?.displayName ?? "");
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const handlePositionChange = async (value: string | null) => {
-    if (!profile || !value) {
+  useEffect(() => {
+    setDisplayName(profile?.displayName ?? "");
+  }, [profile?.displayName]);
+
+  const handleDisplayNameSave = async () => {
+    const nextName = displayName.trim();
+
+    if (!profile || !nextName || nextName === profile.displayName) {
+      setDisplayName(profile?.displayName ?? "");
       return;
     }
 
-    const position = value === "unset" ? "" : (value as PlayerPosition);
     setSaving(true);
     setErrorMessage("");
 
     try {
-      await updateUserPosition(profile.id, position);
-      setProfile({ ...profile, position });
+      await updateUserDisplayName(profile.id, nextName);
+      setProfile({ ...profile, displayName: nextName });
     } catch (error) {
-      setErrorMessage(getErrorMessage(error, "Could not update your position."));
+      setErrorMessage(getErrorMessage(error, "Could not update your name."));
+      setDisplayName(profile.displayName);
     } finally {
       setSaving(false);
     }
@@ -43,15 +44,29 @@ export function ProfilePage() {
     <div className="mx-auto w-full max-w-2xl">
       <h1 className="text-2xl font-bold tracking-tight">Profile</h1>
       <p className="text-muted-foreground">
-        Your account is your player record. Set your position so staff can pick
-        teams later.
+        Your account is your player record. You can update your display name
+        here.
       </p>
 
       <div className="mt-6 rounded-xl border bg-background p-5 shadow-sm">
         <dl className="grid gap-4 text-sm">
-          <div>
-            <dt className="text-muted-foreground">Display name</dt>
-            <dd className="font-medium">{profile?.displayName ?? "—"}</dd>
+          <div className="grid gap-2">
+            <Label htmlFor="profile-display-name">Display name</Label>
+            <Input
+              id="profile-display-name"
+              value={displayName}
+              disabled={!profile || saving}
+              onChange={(event) => setDisplayName(event.target.value)}
+              onBlur={handleDisplayNameSave}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.currentTarget.blur();
+                }
+              }}
+            />
+            {saving && (
+              <p className="text-xs text-muted-foreground">Saving...</p>
+            )}
           </div>
           <div>
             <dt className="text-muted-foreground">Email</dt>
@@ -69,28 +84,9 @@ export function ProfilePage() {
               {profile?.isActive === false ? "Inactive" : "Active"}
             </dd>
           </div>
-          <div className="grid gap-2">
-            <Label>Position</Label>
-            <Select
-              value={profile?.position || "unset"}
-              onValueChange={handlePositionChange}
-              disabled={!profile || saving}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder={formatPosition(profile?.position)} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="unset">Not set</SelectItem>
-                {PLAYER_POSITIONS.map((position) => (
-                  <SelectItem key={position} value={position}>
-                    {POSITION_LABELS[position]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {saving && (
-              <p className="text-xs text-muted-foreground">Saving...</p>
-            )}
+          <div>
+            <dt className="text-muted-foreground">Position</dt>
+            <dd className="font-medium">{formatPosition(profile?.position)}</dd>
           </div>
         </dl>
       </div>

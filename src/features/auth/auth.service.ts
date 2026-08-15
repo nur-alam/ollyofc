@@ -87,14 +87,12 @@ export async function ensureUserProfile(user: User): Promise<UserProfile> {
     typeof data.isActive !== "boolean" || typeof data.position !== "string";
 
   const shouldSyncProfile =
-    existing.displayName !== displayName ||
     existing.email !== email ||
     (photoURL && existing.photoURL !== photoURL) ||
     missingPlayerFields;
 
   if (shouldSyncProfile) {
     await updateDoc(userRef, {
-      displayName,
       email,
       photoURL: photoURL || existing.photoURL || "",
       isActive: existing.isActive,
@@ -104,13 +102,22 @@ export async function ensureUserProfile(user: User): Promise<UserProfile> {
 
     return {
       ...existing,
-      displayName,
       email,
       photoURL: photoURL || existing.photoURL,
     };
   }
 
   return existing;
+}
+
+export async function updateUserDisplayName(
+  userId: string,
+  displayName: string,
+): Promise<void> {
+  await updateDoc(doc(db, "users", userId), {
+    displayName,
+    updatedAt: serverTimestamp(),
+  });
 }
 
 export async function updateUserPosition(
