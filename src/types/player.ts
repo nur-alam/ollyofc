@@ -58,12 +58,32 @@ export const POSITION_LABELS: Record<PlayerPosition, string> = {
   forward: "Forward",
 };
 
-export function formatPosition(position: PlayerPosition | "" | undefined) {
-  if (!position) {
-    return "Not set";
+export function parsePosition(value: unknown): PlayerPosition | "" {
+  if (typeof value !== "string" || !value.trim()) {
+    return "";
   }
 
-  return POSITION_LABELS[position];
+  const normalized = value.trim().toLowerCase();
+
+  if (normalized in POSITION_LABELS) {
+    return normalized as PlayerPosition;
+  }
+
+  return (
+    PLAYER_POSITIONS.find(
+      (position) => POSITION_LABELS[position].toLowerCase() === normalized,
+    ) ?? ""
+  );
+}
+
+export function formatPosition(position: PlayerPosition | string | "" | undefined) {
+  const parsed = parsePosition(position);
+
+  if (!parsed) {
+    return position?.trim() || "Not set";
+  }
+
+  return POSITION_LABELS[parsed];
 }
 
 export function formatCategory(category: PlayerCategory) {

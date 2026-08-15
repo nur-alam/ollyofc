@@ -6,8 +6,9 @@ import { GameStatusBadge } from "@/features/games/components/GameStatusBadge";
 import { useParticipants } from "@/features/games/game.hooks";
 import { getErrorMessage, joinGame, leaveGame } from "@/features/games/game.service";
 import { useAuthStore } from "@/features/auth/auth.store";
+import { useUserMap } from "@/features/players/player.hooks";
 import { cn } from "@/lib/utils";
-import { formatPosition, type PlayerPosition } from "@/types/player";
+import { formatPosition } from "@/types/player";
 import {
   formatGameDate,
   formatGameTime,
@@ -17,6 +18,7 @@ import {
 
 export function UpcomingGameCard({ game }: { game: Game }) {
   const { profile } = useAuthStore();
+  const usersById = useUserMap();
   const { participants, loading } = useParticipants(game.id);
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState("");
@@ -131,7 +133,10 @@ export function UpcomingGameCard({ game }: { game: Game }) {
                 <div className="min-w-0">
                   <p className="truncate font-medium">{participant.displayName}</p>
                   <p className="text-xs text-muted-foreground">
-                    {formatPosition(participant.position as PlayerPosition | "")}
+                    {formatPosition(
+                      usersById.get(participant.userId)?.position ||
+                        participant.position,
+                    )}
                   </p>
                 </div>
               </li>

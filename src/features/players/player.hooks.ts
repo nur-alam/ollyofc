@@ -75,3 +75,16 @@ export function useSquad(filters: PlayerFilterState) {
     stats,
   };
 }
+
+export function useUserMap() {
+  const { allUsers } = useSquad({
+    search: "",
+    position: "all",
+    status: "all",
+  });
+
+  return useMemo(
+    () => new Map(allUsers.map((user) => [user.id, user])),
+    [allUsers],
+  );
+}

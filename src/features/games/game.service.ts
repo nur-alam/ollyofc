@@ -17,6 +17,7 @@ import {
 import { db } from "@/lib/firebase";
 import { getErrorMessage } from "@/lib/errors";
 import { bangladeshDateTimeToUtc } from "@/lib/timezone";
+import { parsePosition } from "@/types/player";
 import type { Game, GameInput, GameParticipant, GameStatus } from "@/types/game";
 import type { UserProfile } from "@/types/user";
 
@@ -170,11 +171,23 @@ export async function joinGame(
   user: UserProfile,
   joinedBy: string,
 ): Promise<void> {
+  const latest = await getDoc(doc(db, "users", user.id));
+  const latestData = latest.exists() ? latest.data() : undefined;
+  const position =
+    parsePosition(latestData?.position ?? latestData?.Position) ||
+    user.position ||
+    "";
+
   await setDoc(doc(db, "games", gameId, "participants", user.id), {
     userId: user.id,
-    displayName: user.displayName,
-    photoURL: user.photoURL || "",
-    position: user.position || "",
+    displayName:
+      (typeof latestData?.displayName === "string" && latestData.displayName) ||
+      user.displayName,
+    photoURL:
+      (typeof latestData?.photoURL === "string" && latestData.photoURL) ||
+      user.photoURL ||
+      "",
+    position,
     joinedBy,
     joinedAt: serverTimestamp(),
   });

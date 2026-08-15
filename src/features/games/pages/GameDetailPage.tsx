@@ -11,10 +11,10 @@ import {
   leaveGame,
 } from "@/features/games/game.service";
 import { useAuthStore } from "@/features/auth/auth.store";
+import { useUserMap } from "@/features/players/player.hooks";
 import { cn } from "@/lib/utils";
 import { isStaffRole } from "@/types/user";
 import type { UserProfile } from "@/types/user";
-import type { PlayerPosition } from "@/types/player";
 import { formatPosition } from "@/types/player";
 import {
   formatGameDate,
@@ -38,6 +38,7 @@ export function GameDetailPage() {
   const { gameId } = useParams();
   const { firebaseUser, profile } = useAuthStore();
   const isStaff = profile ? isStaffRole(profile.role) : false;
+  const usersById = useUserMap();
   const { game, loading, errorMessage } = useGame(gameId);
   const { participants } = useParticipants(gameId);
 
@@ -239,7 +240,10 @@ export function GameDetailPage() {
                 <div className="min-w-0">
                   <p className="truncate font-medium">{participant.displayName}</p>
                   <p className="text-xs text-muted-foreground">
-                    {formatPosition(participant.position as PlayerPosition | "")}
+                    {formatPosition(
+                      usersById.get(participant.userId)?.position ||
+                        participant.position,
+                    )}
                   </p>
                 </div>
                 {isStaff && upcoming && (

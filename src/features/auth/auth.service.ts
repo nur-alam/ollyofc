@@ -13,7 +13,7 @@ import type { User } from "firebase/auth";
 
 import { auth, db } from "@/lib/firebase";
 import type { UserProfile, UserRole } from "@/types/user";
-import type { PlayerPosition } from "@/types/player";
+import { parsePosition, type PlayerPosition } from "@/types/player";
 
 function getDisplayName(user: User) {
   return user.displayName || user.email?.split("@")[0] || "User";
@@ -25,19 +25,6 @@ function parseUserRole(value: unknown): UserRole {
   }
 
   return "user";
-}
-
-function parsePosition(value: unknown): PlayerPosition | "" {
-  if (
-    value === "goalkeeper" ||
-    value === "defender" ||
-    value === "midfielder" ||
-    value === "forward"
-  ) {
-    return value;
-  }
-
-  return "";
 }
 
 export function mapUserProfile(id: string, data: DocumentData): UserProfile {
@@ -53,7 +40,7 @@ export function mapUserProfile(id: string, data: DocumentData): UserProfile {
     photoURL: typeof data.photoURL === "string" ? data.photoURL : undefined,
     role: parseUserRole(data.role),
     isActive: typeof data.isActive === "boolean" ? data.isActive : true,
-    position: parsePosition(data.position),
+    position: parsePosition(data.position ?? data.Position),
     createdAt: data.createdAt,
     updatedAt: data.updatedAt,
   };
