@@ -60,10 +60,6 @@ export function UpcomingGameCard({ game }: { game: Game }) {
     }
   };
 
-  const joinedCount = game.maxPlayers
-    ? `${participants.length} / ${game.maxPlayers} joined`
-    : `${participants.length} joined`;
-
   return (
     <article className="rounded-xl border bg-background p-5 shadow-sm">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -72,10 +68,7 @@ export function UpcomingGameCard({ game }: { game: Game }) {
             <h2 className="text-lg font-semibold">{getGameDisplayTitle(game)}</h2>
             <GameStatusBadge status="upcoming" />
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {formatGameDate(game)} · {formatGameTime(game.startTime)} · {game.location}
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">{joinedCount}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{formatGameDate(game)}</p>
         </div>
 
         {profile && alreadyJoined ? (
@@ -96,6 +89,21 @@ export function UpcomingGameCard({ game }: { game: Game }) {
           </Link>
         )}
       </div>
+
+      <dl className="mt-4 grid gap-4 sm:grid-cols-3">
+        <div>
+          <dt className="text-sm text-muted-foreground">Location</dt>
+          <dd className="mt-1 font-medium">{game.location}</dd>
+        </div>
+        <div>
+          <dt className="text-sm text-muted-foreground">Kick-off</dt>
+          <dd className="mt-1 font-medium">{formatGameTime(game.startTime)}</dd>
+        </div>
+        <div>
+          <dt className="text-sm text-muted-foreground">Duration</dt>
+          <dd className="mt-1 font-medium">{game.matchDurationMinutes} minutes</dd>
+        </div>
+      </dl>
 
       {actionError && <p className="error-text mt-3">{actionError}</p>}
 
