@@ -28,13 +28,16 @@ export function useGames() {
 
   const sortedGames = useMemo(() => sortGames(games), [games]);
 
-  const nextUpcomingGame = useMemo(
-    () => sortedGames.find((game) => isUpcomingGame(game)) ?? null,
+  const upcomingGames = useMemo(
+    () => sortedGames.filter((game) => isUpcomingGame(game)),
     [sortedGames],
   );
 
+  const nextUpcomingGame = upcomingGames[0] ?? null;
+
   return {
     games: sortedGames,
+    upcomingGames,
     nextUpcomingGame,
     loading,
     errorMessage,

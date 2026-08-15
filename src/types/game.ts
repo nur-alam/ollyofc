@@ -1,5 +1,13 @@
 import type { Timestamp } from "firebase/firestore";
 
+import {
+  bangladeshDateTimeToUtc,
+  formatBangladeshClock,
+  formatBangladeshDate,
+  formatYmd,
+  getBangladeshParts,
+} from "@/lib/timezone";
+
 export type GameStatus =
   | "draft"
   | "upcoming"
@@ -67,10 +75,8 @@ function parseTimeParts(startTime: string) {
 }
 
 export function getGameStartAt(game: Pick<Game, "date" | "startTime">) {
-  const start = new Date(game.date.toDate());
-  const { hours, minutes } = parseTimeParts(game.startTime);
-  start.setHours(hours, minutes, 0, 0);
-  return start;
+  const ymd = formatYmd(getBangladeshParts(game.date.toDate()));
+  return bangladeshDateTimeToUtc(ymd, game.startTime);
 }
 
 export function hasGameHappened(game: Game, now = new Date()) {
@@ -106,23 +112,12 @@ export function getGameListBadge(game: Game): GameStatus {
 }
 
 export function formatGameDate(game: Pick<Game, "date">) {
-  return new Intl.DateTimeFormat("en-GB", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(game.date.toDate());
+  return formatBangladeshDate(game.date.toDate());
 }
 
 export function formatGameTime(startTime: string) {
   const { hours, minutes } = parseTimeParts(startTime);
-  const value = new Date();
-  value.setHours(hours, minutes, 0, 0);
-
-  return new Intl.DateTimeFormat("en-GB", {
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(value);
+  return formatBangladeshClock(hours, minutes);
 }
 
 export function getGameDisplayTitle(game: Game) {

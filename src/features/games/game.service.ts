@@ -16,6 +16,7 @@ import {
 
 import { db } from "@/lib/firebase";
 import { getErrorMessage } from "@/lib/errors";
+import { bangladeshDateTimeToUtc } from "@/lib/timezone";
 import type { Game, GameInput, GameParticipant, GameStatus } from "@/types/game";
 import type { UserProfile } from "@/types/user";
 
@@ -114,7 +115,7 @@ export async function createGame(
   input: GameInput,
   createdBy: string,
 ): Promise<Game> {
-  const date = new Date(`${input.date}T00:00:00`);
+  const date = bangladeshDateTimeToUtc(input.date, "00:00");
   const docRef = await addDoc(collection(db, "games"), {
     title: input.title?.trim() || "",
     date: Timestamp.fromDate(date),

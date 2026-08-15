@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { bangladeshTomorrowYmd } from "@/lib/timezone";
 import type { GameInput } from "@/types/game";
 
 type GameFormDialogProps = {
@@ -13,17 +15,9 @@ type GameFormDialogProps = {
   onSubmit: (input: GameInput) => Promise<void>;
 };
 
-function tomorrowDateValue() {
-  const date = new Date();
-  date.setDate(date.getDate() + 1);
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${date.getFullYear()}-${month}-${day}`;
-}
-
 const emptyForm: GameInput = {
   title: "",
-  date: tomorrowDateValue(),
+  date: bangladeshTomorrowYmd(),
   startTime: "18:00",
   location: "Office Field",
   matchDurationMinutes: 90,
@@ -41,7 +35,7 @@ export function GameFormDialog({
 
   useEffect(() => {
     if (open) {
-      setForm({ ...emptyForm, date: tomorrowDateValue() });
+      setForm({ ...emptyForm, date: bangladeshTomorrowYmd() });
     }
   }, [open]);
 
@@ -100,18 +94,16 @@ export function GameFormDialog({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label htmlFor="game-date">Date</Label>
-              <Input
+              <DatePicker
                 id="game-date"
-                type="date"
                 value={form.date}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, date: event.target.value }))
+                onChange={(date) =>
+                  setForm((current) => ({ ...current, date }))
                 }
-                required
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="game-time">Start time</Label>
+              <Label htmlFor="game-time">Start time (Bangladesh)</Label>
               <Input
                 id="game-time"
                 type="time"
@@ -126,6 +118,9 @@ export function GameFormDialog({
               />
             </div>
           </div>
+          <p className="-mt-2 text-xs text-muted-foreground">
+            Date and kick-off are Bangladesh time. Everyone sees the same clock.
+          </p>
 
           <div className="grid gap-2">
             <Label htmlFor="game-location">Location</Label>
