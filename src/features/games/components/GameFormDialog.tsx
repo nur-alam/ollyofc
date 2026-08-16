@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { XIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -17,12 +18,12 @@ type GameFormDialogProps = {
 };
 
 const emptyForm: GameInput = {
-  title: "",
+  title: "Ollyo FC friendly kick-out",
   date: bangladeshTomorrowYmd(),
   startTime: "18:00",
-  location: "Office Field",
+  location: "",
   matchDurationMinutes: 90,
-  notes: "",
+  notes: "Keep yourself present in the game",
 };
 
 export function GameFormDialog({
@@ -82,8 +83,14 @@ export function GameFormDialog({
                 : "New games are listed as upcoming until they have been played."}
             </p>
           </div>
-          <Button type="button" variant="ghost" size="sm" onClick={onClose}>
-            Close
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            <XIcon />
           </Button>
         </div>
 
