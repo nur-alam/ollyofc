@@ -1,7 +1,12 @@
 import type { GameParticipant, GameTeamBuild, GameTeamId } from "@/types/game";
 import { parsePosition, type PlayerPosition } from "@/types/player";
 
-const FIELD_GROUPS: PlayerPosition[] = ["defender", "midfielder", "forward"];
+const DEAL_GROUPS: PlayerPosition[] = [
+  "forward",
+  "midfielder",
+  "defender",
+  "goalkeeper",
+];
 
 export type TeamPositionBreakdown = Record<PlayerPosition, number>;
 
@@ -13,6 +18,19 @@ export type TeamDealStep = {
   userId: string;
   teamId: GameTeamId;
 };
+
+function shuffle<T>(items: T[]) {
+  const next = [...items];
+
+  for (let index = next.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    const current = next[index];
+    next[index] = next[swapIndex];
+    next[swapIndex] = current;
+  }
+
+  return next;
+}
 
 export function buildTeamDealOrder(
   participants: GameParticipant[],
@@ -30,10 +48,6 @@ export function buildTeamDealOrder(
     buckets[position || "other"].push(participant);
   }
 
-  for (const bucket of Object.values(buckets)) {
-    bucket.sort((left, right) => left.displayName.localeCompare(right.displayName));
-  }
-
   const order: TeamDealStep[] = [];
   const sizes = { a: 0, b: 0 };
 
@@ -44,18 +58,9 @@ export function buildTeamDealOrder(
 
   const nextTeam = (): GameTeamId => (sizes.a <= sizes.b ? "a" : "b");
 
-  const goalkeepers = buckets.goalkeeper;
-  if (goalkeepers[0]) {
-    assign(goalkeepers[0], "a");
-  }
-  if (goalkeepers[1]) {
-    assign(goalkeepers[1], "b");
-  }
-
   const remaining = [
-    ...FIELD_GROUPS.flatMap((position) => buckets[position]),
-    ...goalkeepers.slice(2),
-    ...buckets.other,
+    ...DEAL_GROUPS.flatMap((position) => shuffle(buckets[position])),
+    ...shuffle(buckets.other),
   ];
 
   for (const participant of remaining) {
