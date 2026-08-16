@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { Button, buttonVariants } from "@/components/ui/button";
+import { GameCountDown } from "@/features/games/components/GameCountDown";
 import { GameStatusBadge } from "@/features/games/components/GameStatusBadge";
 import { GameTeamsPanel } from "@/features/games/components/GameTeamsPanel";
 import { JoinedPlayersList } from "@/features/games/components/JoinedPlayersList";
@@ -130,7 +131,7 @@ export function UpcomingGameCard({ game }: { game: Game }) {
         )}
       </div>
 
-      <dl className="mt-4 grid gap-4 sm:grid-cols-3">
+      <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <dt className="text-sm text-muted-foreground">Location</dt>
           <dd className="mt-1 font-medium">{game.location}</dd>
@@ -143,6 +144,7 @@ export function UpcomingGameCard({ game }: { game: Game }) {
           <dt className="text-sm text-muted-foreground">Duration</dt>
           <dd className="mt-1 font-medium">{game.matchDurationMinutes} minutes</dd>
         </div>
+        <GameCountDown game={game} />
       </dl>
 
       {actionError && <p className="error-text mt-3">{actionError}</p>}

@@ -184,6 +184,20 @@ export function formatGameTime(startTime: string) {
   return formatBangladeshClock(hours, minutes);
 }
 
+export function formatRemainingToKickoff(
+  game: Pick<Game, "date" | "startTime">,
+  now = new Date(),
+) {
+  const remainingMs = Math.max(0, getGameStartAt(game).getTime() - now.getTime());
+  const totalSeconds = Math.floor(remainingMs / 1000);
+  const days = Math.floor(totalSeconds / 86_400);
+  const hours = Math.floor((totalSeconds % 86_400) / 3_600);
+  const minutes = Math.floor((totalSeconds % 3_600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${days}d-${hours}h-${minutes}min-${seconds}s`;
+}
+
 export function getGameDisplayTitle(game: Game) {
   if (game.title?.trim()) {
     return game.title.trim();

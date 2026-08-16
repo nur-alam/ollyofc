@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { Button, buttonVariants } from "@/components/ui/button";
+import { GameCountDown } from "@/features/games/components/GameCountDown";
 import { GameStatusBadge } from "@/features/games/components/GameStatusBadge";
 import { GameTeamsPanel } from "@/features/games/components/GameTeamsPanel";
 import { JoinedPlayersList } from "@/features/games/components/JoinedPlayersList";
@@ -171,13 +172,14 @@ export function GameDetailPage() {
         </p>
       </div>
 
-      <dl className="grid gap-4 rounded-xl border bg-background p-5 shadow-sm sm:grid-cols-2">
+      <dl className="grid gap-4 rounded-xl border bg-background p-5 shadow-sm sm:grid-cols-2 lg:grid-cols-3">
         <DetailItem label="Location" value={game.location} />
         <DetailItem label="Kick-off" value={formatGameTime(game.startTime)} />
         <DetailItem
           label="Duration"
           value={`${game.matchDurationMinutes} minutes`}
         />
+        {upcoming ? <GameCountDown game={game} /> : null}
         <DetailItem
           label="Players joined"
           value={
