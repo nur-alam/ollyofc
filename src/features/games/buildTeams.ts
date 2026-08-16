@@ -153,10 +153,10 @@ export function formatPositionBreakdown(breakdown: TeamPositionBreakdown) {
 
 export function sortTeamPlayers(participants: GameParticipant[]) {
   const order: Record<string, number> = {
-    goalkeeper: 0,
-    defender: 1,
-    midfielder: 2,
-    forward: 3,
+    forward: 0,
+    midfielder: 1,
+    defender: 2,
+    goalkeeper: 3,
   };
 
   return [...participants].sort((left, right) => {

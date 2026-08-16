@@ -148,6 +148,15 @@ export function UpcomingGameCard({ game }: { game: Game }) {
       {actionError && <p className="error-text mt-3">{actionError}</p>}
 
       <div className="mt-4 border-t pt-4">
+        <GameTeamsPanel
+          game={game}
+          participants={participants}
+          canEdit={isStaff}
+          generatedBy={profile?.id}
+        />
+      </div>
+
+      <div className="mt-4 border-t pt-4">
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-sm font-medium">
             Joined players ({participants.length})
@@ -170,15 +179,6 @@ export function UpcomingGameCard({ game }: { game: Game }) {
         ) : (
           <p className="mt-2 text-sm text-muted-foreground">No one has joined yet.</p>
         )}
-      </div>
-
-      <div className="mt-4 border-t pt-4">
-        <GameTeamsPanel
-          game={game}
-          participants={participants}
-          canEdit={isStaff}
-          generatedBy={profile?.id}
-        />
       </div>
 
       {isStaff && (

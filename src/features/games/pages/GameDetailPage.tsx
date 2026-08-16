@@ -233,6 +233,17 @@ export function GameDetailPage() {
         </section>
       )}
 
+      {upcoming && (
+        <section className="rounded-xl border bg-background p-5 shadow-sm">
+          <GameTeamsPanel
+            game={game}
+            participants={participants}
+            canEdit={isStaff}
+              generatedBy={profile?.id}
+            />
+        </section>
+      )}
+
       <section className="rounded-xl border bg-background p-5 shadow-sm">
         <h2 className="text-lg font-semibold">Joined players</h2>
         {participants.length ? (
@@ -247,15 +258,6 @@ export function GameDetailPage() {
             No one has joined yet.
           </p>
         )}
-      </section>
-
-      <section className="rounded-xl border bg-background p-5 shadow-sm">
-        <GameTeamsPanel
-          game={game}
-          participants={participants}
-          canEdit={isStaff && upcoming}
-          generatedBy={profile?.id}
-        />
       </section>
 
       {happened && (
