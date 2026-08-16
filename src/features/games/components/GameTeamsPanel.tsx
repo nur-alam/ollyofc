@@ -169,6 +169,9 @@ export function GameTeamsPanel({
   const [canceling, setCanceling] = useState(false);
   const [movingId, setMovingId] = useState("");
   const [actionError, setActionError] = useState("");
+  const [confirmAction, setConfirmAction] = useState<
+    "build" | "rebuild" | "cancel" | null
+  >(null);
   const persistedBuildKey = useRef("");
 
   const resolvedParticipants = useMemo(
@@ -259,6 +262,7 @@ export function GameTeamsPanel({
       return;
     }
 
+    setConfirmAction(null);
     setActionError("");
     persistedBuildKey.current = "";
 
@@ -284,6 +288,7 @@ export function GameTeamsPanel({
   };
 
   const handleCancel = async () => {
+    setConfirmAction(null);
     setCanceling(true);
     setActionError("");
 
@@ -295,6 +300,35 @@ export function GameTeamsPanel({
       setCanceling(false);
     }
   };
+
+  const confirmCopy = confirmAction
+    ? {
+        build: {
+          title: "Build teams",
+          description:
+            "Deal the joined players into two teams? Everyone watching will see the countdown and assignments.",
+          confirmLabel: "Build teams",
+          variant: "default" as const,
+          onConfirm: () => void startBuild(),
+        },
+        rebuild: {
+          title: "Rebuild teams",
+          description:
+            "Shuffle again and replace the current assignments? Custom team names will be kept.",
+          confirmLabel: "Rebuild teams",
+          variant: "default" as const,
+          onConfirm: () => void startBuild(),
+        },
+        cancel: {
+          title: "Cancel teams",
+          description:
+            "Clear both teams and all player assignments? This cannot be undone.",
+          confirmLabel: "Cancel teams",
+          variant: "destructive" as const,
+          onConfirm: () => void handleCancel(),
+        },
+      }[confirmAction]
+    : null;
 
   const handleRename = async (teamId: GameTeamId, name: string) => {
     setActionError("");
@@ -361,7 +395,7 @@ export function GameTeamsPanel({
                     variant="outline"
                     size="sm"
                     disabled={saving || canceling}
-                    onClick={() => void handleCancel()}
+                    onClick={() => setConfirmAction("cancel")}
                   >
                     {canceling ? "Canceling..." : "Cancel teams"}
                   </Button>
@@ -375,7 +409,9 @@ export function GameTeamsPanel({
                     canceling ||
                     resolvedParticipants.length < MIN_PLAYERS_TO_BUILD
                   }
-                  onClick={() => void startBuild()}
+                  onClick={() =>
+                    setConfirmAction(teamsReady ? "rebuild" : "build")
+                  }
                 >
                   {teamsReady ? "Rebuild teams" : "Build teams"}
                 </Button>
@@ -564,6 +600,41 @@ export function GameTeamsPanel({
             </div>
           )}
         </>
+      )}
+
+      {confirmCopy && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setConfirmAction(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="w-full max-w-md rounded-xl border bg-background p-6 shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 className="text-lg font-semibold">{confirmCopy.title}</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {confirmCopy.description}
+            </p>
+            <div className="mt-6 flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setConfirmAction(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant={confirmCopy.variant}
+                onClick={confirmCopy.onConfirm}
+              >
+                {confirmCopy.confirmLabel}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
