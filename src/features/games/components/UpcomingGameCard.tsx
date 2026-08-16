@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { GameStatusBadge } from "@/features/games/components/GameStatusBadge";
+import { GameTeamsPanel } from "@/features/games/components/GameTeamsPanel";
 import { JoinedPlayersList } from "@/features/games/components/JoinedPlayersList";
 import { JoinUsersDialog } from "@/features/games/components/JoinUsersDialog";
 import { useParticipants, useCanPlayerLeave } from "@/features/games/game.hooks";
@@ -169,6 +170,15 @@ export function UpcomingGameCard({ game }: { game: Game }) {
         ) : (
           <p className="mt-2 text-sm text-muted-foreground">No one has joined yet.</p>
         )}
+      </div>
+
+      <div className="mt-4 border-t pt-4">
+        <GameTeamsPanel
+          game={game}
+          participants={participants}
+          canEdit={isStaff}
+          generatedBy={profile?.id}
+        />
       </div>
 
       {isStaff && (

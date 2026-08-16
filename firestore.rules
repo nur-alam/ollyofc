@@ -65,6 +65,8 @@ service cloud.firestore {
           isStaff() || request.auth.uid == participantId
         );
 
+        allow update: if isStaff();
+
         allow delete: if isSignedIn() && (
           isStaff() || request.auth.uid == participantId
         );

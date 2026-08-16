@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { GameStatusBadge } from "@/features/games/components/GameStatusBadge";
+import { GameTeamsPanel } from "@/features/games/components/GameTeamsPanel";
 import { JoinedPlayersList } from "@/features/games/components/JoinedPlayersList";
 import { JoinUsersDialog } from "@/features/games/components/JoinUsersDialog";
 import { useGame, useParticipants, useCanPlayerLeave } from "@/features/games/game.hooks";
@@ -151,7 +152,7 @@ export function GameDetailPage() {
   const badge = getGameListBadge(game);
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
       <div>
         <Link
           to="/games"
@@ -246,6 +247,15 @@ export function GameDetailPage() {
             No one has joined yet.
           </p>
         )}
+      </section>
+
+      <section className="rounded-xl border bg-background p-5 shadow-sm">
+        <GameTeamsPanel
+          game={game}
+          participants={participants}
+          canEdit={isStaff && upcoming}
+          generatedBy={profile?.id}
+        />
       </section>
 
       {happened && (
