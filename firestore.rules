@@ -1,9 +1,74 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isAdmin() {
+      return isSignedIn() && userDoc().data.role == 'admin';
+    }
+
+    function isStaff() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && userDoc().data.role in ['admin', 'moderator'];
+    }
+
+    function isStaffUserFieldsUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['position', 'isActive', 'updatedAt']);
+    }
+
     match /users/{userId} {
+      // Public squad list: guests can list every user document.
+      allow get, list: if true;
+
+      allow create: if isAdmin() || (
+        isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.role == 'user'
+        && request.resource.data.email is string
+        && request.resource.data.displayName is string
+        && request.resource.data.isActive == true
+        && request.resource.data.position is string
+      );
+
+      allow update: if isAdmin() || (
+        isStaff() && isStaffUserFieldsUpdate()
+      ) || (
+        isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.email is string
+        && request.resource.data.displayName is string
+        && request.resource.data.position is string
+        && request.resource.data.isActive is bool
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    match /games/{gameId} {
       allow read: if true;
-      allow create, update: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if isSignedIn();
+      allow delete: if isAdmin();
+
+      match /participants/{participantId} {
+        allow read: if true;
+
+        allow create: if isSignedIn() && (
+          isStaff() || request.auth.uid == participantId
+        );
+
+        allow delete: if isSignedIn() && (
+          isStaff() || request.auth.uid == participantId
+        );
+      }
     }
   }
 }
