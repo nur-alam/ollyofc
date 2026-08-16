@@ -22,7 +22,7 @@ import { getErrorMessage } from "@/lib/errors";
 import { bangladeshDateTimeToUtc } from "@/lib/timezone";
 import { parsePosition } from "@/types/player";
 import type { Game, GameInput, GameParticipant, GameStatus } from "@/types/game";
-import { canPlayerLeaveGame } from "@/types/game";
+import { canPlayerLeaveGame, GAME_LOCATIONS } from "@/types/game";
 import type { UserProfile } from "@/types/user";
 
 function parseStatus(value: unknown): GameStatus {
@@ -58,7 +58,7 @@ export function mapGame(id: string, data: DocumentData): Game {
     title: typeof data.title === "string" && data.title.trim() ? data.title : undefined,
     date: parseDate(data.date),
     startTime: typeof data.startTime === "string" ? data.startTime : "18:00",
-    location: typeof data.location === "string" ? data.location : "Office Field",
+    location: typeof data.location === "string" ? data.location : GAME_LOCATIONS[0],
     status: parseStatus(data.status),
     maxPlayers,
     matchDurationMinutes:

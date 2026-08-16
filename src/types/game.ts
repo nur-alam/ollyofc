@@ -50,6 +50,18 @@ export type GameInput = {
   notes?: string;
 };
 
+export const GAME_LOCATIONS = [
+  "Metroplex Sporting Complex",
+  "Kickoff Football Ground",
+  "Bashundhara Kings Arena",
+] as const;
+
+export function isGameLocation(
+  location: string,
+): location is (typeof GAME_LOCATIONS)[number] {
+  return (GAME_LOCATIONS as readonly string[]).includes(location);
+}
+
 export const GAME_STATUSES: GameStatus[] = [
   "draft",
   "upcoming",

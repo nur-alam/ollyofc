@@ -5,8 +5,23 @@ import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { bangladeshTomorrowYmd } from "@/lib/timezone";
-import { gameToInput, type Game, type GameInput } from "@/types/game";
+import {
+  GAME_LOCATIONS,
+  gameToInput,
+  isGameLocation,
+  type Game,
+  type GameInput,
+} from "@/types/game";
+
+const CUSTOM_LOCATION_VALUE = "Custom";
 
 type GameFormDialogProps = {
   open: boolean;
@@ -35,6 +50,7 @@ export function GameFormDialog({
   onSubmit,
 }: GameFormDialogProps) {
   const [form, setForm] = useState<GameInput>(emptyForm);
+  const [customLocation, setCustomLocation] = useState(false);
   const isEditing = Boolean(game);
 
   useEffect(() => {
@@ -42,7 +58,12 @@ export function GameFormDialog({
       return;
     }
 
-    setForm(game ? gameToInput(game) : { ...emptyForm, date: bangladeshTomorrowYmd() });
+    const nextForm = game
+      ? gameToInput(game)
+      : { ...emptyForm, date: bangladeshTomorrowYmd() };
+
+    setForm(nextForm);
+    setCustomLocation(Boolean(nextForm.location && !isGameLocation(nextForm.location)));
   }, [open, game]);
 
   if (!open) {
@@ -140,15 +161,59 @@ export function GameFormDialog({
 
           <div className="grid gap-2">
             <Label htmlFor="game-location">Location</Label>
-            <Input
-              id="game-location"
-              value={form.location}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, location: event.target.value }))
+            <Select
+              value={
+                isGameLocation(form.location)
+                  ? form.location
+                  : customLocation
+                    ? CUSTOM_LOCATION_VALUE
+                    : undefined
               }
-              placeholder="Office Field"
-              required
-            />
+              onValueChange={(value) => {
+                if (!value) {
+                  return;
+                }
+
+                if (value === CUSTOM_LOCATION_VALUE) {
+                  setCustomLocation(true);
+                  setForm((current) => ({
+                    ...current,
+                    location: isGameLocation(current.location)
+                      ? ""
+                      : current.location,
+                  }));
+                  return;
+                }
+
+                setCustomLocation(false);
+                setForm((current) => ({ ...current, location: value }));
+              }}
+            >
+              <SelectTrigger id="game-location" className="w-full">
+                <SelectValue placeholder="Select a location" />
+              </SelectTrigger>
+              <SelectContent>
+                {GAME_LOCATIONS.map((location) => (
+                  <SelectItem key={location} value={location}>
+                    {location}
+                  </SelectItem>
+                ))}
+                <SelectItem value={CUSTOM_LOCATION_VALUE}>Other</SelectItem>
+              </SelectContent>
+            </Select>
+            {customLocation && (
+              <Input
+                value={form.location}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    location: event.target.value,
+                  }))
+                }
+                placeholder="Type a location"
+                required
+              />
+            )}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
