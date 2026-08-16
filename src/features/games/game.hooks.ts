@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { subscribeToGame, subscribeToGames, subscribeToParticipants } from "@/features/games/game.service";
 import type { Game, GameParticipant } from "@/types/game";
-import { isUpcomingGame, sortGames } from "@/types/game";
+import { canPlayerLeaveGame, isUpcomingGame, sortGames } from "@/types/game";
 
 export function useGames() {
   const [games, setGames] = useState<Game[]>([]);
@@ -107,4 +107,15 @@ export function useParticipants(gameId: string | undefined) {
   }, [gameId]);
 
   return { participants, loading, errorMessage };
+}
+
+export function useCanPlayerLeave(game: Game | null | undefined) {
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 10_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  return Boolean(game && canPlayerLeaveGame(game, now));
 }

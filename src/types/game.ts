@@ -95,6 +95,16 @@ export function isUpcomingGame(game: Game, now = new Date()) {
   return !hasGameHappened(game, now) && game.status !== "cancelled";
 }
 
+const SELF_LEAVE_LOCKOUT_MS = 60 * 60 * 1000;
+
+export function canPlayerLeaveGame(game: Game, now = new Date()) {
+  if (!isUpcomingGame(game, now)) {
+    return false;
+  }
+
+  return getGameStartAt(game).getTime() - now.getTime() > SELF_LEAVE_LOCKOUT_MS;
+}
+
 export function getGameListBadge(game: Game): GameStatus {
   if (game.status === "cancelled") {
     return "cancelled";

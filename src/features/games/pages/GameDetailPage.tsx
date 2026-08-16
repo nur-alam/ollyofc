@@ -5,7 +5,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { GameStatusBadge } from "@/features/games/components/GameStatusBadge";
 import { JoinedPlayersList } from "@/features/games/components/JoinedPlayersList";
 import { JoinUsersDialog } from "@/features/games/components/JoinUsersDialog";
-import { useGame, useParticipants } from "@/features/games/game.hooks";
+import { useGame, useParticipants, useCanPlayerLeave } from "@/features/games/game.hooks";
 import {
   getErrorMessage,
   joinGame,
@@ -53,6 +53,7 @@ export function GameDetailPage() {
   const atCapacity = Boolean(
     game?.maxPlayers && participants.length >= game.maxPlayers,
   );
+  const canLeave = useCanPlayerLeave(game);
 
   const handleJoinSelf = async () => {
     if (!gameId || !profile) {
@@ -72,7 +73,7 @@ export function GameDetailPage() {
   };
 
   const handleLeaveSelf = async () => {
-    if (!gameId || !profile) {
+    if (!gameId || !profile || !canLeave) {
       return;
     }
 
@@ -114,7 +115,7 @@ export function GameDetailPage() {
     setActionError("");
 
     try {
-      await leaveGame(gameId, userId);
+      await leaveGame(gameId, userId, { bypassLeaveLock: true });
     } catch (error) {
       setActionError(getErrorMessage(error, "Could not remove this player."));
     } finally {
@@ -206,18 +207,20 @@ export function GameDetailPage() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              {profile && alreadyJoined ? (
-                <Button variant="outline" disabled={saving} onClick={handleLeaveSelf}>
-                  {saving ? "Leaving..." : "Leave game"}
-                </Button>
-              ) : profile ? (
-                <Button disabled={saving || atCapacity} onClick={handleJoinSelf}>
-                  {saving ? "Joining..." : atCapacity ? "Game full" : "Join game"}
-                </Button>
-              ) : (
+              {!profile ? (
                 <Link to="/login" className={cn(buttonVariants(), "no-underline")}>
                   Sign in to join
                 </Link>
+              ) : alreadyJoined ? (
+                canLeave ? (
+                  <Button variant="outline" disabled={saving} onClick={handleLeaveSelf}>
+                    {saving ? "Leaving..." : "Leave game"}
+                  </Button>
+                ) : null
+              ) : (
+                <Button disabled={saving || atCapacity} onClick={handleJoinSelf}>
+                  {saving ? "Joining..." : atCapacity ? "Game full" : "Join game"}
+                </Button>
               )}
               {isStaff && (
                 <Button variant="outline" onClick={() => setAddOpen(true)}>

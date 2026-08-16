@@ -5,7 +5,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { GameStatusBadge } from "@/features/games/components/GameStatusBadge";
 import { JoinedPlayersList } from "@/features/games/components/JoinedPlayersList";
 import { JoinUsersDialog } from "@/features/games/components/JoinUsersDialog";
-import { useParticipants } from "@/features/games/game.hooks";
+import { useParticipants, useCanPlayerLeave } from "@/features/games/game.hooks";
 import { getErrorMessage, joinGame, leaveGame } from "@/features/games/game.service";
 import { useAuthStore } from "@/features/auth/auth.store";
 import { cn } from "@/lib/utils";
@@ -31,6 +31,7 @@ export function UpcomingGameCard({ game }: { game: Game }) {
     profile && participants.some((participant) => participant.userId === profile.id),
   );
   const atCapacity = Boolean(game.maxPlayers && participants.length >= game.maxPlayers);
+  const canLeave = useCanPlayerLeave(game);
 
   const handleJoin = async () => {
     if (!profile) {
@@ -50,7 +51,7 @@ export function UpcomingGameCard({ game }: { game: Game }) {
   };
 
   const handleLeave = async () => {
-    if (!profile) {
+    if (!profile || !canLeave) {
       return;
     }
 
@@ -88,7 +89,7 @@ export function UpcomingGameCard({ game }: { game: Game }) {
     setActionError("");
 
     try {
-      await leaveGame(game.id, userId);
+      await leaveGame(game.id, userId, { bypassLeaveLock: true });
     } catch (error) {
       setActionError(getErrorMessage(error, "Could not remove this player."));
     } finally {
@@ -107,15 +108,7 @@ export function UpcomingGameCard({ game }: { game: Game }) {
           <p className="mt-1 text-sm text-muted-foreground">{formatGameDate(game)}</p>
         </div>
 
-        {profile && alreadyJoined ? (
-          <Button variant="outline" disabled={saving} onClick={handleLeave}>
-            {saving ? "Leaving..." : "Leave"}
-          </Button>
-        ) : profile ? (
-          <Button disabled={saving || atCapacity} onClick={handleJoin}>
-            {saving ? "Joining..." : atCapacity ? "Game full" : "Join"}
-          </Button>
-        ) : (
+        {!profile ? (
           <Link
             to="/login"
             state={{ from: "/" }}
@@ -123,6 +116,16 @@ export function UpcomingGameCard({ game }: { game: Game }) {
           >
             Sign in to join
           </Link>
+        ) : alreadyJoined ? (
+          canLeave ? (
+            <Button variant="outline" disabled={saving} onClick={handleLeave}>
+              {saving ? "Leaving..." : "Leave"}
+            </Button>
+          ) : null
+        ) : (
+          <Button disabled={saving || atCapacity} onClick={handleJoin}>
+            {saving ? "Joining..." : atCapacity ? "Game full" : "Join"}
+          </Button>
         )}
       </div>
 

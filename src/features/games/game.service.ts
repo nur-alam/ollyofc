@@ -22,6 +22,7 @@ import { getErrorMessage } from "@/lib/errors";
 import { bangladeshDateTimeToUtc } from "@/lib/timezone";
 import { parsePosition } from "@/types/player";
 import type { Game, GameInput, GameParticipant, GameStatus } from "@/types/game";
+import { canPlayerLeaveGame } from "@/types/game";
 import type { UserProfile } from "@/types/user";
 
 function parseStatus(value: unknown): GameStatus {
@@ -211,7 +212,19 @@ export async function joinGame(
   });
 }
 
-export async function leaveGame(gameId: string, userId: string): Promise<void> {
+export async function leaveGame(
+  gameId: string,
+  userId: string,
+  options?: { bypassLeaveLock?: boolean },
+): Promise<void> {
+  if (!options?.bypassLeaveLock) {
+    const game = await getGameById(gameId);
+
+    if (game && !canPlayerLeaveGame(game)) {
+      throw new Error("Could not leave this game.");
+    }
+  }
+
   await deleteDoc(doc(db, "games", gameId, "participants", userId));
 }
 
