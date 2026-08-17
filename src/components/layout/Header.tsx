@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuthStore } from "@/features/auth/auth.store";
 import { cn } from "@/lib/utils";
+import { isStaffRole } from "@/types/user";
 
 function getUserInitials(name: string) {
   return name.charAt(0).toUpperCase();
@@ -44,6 +45,7 @@ export function Header() {
   const navigate = useNavigate();
   const { firebaseUser, profile, loading, signInWithGoogle, logout } =
     useAuthStore();
+  const isStaff = profile ? isStaffRole(profile.role) : false;
 
   const displayName =
     profile?.displayName ||
@@ -92,10 +94,12 @@ export function Header() {
                   <UserIcon />
                   Profile
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("/dashboard")}>
-                  <LayoutDashboardIcon />
-                  Dashboard
-                </DropdownMenuItem>
+                {isStaff && (
+                  <DropdownMenuItem onClick={() => navigate("/dashboard")}>
+                    <LayoutDashboardIcon />
+                    Dashboard
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => logout()}>

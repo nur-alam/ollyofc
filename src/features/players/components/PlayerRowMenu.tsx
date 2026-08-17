@@ -1,5 +1,10 @@
 import { useState } from "react";
-import { MoreHorizontalIcon, PencilIcon, Trash2Icon } from "lucide-react";
+import {
+  MoreHorizontalIcon,
+  PencilIcon,
+  ShieldUserIcon,
+  Trash2Icon,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -12,15 +17,19 @@ import type { UserProfile } from "@/types/user";
 type PlayerRowMenuProps = {
   user: UserProfile;
   canDelete: boolean;
+  canAssignRole: boolean;
   onEdit: (user: UserProfile) => void;
   onDelete: (user: UserProfile) => void;
+  onAssignRole: (user: UserProfile) => void;
 };
 
 export function PlayerRowMenu({
   user,
   canDelete,
+  canAssignRole,
   onEdit,
   onDelete,
+  onAssignRole,
 }: PlayerRowMenuProps) {
   const [open, setOpen] = useState(false);
 
@@ -38,7 +47,7 @@ export function PlayerRowMenu({
       >
         <MoreHorizontalIcon />
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-40 gap-1 p-1">
+      <PopoverContent align="end" className="w-44 gap-1 p-1">
         <button
           type="button"
           className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted"
@@ -50,6 +59,19 @@ export function PlayerRowMenu({
           <PencilIcon className="size-4" />
           Edit
         </button>
+        {canAssignRole && (
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted"
+            onClick={() => {
+              setOpen(false);
+              onAssignRole(user);
+            }}
+          >
+            <ShieldUserIcon className="size-4" />
+            Assign role
+          </button>
+        )}
         {canDelete && (
           <button
             type="button"

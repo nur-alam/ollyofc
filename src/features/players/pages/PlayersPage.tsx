@@ -26,12 +26,13 @@ import {
   createUserProfile,
   deleteUserProfile,
   updateUserProfile,
+  updateUserRole,
   type UserCreateInput,
   type UserUpdateInput,
 } from "@/features/auth/auth.service";
 import { useAuthStore } from "@/features/auth/auth.store";
 import { isStaffRole } from "@/types/user";
-import type { UserProfile } from "@/types/user";
+import type { UserProfile, UserRole } from "@/types/user";
 import type { PlayerFilterState } from "@/types/player";
 import {
   PLAYER_POSITIONS,
@@ -39,6 +40,7 @@ import {
   formatPosition,
 } from "@/types/player";
 import { AddPlayerFormDialog } from "@/features/players/components/AddPlayerFormDialog";
+import { AssignRoleDialog } from "@/features/players/components/AssignRoleDialog";
 import { PlayerFormDialog } from "@/features/players/components/PlayerFormDialog";
 import { PlayerRowMenu } from "@/features/players/components/PlayerRowMenu";
 // import { SeedTestPlayers } from "@/features/players/components/SeedTestPlayers";
@@ -61,6 +63,7 @@ export function PlayersPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserProfile | undefined>();
   const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null);
+  const [roleUser, setRoleUser] = useState<UserProfile | undefined>();
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [actionError, setActionError] = useState("");
@@ -83,6 +86,31 @@ export function PlayersPage() {
   const closeEditDialog = () => {
     setEditOpen(false);
     setSelectedUser(undefined);
+  };
+
+  const closeRoleDialog = () => {
+    setRoleUser(undefined);
+  };
+
+  const handleAssignRole = async (role: UserRole) => {
+    if (!roleUser) {
+      return;
+    }
+
+    setSaving(true);
+    setActionError("");
+
+    try {
+      await updateUserRole(roleUser.id, role);
+      closeRoleDialog();
+      toast.success("Role updated");
+    } catch (error) {
+      const message = getErrorMessage(error, "Could not update this role.");
+      setActionError(message);
+      toast.error(message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleCreatePlayer = async (input: UserCreateInput) => {
@@ -304,8 +332,13 @@ export function PlayersPage() {
                       <PlayerRowMenu
                         user={user}
                         canDelete={isAdmin && user.id !== profile?.id}
+                        canAssignRole={isAdmin && user.id !== profile?.id}
                         onEdit={openEditDialog}
                         onDelete={setUserToDelete}
+                        onAssignRole={(nextUser) => {
+                          setActionError("");
+                          setRoleUser(nextUser);
+                        }}
                       />
                     </TableCell>
                   )}
@@ -338,6 +371,15 @@ export function PlayersPage() {
         errorMessage={actionError}
         onClose={closeEditDialog}
         onSubmit={handleUpdatePlayer}
+      />
+
+      <AssignRoleDialog
+        open={Boolean(roleUser)}
+        user={roleUser}
+        saving={saving}
+        errorMessage={actionError}
+        onClose={closeRoleDialog}
+        onSubmit={handleAssignRole}
       />
 
       {userToDelete && (

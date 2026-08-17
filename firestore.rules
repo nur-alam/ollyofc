@@ -44,7 +44,10 @@ service cloud.firestore {
         isStaff() && isStaffUserCreate()
       );
 
-      allow update: if isAdmin() || (
+      allow update: if (
+        isAdmin()
+        && (request.auth.uid != userId || request.resource.data.role == resource.data.role)
+      ) || (
         isStaff() && isStaffUserFieldsUpdate()
       ) || (
         isSignedIn()

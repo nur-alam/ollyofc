@@ -153,6 +153,16 @@ export async function updateUserProfile(
   });
 }
 
+export async function updateUserRole(
+  userId: string,
+  role: UserRole,
+): Promise<void> {
+  await updateDoc(doc(db, "users", userId), {
+    role,
+    updatedAt: serverTimestamp(),
+  });
+}
+
 export async function deleteUserProfile(userId: string): Promise<void> {
   await deleteDoc(doc(db, "users", userId));
 }
