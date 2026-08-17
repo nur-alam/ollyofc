@@ -13,7 +13,7 @@ type RoleGuardProps = {
 export function RoleGuard({
   allowedRoles,
   children,
-  redirectTo = "/dashboard",
+  redirectTo = "/",
 }: RoleGuardProps) {
   const { profile, loading } = useAuthStore();
 
