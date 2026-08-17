@@ -24,8 +24,10 @@ import { bangladeshDateTimeToUtc } from "@/lib/timezone";
 import { parsePosition } from "@/types/player";
 import type {
   Game,
+  GameGoal,
   GameInput,
   GameParticipant,
+  GameResult,
   GameStatus,
   GameTeamBuild,
   GameTeamId,
@@ -35,6 +37,7 @@ import {
   canPlayerLeaveGame,
   DEFAULT_TEAM_NAMES,
   GAME_LOCATIONS,
+  getResultWinner,
 } from "@/types/game";
 import type { TeamDealStep } from "@/features/games/buildTeams";
 import type { UserProfile } from "@/types/user";
@@ -130,6 +133,95 @@ function mapTeamBuild(value: unknown): GameTeamBuild | undefined {
   };
 }
 
+function mapGoal(value: unknown): GameGoal | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const data = value as DocumentData;
+  const teamId = mapTeamId(data.teamId);
+
+  if (
+    typeof data.id !== "string" ||
+    !teamId ||
+    typeof data.scorerId !== "string" ||
+    typeof data.scorerName !== "string"
+  ) {
+    return null;
+  }
+
+  return {
+    id: data.id,
+    teamId,
+    scorerId: data.scorerId,
+    scorerName: data.scorerName,
+    createdBy: typeof data.createdBy === "string" ? data.createdBy : "",
+    createdAtMs:
+      typeof data.createdAtMs === "number" && Number.isFinite(data.createdAtMs)
+        ? data.createdAtMs
+        : 0,
+  };
+}
+
+function mapResult(value: unknown): GameResult | undefined {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  const data = value as DocumentData;
+  const goals = Array.isArray(data.goals)
+    ? data.goals.flatMap((item) => {
+        const goal = mapGoal(item);
+        return goal ? [goal] : [];
+      })
+    : [];
+  const scoreA =
+    typeof data.a === "number" && Number.isFinite(data.a)
+      ? data.a
+      : goals.filter((goal) => goal.teamId === "a").length;
+  const scoreB =
+    typeof data.b === "number" && Number.isFinite(data.b)
+      ? data.b
+      : goals.filter((goal) => goal.teamId === "b").length;
+  const winner =
+    data.winner === "a" || data.winner === "b" || data.winner === "draw"
+      ? data.winner
+      : getResultWinner(scoreA, scoreB);
+
+  return {
+    a: scoreA,
+    b: scoreB,
+    winner,
+    goals,
+    updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : undefined,
+    updatedAtMs:
+      typeof data.updatedAtMs === "number" && Number.isFinite(data.updatedAtMs)
+        ? data.updatedAtMs
+        : data.updatedAt instanceof Timestamp
+          ? data.updatedAt.toMillis()
+          : 0,
+    updatedBy: typeof data.updatedBy === "string" ? data.updatedBy : "",
+  };
+}
+
+function createGoalId() {
+  return globalThis.crypto?.randomUUID?.() ?? `goal-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function buildResult(goals: GameGoal[], updatedBy: string): Omit<GameResult, "updatedAt"> {
+  const a = goals.filter((goal) => goal.teamId === "a").length;
+  const b = goals.filter((goal) => goal.teamId === "b").length;
+
+  return {
+    a,
+    b,
+    winner: getResultWinner(a, b),
+    goals,
+    updatedAtMs: Date.now(),
+    updatedBy,
+  };
+}
+
 export function mapGame(id: string, data: DocumentData): Game {
   const maxPlayers =
     typeof data.maxPlayers === "number" && data.maxPlayers > 0
@@ -150,6 +242,7 @@ export function mapGame(id: string, data: DocumentData): Game {
     teamCount: 2,
     teams: mapTeams(data.teams),
     teamBuild: mapTeamBuild(data.teamBuild),
+    result: mapResult(data.result),
     createdBy: typeof data.createdBy === "string" ? data.createdBy : "",
     createdAt: data.createdAt,
     updatedAt: data.updatedAt,
@@ -402,6 +495,101 @@ export async function clearGameTeams(gameId: string): Promise<void> {
   });
 
   await batch.commit();
+}
+
+export async function startGame(gameId: string, updatedBy: string): Promise<void> {
+  const game = await getGameById(gameId);
+  const result = game?.result ?? buildResult([], updatedBy);
+
+  await updateDoc(doc(db, "games", gameId), {
+    status: "active",
+    result: {
+      ...result,
+      updatedAt: serverTimestamp(),
+      updatedAtMs: Date.now(),
+      updatedBy,
+    },
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function finishGame(gameId: string, updatedBy: string): Promise<void> {
+  const game = await getGameById(gameId);
+  const result = game?.result ?? buildResult([], updatedBy);
+
+  await updateDoc(doc(db, "games", gameId), {
+    status: "completed",
+    result: {
+      ...result,
+      updatedAt: serverTimestamp(),
+      updatedAtMs: Date.now(),
+      updatedBy,
+    },
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function addGameGoal(
+  gameId: string,
+  input: {
+    teamId: GameTeamId;
+    scorerId: string;
+    scorerName: string;
+    createdBy: string;
+  },
+): Promise<void> {
+  const game = await getGameById(gameId);
+
+  if (!game) {
+    throw new Error("This game could not be found.");
+  }
+
+  const goals = [
+    ...(game.result?.goals ?? []),
+    {
+      id: createGoalId(),
+      teamId: input.teamId,
+      scorerId: input.scorerId,
+      scorerName: input.scorerName,
+      createdBy: input.createdBy,
+      createdAtMs: Date.now(),
+    },
+  ];
+  const result = buildResult(goals, input.createdBy);
+
+  await updateDoc(doc(db, "games", gameId), {
+    ...(game.status === "upcoming" ? { status: "active" } : {}),
+    result: {
+      ...result,
+      updatedAt: serverTimestamp(),
+    },
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function removeGameGoal(
+  gameId: string,
+  goalId: string,
+  updatedBy: string,
+): Promise<void> {
+  const game = await getGameById(gameId);
+
+  if (!game) {
+    throw new Error("This game could not be found.");
+  }
+
+  const result = buildResult(
+    (game.result?.goals ?? []).filter((goal) => goal.id !== goalId),
+    updatedBy,
+  );
+
+  await updateDoc(doc(db, "games", gameId), {
+    result: {
+      ...result,
+      updatedAt: serverTimestamp(),
+    },
+    updatedAt: serverTimestamp(),
+  });
 }
 
 export async function deleteGame(gameId: string): Promise<void> {

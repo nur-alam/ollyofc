@@ -19,14 +19,19 @@ import { cn } from "@/lib/utils";
 import { isStaffRole } from "@/types/user";
 import type { Game, GameInput } from "@/types/game";
 import {
+  canShowGameResult,
   formatGameDate,
   formatGameTime,
   getGameDisplayTitle,
   getGameListBadge,
+  getGameScore,
+  getTeamName,
 } from "@/types/game";
 
 function GameRowContent({ game }: { game: Game }) {
   const canOpen = game.status !== "cancelled";
+  const score = getGameScore(game);
+  const showScore = canShowGameResult(game);
 
   return (
     <div className="flex items-center gap-4 p-4">
@@ -38,6 +43,11 @@ function GameRowContent({ game }: { game: Game }) {
         <p className="mt-1 text-sm text-muted-foreground">
           {formatGameDate(game)} · {formatGameTime(game.startTime)} · {game.location}
         </p>
+        {showScore && (
+          <p className="mt-1 text-sm font-medium tabular-nums">
+            {getTeamName(game, "a")} {score.a} – {score.b} {getTeamName(game, "b")}
+          </p>
+        )}
       </div>
       {canOpen && (
         <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />

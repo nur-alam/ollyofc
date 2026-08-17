@@ -3,11 +3,19 @@ import { Link, useParams } from "react-router-dom";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { GameCountDown } from "@/features/games/components/GameCountDown";
+import { GameElapsedTimer } from "@/features/games/components/GameElapsedTimer";
+import { GameResultBoard } from "@/features/games/components/GameResultBoard";
+import { GameResultUpdate } from "@/features/games/components/GameResultUpdate";
 import { GameStatusBadge } from "@/features/games/components/GameStatusBadge";
 import { GameTeamsPanel } from "@/features/games/components/GameTeamsPanel";
 import { JoinedPlayersList } from "@/features/games/components/JoinedPlayersList";
 import { JoinUsersDialog } from "@/features/games/components/JoinUsersDialog";
-import { useGame, useParticipants, useCanPlayerLeave } from "@/features/games/game.hooks";
+import {
+  useGame,
+  useParticipants,
+  useCanPlayerLeave,
+  useNow,
+} from "@/features/games/game.hooks";
 import {
   getErrorMessage,
   joinGame,
@@ -18,11 +26,14 @@ import { cn } from "@/lib/utils";
 import { isStaffRole } from "@/types/user";
 import type { UserProfile } from "@/types/user";
 import {
+  canShowGameResult,
+  canUpdateGameResult,
   formatGameDate,
   formatGameTime,
   getGameDisplayTitle,
   getGameListBadge,
-  hasGameHappened,
+  hasGameTeams,
+  isGameInPlay,
   isUpcomingGame,
 } from "@/types/game";
 
@@ -41,14 +52,16 @@ export function GameDetailPage() {
   const isStaff = profile ? isStaffRole(profile.role) : false;
   const { game, loading, errorMessage } = useGame(gameId);
   const { participants } = useParticipants(gameId);
+  const now = useNow(1000);
 
   const [actionError, setActionError] = useState("");
   const [saving, setSaving] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [savingId, setSavingId] = useState("");
 
-  const happened = game ? hasGameHappened(game) : false;
-  const upcoming = game ? isUpcomingGame(game) : false;
+  const upcoming = game ? isUpcomingGame(game, now) : false;
+  const showResult = game ? canShowGameResult(game, now) : false;
+  const canEditResult = Boolean(isStaff && game && canUpdateGameResult(game, now));
   const alreadyJoined = Boolean(
     profile && participants.some((participant) => participant.userId === profile.id),
   );
@@ -150,7 +163,7 @@ export function GameDetailPage() {
     );
   }
 
-  const badge = getGameListBadge(game);
+  const badge = getGameListBadge(game, now);
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
@@ -166,6 +179,7 @@ export function GameDetailPage() {
             {getGameDisplayTitle(game)}
           </h1>
           <GameStatusBadge status={badge} />
+          {isGameInPlay(game, now) ? <GameElapsedTimer game={game} /> : null}
         </div>
         <p className="mt-1 text-muted-foreground">
           {formatGameDate(game)} · {formatGameTime(game.startTime)}
@@ -180,6 +194,14 @@ export function GameDetailPage() {
           value={`${game.matchDurationMinutes} minutes`}
         />
         {upcoming ? <GameCountDown game={game} /> : null}
+        {isGameInPlay(game, now) ? (
+          <div>
+            <dt className="text-sm text-muted-foreground">Elapsed</dt>
+            <dd className="mt-1">
+              <GameElapsedTimer game={game} />
+            </dd>
+          </div>
+        ) : null}
         <DetailItem
           label="Players joined"
           value={
@@ -235,14 +257,14 @@ export function GameDetailPage() {
         </section>
       )}
 
-      {upcoming && (
+      {(upcoming || hasGameTeams(game)) && (
         <section className="rounded-xl border bg-background p-5 shadow-sm">
           <GameTeamsPanel
             game={game}
             participants={participants}
-            canEdit={isStaff}
-              generatedBy={profile?.id}
-            />
+            canEdit={isStaff && upcoming}
+            generatedBy={profile?.id}
+          />
         </section>
       )}
 
@@ -262,13 +284,22 @@ export function GameDetailPage() {
         )}
       </section>
 
-      {happened && (
+      {showResult && (
         <section className="rounded-xl border bg-background p-5 shadow-sm">
-          <h2 className="text-lg font-semibold">Match details</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Teams, score, and goal events will appear here once live match
-            tracking ships.
-          </p>
+          <h2 className="text-lg font-semibold">
+            {isGameInPlay(game, now) ? "Live result" : "Final result"}
+          </h2>
+          <div className="mt-4">
+            {canEditResult && profile ? (
+              <GameResultUpdate
+                game={game}
+                participants={participants}
+                updatedBy={profile.id}
+              />
+            ) : (
+              <GameResultBoard game={game} />
+            )}
+          </div>
         </section>
       )}
 
