@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { PencilIcon, UserPlusIcon, UserXIcon } from "lucide-react";
+import toast from "react-hot-toast";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -86,8 +87,11 @@ export function PlayersPage() {
     try {
       await createUserProfile(input);
       closeAddDialog();
+      toast.success("Player created");
     } catch (error) {
-      setActionError(getErrorMessage(error, "Could not add this player."));
+      const message = getErrorMessage(error, "Could not add this player.");
+      setActionError(message);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
