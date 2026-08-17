@@ -1,0 +1,25 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid));
+    }
+
+    function isStaff() {
+      return isSignedIn() && userDoc().data.role in ['admin', 'moderator'];
+    }
+
+    match /profile-photos/{userId}/{fileName} {
+      allow read: if true;
+
+      allow write: if isSignedIn()
+        && (request.auth.uid == userId || isStaff())
+        && request.resource.size < 2 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp)');
+    }
+  }
+}
