@@ -110,6 +110,28 @@ export async function ensureUserProfile(user: User): Promise<UserProfile> {
   return existing;
 }
 
+export type UserCreateInput = {
+  displayName: string;
+  email: string;
+  position: PlayerPosition | "";
+};
+
+export async function createUserProfile(input: UserCreateInput): Promise<void> {
+  const userRef = doc(collection(db, "users"));
+
+  await setDoc(userRef, {
+    id: userRef.id,
+    email: input.email.trim().toLowerCase(),
+    displayName: input.displayName.trim(),
+    photoURL: "",
+    role: "user",
+    isActive: true,
+    position: input.position,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
 export async function updateUserDisplayName(
   userId: string,
   displayName: string,

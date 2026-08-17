@@ -12,11 +12,13 @@ import {
 import type { UserProfile } from "@/types/user";
 import type { PlayerPosition } from "@/types/player";
 import { PLAYER_POSITIONS, POSITION_LABELS } from "@/types/player";
+import { XIcon } from "lucide-react";
 
 type PlayerFormDialogProps = {
   open: boolean;
   user?: UserProfile;
   saving: boolean;
+  errorMessage?: string;
   onClose: () => void;
   onSubmit: (position: PlayerPosition | "") => Promise<void>;
 };
@@ -25,6 +27,7 @@ export function PlayerFormDialog({
   open,
   user,
   saving,
+  errorMessage,
   onClose,
   onSubmit,
 }: PlayerFormDialogProps) {
@@ -66,7 +69,7 @@ export function PlayerFormDialog({
             <p className="text-sm text-muted-foreground">{user.displayName}</p>
           </div>
           <Button type="button" variant="ghost" size="sm" onClick={onClose}>
-            Close
+            <XIcon className="h-4 w-4" />
           </Button>
         </div>
 
@@ -97,6 +100,8 @@ export function PlayerFormDialog({
               </SelectContent>
             </Select>
           </div>
+
+          {errorMessage && <p className="error-text">{errorMessage}</p>}
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={onClose}>

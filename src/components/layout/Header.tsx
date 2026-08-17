@@ -1,8 +1,8 @@
 import {
+  LayoutDashboardIcon,
   Loader2Icon,
   LogInIcon,
   LogOutIcon,
-  SettingsIcon,
   UserIcon,
 } from "lucide-react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
@@ -92,9 +92,9 @@ export function Header() {
                   <UserIcon />
                   Profile
                 </DropdownMenuItem>
-                <DropdownMenuItem disabled>
-                  <SettingsIcon />
-                  Settings
+                <DropdownMenuItem onClick={() => navigate("/dashboard")}>
+                  <LayoutDashboardIcon />
+                  Dashboard
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />

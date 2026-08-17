@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { PencilIcon, UserXIcon } from "lucide-react";
+import { PencilIcon, UserPlusIcon, UserXIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,8 +22,10 @@ import {
 import { useSquad } from "@/features/players/player.hooks";
 import { getErrorMessage } from "@/lib/errors";
 import {
+  createUserProfile,
   setUserActive,
   updateUserPosition,
+  type UserCreateInput,
 } from "@/features/auth/auth.service";
 import { useAuthStore } from "@/features/auth/auth.store";
 import { isStaffRole } from "@/types/user";
@@ -34,8 +36,9 @@ import {
   POSITION_LABELS,
   formatPosition,
 } from "@/types/player";
+import { AddPlayerFormDialog } from "@/features/players/components/AddPlayerFormDialog";
 import { PlayerFormDialog } from "@/features/players/components/PlayerFormDialog";
-import { SeedTestPlayers } from "@/features/players/components/SeedTestPlayers";
+// import { SeedTestPlayers } from "@/features/players/components/SeedTestPlayers";
 
 const defaultFilters: PlayerFilterState = {
   search: "",
@@ -48,17 +51,46 @@ export function PlayersPage() {
   const isStaff = profile ? isStaffRole(profile.role) : false;
 
   const [filters, setFilters] = useState<PlayerFilterState>(defaultFilters);
-  const { users, loading, stats, errorMessage } = useSquad(filters);
+  const { users, allUsers, loading, stats, errorMessage } = useSquad(filters);
 
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserProfile | undefined>();
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState("");
 
+  const openAddDialog = () => {
+    setActionError("");
+    setAddOpen(true);
+  };
+
   const openEditDialog = (user: UserProfile) => {
     setActionError("");
     setSelectedUser(user);
-    setDialogOpen(true);
+    setEditOpen(true);
+  };
+
+  const closeAddDialog = () => {
+    setAddOpen(false);
+  };
+
+  const closeEditDialog = () => {
+    setEditOpen(false);
+    setSelectedUser(undefined);
+  };
+
+  const handleCreatePlayer = async (input: UserCreateInput) => {
+    setSaving(true);
+    setActionError("");
+
+    try {
+      await createUserProfile(input);
+      closeAddDialog();
+    } catch (error) {
+      setActionError(getErrorMessage(error, "Could not add this player."));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSavePosition = async (position: PlayerPosition | "") => {
@@ -74,7 +106,7 @@ export function PlayersPage() {
       if (profile?.id === selectedUser.id) {
         setProfile({ ...profile, position });
       }
-      setDialogOpen(false);
+      closeEditDialog();
     } catch (error) {
       setActionError(getErrorMessage(error, "Could not update position."));
     } finally {
@@ -104,7 +136,13 @@ export function PlayersPage() {
             Everyone who signs in is a player
           </p>
         </div>
-        <SeedTestPlayers />
+        {/* <SeedTestPlayers /> */}
+        {isStaff && (
+          <Button size="sm" onClick={openAddDialog}>
+            <UserPlusIcon />
+            Add Player
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -274,11 +312,20 @@ export function PlayersPage() {
         </Table>
       </div>
 
+      <AddPlayerFormDialog
+        open={addOpen}
+        saving={saving}
+        existingUsers={allUsers}
+        errorMessage={actionError}
+        onClose={closeAddDialog}
+        onSubmit={handleCreatePlayer}
+      />
       <PlayerFormDialog
-        open={dialogOpen}
+        open={editOpen}
         user={selectedUser}
         saving={saving}
-        onClose={() => setDialogOpen(false)}
+        errorMessage={actionError}
+        onClose={closeEditDialog}
         onSubmit={handleSavePosition}
       />
     </div>
