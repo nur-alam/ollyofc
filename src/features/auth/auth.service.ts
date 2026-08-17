@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   onSnapshot,
@@ -116,6 +117,13 @@ export type UserCreateInput = {
   position: PlayerPosition | "";
 };
 
+export type UserUpdateInput = {
+  displayName: string;
+  email: string;
+  position: PlayerPosition | "";
+  isActive: boolean;
+};
+
 export async function createUserProfile(input: UserCreateInput): Promise<void> {
   const userRef = doc(collection(db, "users"));
 
@@ -130,6 +138,23 @@ export async function createUserProfile(input: UserCreateInput): Promise<void> {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+}
+
+export async function updateUserProfile(
+  userId: string,
+  input: UserUpdateInput,
+): Promise<void> {
+  await updateDoc(doc(db, "users", userId), {
+    displayName: input.displayName.trim(),
+    email: input.email.trim().toLowerCase(),
+    position: input.position,
+    isActive: input.isActive,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function deleteUserProfile(userId: string): Promise<void> {
+  await deleteDoc(doc(db, "users", userId));
 }
 
 export async function updateUserDisplayName(

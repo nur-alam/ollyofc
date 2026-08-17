@@ -21,7 +21,7 @@ service cloud.firestore {
 
     function isStaffUserFieldsUpdate() {
       return request.resource.data.diff(resource.data).affectedKeys()
-        .hasOnly(['position', 'isActive', 'updatedAt']);
+        .hasOnly(['displayName', 'email', 'position', 'isActive', 'updatedAt']);
     }
 
     function isStaffUserCreate() {

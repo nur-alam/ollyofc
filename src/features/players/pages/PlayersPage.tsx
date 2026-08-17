@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { PencilIcon, UserPlusIcon, UserXIcon } from "lucide-react";
+import { UserPlusIcon } from "lucide-react";
 import toast from "react-hot-toast";
 
 import { Badge } from "@/components/ui/badge";
@@ -24,14 +24,15 @@ import { useSquad } from "@/features/players/player.hooks";
 import { getErrorMessage } from "@/lib/errors";
 import {
   createUserProfile,
-  setUserActive,
-  updateUserPosition,
+  deleteUserProfile,
+  updateUserProfile,
   type UserCreateInput,
+  type UserUpdateInput,
 } from "@/features/auth/auth.service";
 import { useAuthStore } from "@/features/auth/auth.store";
 import { isStaffRole } from "@/types/user";
 import type { UserProfile } from "@/types/user";
-import type { PlayerFilterState, PlayerPosition } from "@/types/player";
+import type { PlayerFilterState } from "@/types/player";
 import {
   PLAYER_POSITIONS,
   POSITION_LABELS,
@@ -39,6 +40,7 @@ import {
 } from "@/types/player";
 import { AddPlayerFormDialog } from "@/features/players/components/AddPlayerFormDialog";
 import { PlayerFormDialog } from "@/features/players/components/PlayerFormDialog";
+import { PlayerRowMenu } from "@/features/players/components/PlayerRowMenu";
 // import { SeedTestPlayers } from "@/features/players/components/SeedTestPlayers";
 
 const defaultFilters: PlayerFilterState = {
@@ -50,6 +52,7 @@ const defaultFilters: PlayerFilterState = {
 export function PlayersPage() {
   const { profile, setProfile } = useAuthStore();
   const isStaff = profile ? isStaffRole(profile.role) : false;
+  const isAdmin = profile?.role === "admin";
 
   const [filters, setFilters] = useState<PlayerFilterState>(defaultFilters);
   const { users, allUsers, loading, stats, errorMessage } = useSquad(filters);
@@ -57,7 +60,9 @@ export function PlayersPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserProfile | undefined>();
+  const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [actionError, setActionError] = useState("");
 
   const openAddDialog = () => {
@@ -97,7 +102,7 @@ export function PlayersPage() {
     }
   };
 
-  const handleSavePosition = async (position: PlayerPosition | "") => {
+  const handleUpdatePlayer = async (input: UserUpdateInput) => {
     if (!selectedUser) {
       return;
     }
@@ -106,28 +111,45 @@ export function PlayersPage() {
     setActionError("");
 
     try {
-      await updateUserPosition(selectedUser.id, position);
+      await updateUserProfile(selectedUser.id, input);
       if (profile?.id === selectedUser.id) {
-        setProfile({ ...profile, position });
+        setProfile({
+          ...profile,
+          displayName: input.displayName,
+          email: input.email,
+          position: input.position,
+          isActive: input.isActive,
+        });
       }
       closeEditDialog();
+      toast.success("Player updated");
     } catch (error) {
-      setActionError(getErrorMessage(error, "Could not update position."));
+      const message = getErrorMessage(error, "Could not update this player.");
+      setActionError(message);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDeactivate = async (user: UserProfile) => {
+  const handleDeletePlayer = async () => {
+    if (!userToDelete) {
+      return;
+    }
+
+    setDeleting(true);
     setActionError("");
 
     try {
-      await setUserActive(user.id, !user.isActive);
-      if (profile?.id === user.id) {
-        setProfile({ ...profile, isActive: !user.isActive });
-      }
+      await deleteUserProfile(userToDelete.id);
+      setUserToDelete(null);
+      toast.success("Player deleted");
     } catch (error) {
-      setActionError(getErrorMessage(error, "Could not update player status."));
+      const message = getErrorMessage(error, "Could not delete this player.");
+      setActionError(message);
+      toast.error(message);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -278,29 +300,13 @@ export function PlayersPage() {
                     </Badge>
                   </TableCell>
                   {isStaff && (
-                    <TableCell>
-                      <div className="flex justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => openEditDialog(user)}
-                          aria-label={`Edit ${user.displayName} position`}
-                        >
-                          <PencilIcon />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => handleDeactivate(user)}
-                          aria-label={
-                            user.isActive
-                              ? `Deactivate ${user.displayName}`
-                              : `Activate ${user.displayName}`
-                          }
-                        >
-                          <UserXIcon />
-                        </Button>
-                      </div>
+                    <TableCell className="text-right">
+                      <PlayerRowMenu
+                        user={user}
+                        canDelete={isAdmin && user.id !== profile?.id}
+                        onEdit={openEditDialog}
+                        onDelete={setUserToDelete}
+                      />
                     </TableCell>
                   )}
                 </TableRow>
@@ -328,10 +334,53 @@ export function PlayersPage() {
         open={editOpen}
         user={selectedUser}
         saving={saving}
+        existingUsers={allUsers}
         errorMessage={actionError}
         onClose={closeEditDialog}
-        onSubmit={handleSavePosition}
+        onSubmit={handleUpdatePlayer}
       />
+
+      {userToDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => {
+            if (!deleting) {
+              setUserToDelete(null);
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="w-full max-w-md rounded-xl border bg-background p-6 shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 className="text-lg font-semibold">Delete player</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Delete {userToDelete.displayName}? This removes them from the squad
+              and cannot be undone.
+            </p>
+            <div className="mt-6 flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={deleting}
+                onClick={() => setUserToDelete(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={deleting}
+                onClick={() => void handleDeletePlayer()}
+              >
+                {deleting ? "Deleting..." : "Delete"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
