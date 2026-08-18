@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   onSnapshot,
@@ -108,6 +109,62 @@ export async function ensureUserProfile(user: User): Promise<UserProfile> {
   }
 
   return existing;
+}
+
+export type UserCreateInput = {
+  displayName: string;
+  email: string;
+  position: PlayerPosition | "";
+};
+
+export type UserUpdateInput = {
+  displayName: string;
+  email: string;
+  position: PlayerPosition | "";
+  isActive: boolean;
+};
+
+export async function createUserProfile(input: UserCreateInput): Promise<void> {
+  const userRef = doc(collection(db, "users"));
+
+  await setDoc(userRef, {
+    id: userRef.id,
+    email: input.email.trim().toLowerCase(),
+    displayName: input.displayName.trim(),
+    photoURL: "",
+    role: "user",
+    isActive: true,
+    position: input.position,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function updateUserProfile(
+  userId: string,
+  input: UserUpdateInput,
+): Promise<void> {
+  await updateDoc(doc(db, "users", userId), {
+    displayName: input.displayName.trim(),
+    email: input.email.trim().toLowerCase(),
+    position: input.position,
+    isActive: input.isActive,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function updateUserRole(
+  userId: string,
+  role: UserRole,
+): Promise<void> {
+  await updateDoc(doc(db, "users", userId), {
+    role,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function deleteUserProfile(userId: string): Promise<void> {
+  await deleteDoc(doc(db, "users", userId));
 }
 
 export async function updateUserDisplayName(

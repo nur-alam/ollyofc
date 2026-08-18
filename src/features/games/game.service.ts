@@ -2,6 +2,7 @@ import {
   addDoc,
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -21,8 +22,21 @@ import { db } from "@/lib/firebase";
 import { getErrorMessage } from "@/lib/errors";
 import { bangladeshDateTimeToUtc } from "@/lib/timezone";
 import { parsePosition } from "@/types/player";
-import type { Game, GameInput, GameParticipant, GameStatus } from "@/types/game";
-import { canPlayerLeaveGame, GAME_LOCATIONS } from "@/types/game";
+import type {
+  Game,
+  GameInput,
+  GameParticipant,
+  GameStatus,
+  GameTeamBuild,
+  GameTeamId,
+  GameTeams,
+} from "@/types/game";
+import {
+  canPlayerLeaveGame,
+  DEFAULT_TEAM_NAMES,
+  GAME_LOCATIONS,
+} from "@/types/game";
+import type { TeamDealStep } from "@/features/games/buildTeams";
 import type { UserProfile } from "@/types/user";
 
 function parseStatus(value: unknown): GameStatus {
@@ -47,6 +61,75 @@ function parseDate(value: unknown) {
   return Timestamp.fromDate(new Date());
 }
 
+function mapTeamName(value: unknown, fallback: string) {
+  return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
+
+function mapTeams(value: unknown): GameTeams | undefined {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  const data = value as DocumentData;
+  const teamA = data.a;
+  const teamB = data.b;
+
+  if (!teamA || !teamB || typeof teamA !== "object" || typeof teamB !== "object") {
+    return undefined;
+  }
+
+  return {
+    a: { name: mapTeamName((teamA as DocumentData).name, DEFAULT_TEAM_NAMES.a) },
+    b: { name: mapTeamName((teamB as DocumentData).name, DEFAULT_TEAM_NAMES.b) },
+    generatedAt: data.generatedAt,
+    generatedBy: typeof data.generatedBy === "string" ? data.generatedBy : undefined,
+  };
+}
+
+function mapTeamId(value: unknown): GameTeamId | undefined {
+  return value === "a" || value === "b" ? value : undefined;
+}
+
+function mapTeamBuild(value: unknown): GameTeamBuild | undefined {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  const data = value as DocumentData;
+  const dealOrder = Array.isArray(data.dealOrder)
+    ? data.dealOrder.flatMap((item) => {
+        if (!item || typeof item !== "object") {
+          return [];
+        }
+
+        const step = item as DocumentData;
+        const teamId = mapTeamId(step.teamId);
+
+        if (typeof step.userId !== "string" || !teamId) {
+          return [];
+        }
+
+        return [{ userId: step.userId, teamId }];
+      })
+    : [];
+
+  if (!dealOrder.length) {
+    return undefined;
+  }
+
+  return {
+    startedAt: data.startedAt instanceof Timestamp ? data.startedAt : undefined,
+    startedAtMs:
+      typeof data.startedAtMs === "number" && Number.isFinite(data.startedAtMs)
+        ? data.startedAtMs
+        : data.startedAt instanceof Timestamp
+          ? data.startedAt.toMillis()
+          : Date.now(),
+    startedBy: typeof data.startedBy === "string" ? data.startedBy : "",
+    dealOrder,
+  };
+}
+
 export function mapGame(id: string, data: DocumentData): Game {
   const maxPlayers =
     typeof data.maxPlayers === "number" && data.maxPlayers > 0
@@ -65,6 +148,8 @@ export function mapGame(id: string, data: DocumentData): Game {
       typeof data.matchDurationMinutes === "number" ? data.matchDurationMinutes : 90,
     notes: typeof data.notes === "string" && data.notes.trim() ? data.notes : undefined,
     teamCount: 2,
+    teams: mapTeams(data.teams),
+    teamBuild: mapTeamBuild(data.teamBuild),
     createdBy: typeof data.createdBy === "string" ? data.createdBy : "",
     createdAt: data.createdAt,
     updatedAt: data.updatedAt,
@@ -160,6 +245,7 @@ export function mapParticipant(id: string, data: DocumentData): GameParticipant 
     displayName: typeof data.displayName === "string" ? data.displayName : "Player",
     photoURL: typeof data.photoURL === "string" ? data.photoURL : undefined,
     position: typeof data.position === "string" ? data.position : "",
+    teamId: mapTeamId(data.teamId),
     joinedBy: typeof data.joinedBy === "string" ? data.joinedBy : "",
     joinedAt: data.joinedAt,
   };
@@ -226,6 +312,96 @@ export async function leaveGame(
   }
 
   await deleteDoc(doc(db, "games", gameId, "participants", userId));
+}
+
+export async function saveGeneratedTeams(
+  gameId: string,
+  assignments: Record<string, GameTeamId>,
+  generatedBy: string,
+  names?: { a: string; b: string },
+): Promise<void> {
+  const participants = await getDocs(collection(db, "games", gameId, "participants"));
+  const batch = writeBatch(db);
+
+  batch.update(doc(db, "games", gameId), {
+    teams: {
+      a: { name: names?.a?.trim() || DEFAULT_TEAM_NAMES.a },
+      b: { name: names?.b?.trim() || DEFAULT_TEAM_NAMES.b },
+      generatedAt: serverTimestamp(),
+      generatedBy,
+    },
+    teamBuild: deleteField(),
+    updatedAt: serverTimestamp(),
+  });
+
+  participants.docs.forEach((participant) => {
+    const teamId = assignments[participant.id];
+
+    if (teamId) {
+      batch.update(participant.ref, { teamId });
+    }
+  });
+
+  await batch.commit();
+}
+
+export async function renameGameTeam(
+  gameId: string,
+  teamId: GameTeamId,
+  name: string,
+): Promise<void> {
+  await updateDoc(doc(db, "games", gameId), {
+    [`teams.${teamId}.name`]: name.trim() || DEFAULT_TEAM_NAMES[teamId],
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function moveParticipantTeam(
+  gameId: string,
+  userId: string,
+  teamId: GameTeamId,
+): Promise<void> {
+  await updateDoc(doc(db, "games", gameId, "participants", userId), { teamId });
+}
+
+export async function startTeamBuild(
+  gameId: string,
+  dealOrder: TeamDealStep[],
+  startedBy: string,
+): Promise<void> {
+  await updateDoc(doc(db, "games", gameId), {
+    teamBuild: {
+      startedAt: serverTimestamp(),
+      startedAtMs: Date.now(),
+      startedBy,
+      dealOrder,
+    },
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function cancelTeamBuild(gameId: string): Promise<void> {
+  await updateDoc(doc(db, "games", gameId), {
+    teamBuild: deleteField(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function clearGameTeams(gameId: string): Promise<void> {
+  const participants = await getDocs(collection(db, "games", gameId, "participants"));
+  const batch = writeBatch(db);
+
+  batch.update(doc(db, "games", gameId), {
+    teams: deleteField(),
+    teamBuild: deleteField(),
+    updatedAt: serverTimestamp(),
+  });
+
+  participants.docs.forEach((participant) => {
+    batch.update(participant.ref, { teamId: deleteField() });
+  });
+
+  await batch.commit();
 }
 
 export async function deleteGame(gameId: string): Promise<void> {

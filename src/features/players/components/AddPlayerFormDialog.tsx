@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { XIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,79 +10,69 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import type { UserUpdateInput } from "@/features/auth/auth.service";
+import type { UserCreateInput } from "@/features/auth/auth.service";
 import type { UserProfile } from "@/types/user";
 import type { PlayerPosition } from "@/types/player";
 import { PLAYER_POSITIONS, POSITION_LABELS } from "@/types/player";
+import { XIcon } from "lucide-react";
 
-type PlayerFormDialogProps = {
+type AddPlayerFormDialogProps = {
   open: boolean;
-  user?: UserProfile;
   saving: boolean;
-  existingUsers: Pick<UserProfile, "id" | "displayName" | "email">[];
+  existingUsers: Pick<UserProfile, "displayName" | "email">[];
   errorMessage?: string;
   onClose: () => void;
-  onSubmit: (input: UserUpdateInput) => Promise<void>;
+  onSubmit: (input: UserCreateInput) => Promise<void>;
 };
 
-const emptyForm: UserUpdateInput = {
+const emptyForm: UserCreateInput = {
   displayName: "",
   email: "",
   position: "",
-  isActive: true,
 };
 
-export function PlayerFormDialog({
+export function AddPlayerFormDialog({
   open,
-  user,
   saving,
   existingUsers,
   errorMessage,
   onClose,
   onSubmit,
-}: PlayerFormDialogProps) {
-  const [form, setForm] = useState<UserUpdateInput>(emptyForm);
+}: AddPlayerFormDialogProps) {
+  const [form, setForm] = useState<UserCreateInput>(emptyForm);
   const [roster, setRoster] = useState(existingUsers);
 
   useEffect(() => {
-    if (!open || !user) {
+    if (!open) {
       return;
     }
 
-    setForm({
-      displayName: user.displayName,
-      email: user.email,
-      position: user.position,
-      isActive: user.isActive,
-    });
+    setForm(emptyForm);
     setRoster(existingUsers);
-  }, [open, user]);
+  }, [open]);
 
   const nameValue = form.displayName.trim();
   const emailValue = form.email.trim().toLowerCase();
-  const others = useMemo(
-    () => roster.filter((item) => item.id !== user?.id),
-    [roster, user?.id],
-  );
   const nameTaken = useMemo(
     () =>
       !saving &&
       Boolean(nameValue) &&
-      others.some(
-        (item) => item.displayName.trim().toLowerCase() === nameValue.toLowerCase(),
+      roster.some(
+        (user) => user.displayName.trim().toLowerCase() === nameValue.toLowerCase(),
       ),
-    [nameValue, others, saving],
+    [nameValue, roster, saving],
   );
   const emailTaken = useMemo(
     () =>
       !saving &&
       Boolean(emailValue) &&
-      others.some((item) => item.email.trim().toLowerCase() === emailValue),
-    [emailValue, others, saving],
+      roster.some(
+        (user) => user.email.trim().toLowerCase() === emailValue,
+      ),
+    [emailValue, roster, saving],
   );
 
-  if (!open || !user) {
+  if (!open) {
     return null;
   }
 
@@ -104,29 +93,22 @@ export function PlayerFormDialog({
       displayName: form.displayName.trim(),
       email: form.email.trim(),
       position: form.position,
-      isActive: form.isActive,
     });
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onClick={() => {
-        if (!saving) {
-          onClose();
-        }
-      }}
-    >
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div
         role="dialog"
         aria-modal="true"
         className="w-full max-w-md rounded-xl border bg-background p-6 shadow-xl"
-        onClick={(event) => event.stopPropagation()}
       >
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold">Edit player</h2>
-            <p className="text-sm text-muted-foreground">{user.displayName}</p>
+            <h2 className="text-lg font-semibold">Add player</h2>
+            <p className="text-sm text-muted-foreground">
+              Create a squad member in Firestore.
+            </p>
           </div>
           <Button type="button" variant="ghost" size="sm" onClick={onClose}>
             <XIcon className="h-4 w-4" />
@@ -135,12 +117,12 @@ export function PlayerFormDialog({
 
         <form className="grid gap-4" onSubmit={handleSubmit}>
           <div className="grid gap-2">
-            <Label htmlFor="edit-player-name">Name</Label>
+            <Label htmlFor="player-name">Name</Label>
             <Input
-              id="edit-player-name"
+              id="player-name"
               value={form.displayName}
               aria-invalid={nameTaken}
-              aria-describedby={nameTaken ? "edit-player-name-error" : undefined}
+              aria-describedby={nameTaken ? "player-name-error" : undefined}
               onChange={(event) =>
                 setForm((current) => ({
                   ...current,
@@ -151,19 +133,19 @@ export function PlayerFormDialog({
               autoComplete="name"
             />
             {nameTaken && (
-              <p id="edit-player-name-error" className="error-text">
+              <p id="player-name-error" className="error-text">
                 A player with this name already exists.
               </p>
             )}
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="edit-player-email">Email</Label>
+            <Label htmlFor="player-email">Email</Label>
             <Input
-              id="edit-player-email"
+              id="player-email"
               type="email"
               value={form.email}
               aria-invalid={emailTaken}
-              aria-describedby={emailTaken ? "edit-player-email-error" : undefined}
+              aria-describedby={emailTaken ? "player-email-error" : undefined}
               onChange={(event) =>
                 setForm((current) => ({
                   ...current,
@@ -174,7 +156,7 @@ export function PlayerFormDialog({
               autoComplete="email"
             />
             {emailTaken && (
-              <p id="edit-player-email-error" className="error-text">
+              <p id="player-email-error" className="error-text">
                 A player with this email already exists.
               </p>
             )}
@@ -206,21 +188,6 @@ export function PlayerFormDialog({
               </SelectContent>
             </Select>
           </div>
-          <div className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2">
-            <div>
-              <Label htmlFor="edit-player-active">Active</Label>
-              <p className="text-xs text-muted-foreground">
-                {form.isActive ? "This player is active." : "This player is inactive."}
-              </p>
-            </div>
-            <Switch
-              id="edit-player-active"
-              checked={form.isActive}
-              onCheckedChange={(checked) =>
-                setForm((current) => ({ ...current, isActive: checked }))
-              }
-            />
-          </div>
 
           {errorMessage && <p className="error-text">{errorMessage}</p>}
 
@@ -229,7 +196,7 @@ export function PlayerFormDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={saving || !canSubmit}>
-              {saving ? "Saving..." : "Save"}
+              {saving ? "Adding..." : "Add player"}
             </Button>
           </div>
         </form>

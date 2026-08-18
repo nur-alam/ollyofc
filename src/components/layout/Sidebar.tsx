@@ -6,6 +6,7 @@ import { NavLink } from "react-router-dom";
 
 import { useAuthStore } from "@/features/auth/auth.store";
 import { cn } from "@/lib/utils";
+import { isStaffRole } from "@/types/user";
 
 const navLinkClassName = ({ isActive }: { isActive: boolean }) =>
   cn(
@@ -16,9 +17,10 @@ const navLinkClassName = ({ isActive }: { isActive: boolean }) =>
   );
 
 export function Sidebar() {
-  const firebaseUser = useAuthStore((state) => state.firebaseUser);
+  const profile = useAuthStore((state) => state.profile);
+  const isStaff = profile ? isStaffRole(profile.role) : false;
 
-  if (!firebaseUser) {
+  if (!isStaff) {
     return null;
   }
 

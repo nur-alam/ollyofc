@@ -15,6 +15,29 @@ export type GameStatus =
   | "completed"
   | "cancelled";
 
+export type GameTeamId = "a" | "b";
+
+export type GameTeam = {
+  name: string;
+};
+
+export type GameTeams = {
+  a: GameTeam;
+  b: GameTeam;
+  generatedAt?: Timestamp;
+  generatedBy?: string;
+};
+
+export type GameTeamBuild = {
+  startedAt?: Timestamp;
+  startedAtMs: number;
+  startedBy: string;
+  dealOrder: Array<{
+    userId: string;
+    teamId: GameTeamId;
+  }>;
+};
+
 export type Game = {
   id: string;
   title?: string;
@@ -26,6 +49,8 @@ export type Game = {
   matchDurationMinutes: number;
   notes?: string;
   teamCount: 2;
+  teams?: GameTeams;
+  teamBuild?: GameTeamBuild;
   createdBy: string;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
@@ -36,6 +61,7 @@ export type GameParticipant = {
   displayName: string;
   photoURL?: string;
   position: string;
+  teamId?: GameTeamId;
   joinedBy: string;
   joinedAt?: Timestamp;
 };
@@ -49,6 +75,22 @@ export type GameInput = {
   matchDurationMinutes: number;
   notes?: string;
 };
+
+export const GAME_TEAM_IDS: GameTeamId[] = ["a", "b"];
+
+export const DEFAULT_TEAM_NAMES: Record<GameTeamId, string> = {
+  a: "TEAM-A",
+  b: "TEAM-B",
+};
+
+export function hasGameTeams(game: Game) {
+  return Boolean(game.teams?.a && game.teams?.b);
+}
+
+export function getTeamName(game: Game, teamId: GameTeamId) {
+  const name = game.teams?.[teamId]?.name?.trim();
+  return name || DEFAULT_TEAM_NAMES[teamId];
+}
 
 export const GAME_LOCATIONS = [
   "Metroplex Sporting Complex",
@@ -140,6 +182,20 @@ export function formatGameDate(game: Pick<Game, "date">) {
 export function formatGameTime(startTime: string) {
   const { hours, minutes } = parseTimeParts(startTime);
   return formatBangladeshClock(hours, minutes);
+}
+
+export function formatRemainingToKickoff(
+  game: Pick<Game, "date" | "startTime">,
+  now = new Date(),
+) {
+  const remainingMs = Math.max(0, getGameStartAt(game).getTime() - now.getTime());
+  const totalSeconds = Math.floor(remainingMs / 1000);
+  const days = Math.floor(totalSeconds / 86_400);
+  const hours = Math.floor((totalSeconds % 86_400) / 3_600);
+  const minutes = Math.floor((totalSeconds % 3_600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${days}d-${hours}h-${minutes}min-${seconds}s`;
 }
 
 export function getGameDisplayTitle(game: Game) {

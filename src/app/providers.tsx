@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { Toaster } from "react-hot-toast";
 
 import { useAuthStore } from "@/features/auth/auth.store";
 
@@ -7,5 +8,10 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
 
   useEffect(() => initialize(), [initialize]);
 
-  return children;
+  return (
+    <>
+      {children}
+      <Toaster position="top-right" />
+    </>
+  );
 }

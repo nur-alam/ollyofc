@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRightIcon } from "lucide-react";
+import toast from "react-hot-toast";
 
 import { Button } from "@/components/ui/button";
 import { GameFormDialog } from "@/features/games/components/GameFormDialog";
@@ -69,8 +70,11 @@ export function GamesPage() {
     try {
       await createGame(input, firebaseUser.uid);
       setDialogOpen(false);
+      toast.success("Game created");
     } catch (error) {
-      setActionError(getErrorMessage(error, "Could not create game."));
+      const message = getErrorMessage(error, "Could not create game.");
+      setActionError(message);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -87,8 +91,11 @@ export function GamesPage() {
     try {
       await updateGame(gameToEdit.id, input);
       setGameToEdit(null);
+      toast.success("Game updated");
     } catch (error) {
-      setActionError(getErrorMessage(error, "Could not update this game."));
+      const message = getErrorMessage(error, "Could not update this game.");
+      setActionError(message);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -110,8 +117,11 @@ export function GamesPage() {
     try {
       await deleteGame(gameToDelete.id);
       setGameToDelete(null);
+      toast.success("Game deleted");
     } catch (error) {
-      setActionError(getErrorMessage(error, "Could not delete this game."));
+      const message = getErrorMessage(error, "Could not delete this game.");
+      setActionError(message);
+      toast.error(message);
     } finally {
       setDeletingId("");
     }

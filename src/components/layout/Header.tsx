@@ -1,8 +1,8 @@
 import {
+  LayoutDashboardIcon,
   Loader2Icon,
   LogInIcon,
   LogOutIcon,
-  SettingsIcon,
   UserIcon,
 } from "lucide-react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuthStore } from "@/features/auth/auth.store";
 import { cn } from "@/lib/utils";
+import { isStaffRole } from "@/types/user";
 
 function getUserInitials(name: string) {
   return name.charAt(0).toUpperCase();
@@ -44,6 +45,7 @@ export function Header() {
   const navigate = useNavigate();
   const { firebaseUser, profile, loading, signInWithGoogle, logout } =
     useAuthStore();
+  const isStaff = profile ? isStaffRole(profile.role) : false;
 
   const displayName =
     profile?.displayName ||
@@ -92,10 +94,12 @@ export function Header() {
                   <UserIcon />
                   Profile
                 </DropdownMenuItem>
-                <DropdownMenuItem disabled>
-                  <SettingsIcon />
-                  Settings
-                </DropdownMenuItem>
+                {isStaff && (
+                  <DropdownMenuItem onClick={() => navigate("/dashboard")}>
+                    <LayoutDashboardIcon />
+                    Dashboard
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => logout()}>

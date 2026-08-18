@@ -21,7 +21,15 @@ service cloud.firestore {
 
     function isStaffUserFieldsUpdate() {
       return request.resource.data.diff(resource.data).affectedKeys()
-        .hasOnly(['position', 'isActive', 'updatedAt']);
+        .hasOnly(['displayName', 'email', 'position', 'isActive', 'updatedAt']);
+    }
+
+    function isStaffUserCreate() {
+      return request.resource.data.role == 'user'
+        && request.resource.data.email is string
+        && request.resource.data.displayName is string
+        && request.resource.data.isActive == true
+        && request.resource.data.position is string;
     }
 
     match /users/{userId} {
@@ -31,14 +39,15 @@ service cloud.firestore {
       allow create: if isAdmin() || (
         isSignedIn()
         && request.auth.uid == userId
-        && request.resource.data.role == 'user'
-        && request.resource.data.email is string
-        && request.resource.data.displayName is string
-        && request.resource.data.isActive == true
-        && request.resource.data.position is string
+        && isStaffUserCreate()
+      ) || (
+        isStaff() && isStaffUserCreate()
       );
 
-      allow update: if isAdmin() || (
+      allow update: if (
+        isAdmin()
+        && (request.auth.uid != userId || request.resource.data.role == resource.data.role)
+      ) || (
         isStaff() && isStaffUserFieldsUpdate()
       ) || (
         isSignedIn()
@@ -64,6 +73,8 @@ service cloud.firestore {
         allow create: if isSignedIn() && (
           isStaff() || request.auth.uid == participantId
         );
+
+        allow update: if isStaff();
 
         allow delete: if isSignedIn() && (
           isStaff() || request.auth.uid == participantId

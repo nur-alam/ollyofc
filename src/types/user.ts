@@ -19,6 +19,14 @@ export type UserProfile = {
 
 export const STAFF_ROLES: UserRole[] = ["admin", "moderator"];
 
+export const USER_ROLES: UserRole[] = ["admin", "moderator", "user"];
+
+export const ROLE_LABELS: Record<UserRole, string> = {
+  admin: "Admin",
+  moderator: "Moderator",
+  user: "User",
+};
+
 export function isStaffRole(role: UserRole) {
   return STAFF_ROLES.includes(role);
 }

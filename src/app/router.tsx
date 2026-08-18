@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import { ProtectedRoute } from "@/features/auth/components/ProtectedRoute";
+import { RoleGuard } from "@/features/auth/components/RoleGuard";
 import { LoginPage } from "@/features/auth/pages/LoginPage";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { DashboardPage } from "@/pages/DashboardPage";
@@ -10,6 +11,7 @@ import { ProfilePage } from "@/pages/ProfilePage";
 import { PlayersPage } from "@/features/players/pages/PlayersPage";
 import { GamesPage } from "@/features/games/pages/GamesPage";
 import { GameDetailPage } from "@/features/games/pages/GameDetailPage";
+import { STAFF_ROLES } from "@/types/user";
 
 export function AppRouter() {
   return (
@@ -23,7 +25,14 @@ export function AppRouter() {
         <Route path="/games/:gameId" element={<GameDetailPage />} />
 
         <Route element={<ProtectedRoute />}>
-          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route
+            path="/dashboard"
+            element={
+              <RoleGuard allowedRoles={STAFF_ROLES}>
+                <DashboardPage />
+              </RoleGuard>
+            }
+          />
           <Route path="/profile" element={<ProfilePage />} />
         </Route>
       </Route>
