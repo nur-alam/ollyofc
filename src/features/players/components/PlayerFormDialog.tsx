@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import type { UserUpdateInput } from "@/features/auth/auth.service";
+import { ProfilePhotoUpload } from "@/features/players/components/ProfilePhotoUpload";
 import type { UserProfile } from "@/types/user";
 import type { PlayerPosition } from "@/types/player";
 import { PLAYER_POSITIONS, POSITION_LABELS } from "@/types/player";
@@ -25,6 +26,7 @@ type PlayerFormDialogProps = {
   errorMessage?: string;
   onClose: () => void;
   onSubmit: (input: UserUpdateInput) => Promise<void>;
+  onPhotoUploaded?: (photoURL: string) => void;
 };
 
 const emptyForm: UserUpdateInput = {
@@ -42,6 +44,7 @@ export function PlayerFormDialog({
   errorMessage,
   onClose,
   onSubmit,
+  onPhotoUploaded,
 }: PlayerFormDialogProps) {
   const [form, setForm] = useState<UserUpdateInput>(emptyForm);
   const [roster, setRoster] = useState(existingUsers);
@@ -134,6 +137,13 @@ export function PlayerFormDialog({
         </div>
 
         <form className="grid gap-4" onSubmit={handleSubmit}>
+          <ProfilePhotoUpload
+            userId={user.id}
+            displayName={user.displayName}
+            photoURL={user.photoURL}
+            disabled={saving}
+            onUploaded={onPhotoUploaded}
+          />
           <div className="grid gap-2">
             <Label htmlFor="edit-player-name">Name</Label>
             <Input

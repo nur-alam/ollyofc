@@ -88,14 +88,11 @@ export async function ensureUserProfile(user: User): Promise<UserProfile> {
     typeof data.isActive !== "boolean" || typeof data.position !== "string";
 
   const shouldSyncProfile =
-    existing.email !== email ||
-    (photoURL && existing.photoURL !== photoURL) ||
-    missingPlayerFields;
+    existing.email !== email || missingPlayerFields;
 
   if (shouldSyncProfile) {
     await updateDoc(userRef, {
       email,
-      photoURL: photoURL || existing.photoURL || "",
       isActive: existing.isActive,
       position: existing.position,
       updatedAt: serverTimestamp(),
@@ -104,7 +101,6 @@ export async function ensureUserProfile(user: User): Promise<UserProfile> {
     return {
       ...existing,
       email,
-      photoURL: photoURL || existing.photoURL,
     };
   }
 
@@ -165,6 +161,16 @@ export async function updateUserRole(
 
 export async function deleteUserProfile(userId: string): Promise<void> {
   await deleteDoc(doc(db, "users", userId));
+}
+
+export async function updateUserPhotoURL(
+  userId: string,
+  photoURL: string,
+): Promise<void> {
+  await updateDoc(doc(db, "users", userId), {
+    photoURL,
+    updatedAt: serverTimestamp(),
+  });
 }
 
 export async function updateUserDisplayName(

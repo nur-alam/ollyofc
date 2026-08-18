@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuthStore } from "@/features/auth/auth.store";
 import { updateUserDisplayName } from "@/features/auth/auth.service";
+import { ProfilePhotoUpload } from "@/features/players/components/ProfilePhotoUpload";
 import { getErrorMessage } from "@/lib/errors";
 import { formatPosition } from "@/types/player";
 
@@ -68,6 +69,15 @@ export function ProfilePage() {
               <p className="text-xs text-muted-foreground">Saving...</p>
             )}
           </div>
+          {profile && (
+            <ProfilePhotoUpload
+              userId={profile.id}
+              displayName={profile.displayName}
+              photoURL={profile.photoURL}
+              disabled={saving}
+              onUploaded={(photoURL) => setProfile({ ...profile, photoURL })}
+            />
+          )}
           <div>
             <dt className="text-muted-foreground">Email</dt>
             <dd className="font-medium">

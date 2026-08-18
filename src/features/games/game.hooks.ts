@@ -2,7 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 
 import { subscribeToGame, subscribeToGames, subscribeToParticipants } from "@/features/games/game.service";
 import type { Game, GameParticipant } from "@/types/game";
-import { canPlayerLeaveGame, isUpcomingGame, sortGames } from "@/types/game";
+import {
+  canPlayerLeaveGame,
+  getLastFinishedGame,
+  isGameInPlay,
+  isUpcomingGame,
+  sortGames,
+} from "@/types/game";
 
 export function useGames() {
   const [games, setGames] = useState<Game[]>([]);
@@ -27,10 +33,21 @@ export function useGames() {
   }, []);
 
   const sortedGames = useMemo(() => sortGames(games), [games]);
+  const now = useNow(1000);
 
   const upcomingGames = useMemo(
-    () => sortedGames.filter((game) => isUpcomingGame(game)),
-    [sortedGames],
+    () => sortedGames.filter((game) => isUpcomingGame(game, now)),
+    [now, sortedGames],
+  );
+
+  const liveGames = useMemo(
+    () => sortedGames.filter((game) => isGameInPlay(game, now)),
+    [now, sortedGames],
+  );
+
+  const lastFinishedGame = useMemo(
+    () => getLastFinishedGame(sortedGames, now),
+    [now, sortedGames],
   );
 
   const nextUpcomingGame = upcomingGames[0] ?? null;
@@ -38,6 +55,8 @@ export function useGames() {
   return {
     games: sortedGames,
     upcomingGames,
+    liveGames,
+    lastFinishedGame,
     nextUpcomingGame,
     loading,
     errorMessage,
@@ -109,13 +128,19 @@ export function useParticipants(gameId: string | undefined) {
   return { participants, loading, errorMessage };
 }
 
-export function useCanPlayerLeave(game: Game | null | undefined) {
+export function useNow(intervalMs = 1000) {
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
-    const timer = window.setInterval(() => setNow(new Date()), 10_000);
+    const timer = window.setInterval(() => setNow(new Date()), intervalMs);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [intervalMs]);
+
+  return now;
+}
+
+export function useCanPlayerLeave(game: Game | null | undefined) {
+  const now = useNow(10_000);
 
   return Boolean(game && canPlayerLeaveGame(game, now));
 }

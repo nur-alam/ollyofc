@@ -371,6 +371,13 @@ export function PlayersPage() {
         errorMessage={actionError}
         onClose={closeEditDialog}
         onSubmit={handleUpdatePlayer}
+        onPhotoUploaded={(photoURL) => {
+          if (!profile || profile.id !== selectedUser?.id) {
+            return;
+          }
+
+          setProfile({ ...profile, photoURL });
+        }}
       />
 
       <AssignRoleDialog

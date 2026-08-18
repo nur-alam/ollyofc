@@ -38,6 +38,27 @@ export type GameTeamBuild = {
   }>;
 };
 
+export type GameResultWinner = GameTeamId | "draw";
+
+export type GameGoal = {
+  id: string;
+  teamId: GameTeamId;
+  scorerId: string;
+  scorerName: string;
+  createdBy: string;
+  createdAtMs: number;
+};
+
+export type GameResult = {
+  a: number;
+  b: number;
+  winner: GameResultWinner;
+  goals: GameGoal[];
+  updatedAt?: Timestamp;
+  updatedAtMs: number;
+  updatedBy: string;
+};
+
 export type Game = {
   id: string;
   title?: string;
@@ -51,6 +72,7 @@ export type Game = {
   teamCount: 2;
   teams?: GameTeams;
   teamBuild?: GameTeamBuild;
+  result?: GameResult;
   createdBy: string;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
@@ -133,6 +155,39 @@ export function getGameStartAt(game: Pick<Game, "date" | "startTime">) {
   return bangladeshDateTimeToUtc(ymd, game.startTime);
 }
 
+export function hasKickoffPassed(game: Pick<Game, "date" | "startTime">, now = new Date()) {
+  return getGameStartAt(game).getTime() <= now.getTime();
+}
+
+export function getGameEndAt(
+  game: Pick<Game, "date" | "startTime" | "matchDurationMinutes">,
+) {
+  return new Date(
+    getGameStartAt(game).getTime() + game.matchDurationMinutes * 60 * 1000,
+  );
+}
+
+export function hasMatchEnded(game: Game, now = new Date()) {
+  if (game.status === "completed") {
+    return true;
+  }
+
+  if (game.status === "cancelled") {
+    return false;
+  }
+
+  return now.getTime() >= getGameEndAt(game).getTime();
+}
+
+export function isGameInPlay(game: Game, now = new Date()) {
+  if (game.status === "cancelled" || game.status === "completed") {
+    return false;
+  }
+
+  const time = now.getTime();
+  return time >= getGameStartAt(game).getTime() && time < getGameEndAt(game).getTime();
+}
+
 export function hasGameHappened(game: Game, now = new Date()) {
   if (game.status === "cancelled") {
     return false;
@@ -142,11 +197,83 @@ export function hasGameHappened(game: Game, now = new Date()) {
     return true;
   }
 
-  return getGameStartAt(game).getTime() <= now.getTime();
+  return hasKickoffPassed(game, now);
 }
 
 export function isUpcomingGame(game: Game, now = new Date()) {
   return !hasGameHappened(game, now) && game.status !== "cancelled";
+}
+
+export function getLastFinishedGame(games: Game[], now = new Date()) {
+  const finished = games.filter(
+    (game) => hasMatchEnded(game, now) && game.status !== "cancelled",
+  );
+
+  if (!finished.length) {
+    return null;
+  }
+
+  return finished.reduce((latest, game) =>
+    getGameStartAt(game).getTime() > getGameStartAt(latest).getTime() ? game : latest,
+  );
+}
+
+export function canShowGameResult(game: Game, now = new Date()) {
+  return hasGameHappened(game, now);
+}
+
+export function canUpdateGameResult(game: Game, now = new Date()) {
+  return canShowGameResult(game, now) && game.status !== "cancelled";
+}
+
+export function getGameScore(game: Pick<Game, "result">) {
+  return {
+    a: game.result?.a ?? 0,
+    b: game.result?.b ?? 0,
+  };
+}
+
+export function getResultWinner(
+  scoreA: number,
+  scoreB: number,
+): GameResultWinner {
+  if (scoreA === scoreB) {
+    return "draw";
+  }
+
+  return scoreA > scoreB ? "a" : "b";
+}
+
+export function getWinnerLabel(game: Game) {
+  const score = getGameScore(game);
+  const winner = game.result?.winner ?? getResultWinner(score.a, score.b);
+
+  if (winner === "draw") {
+    return score.a === 0 && score.b === 0 ? "Level" : "Draw";
+  }
+
+  return getTeamName(game, winner);
+}
+
+export function getPlayerGoalCounts(goals: GameGoal[]) {
+  const counts = new Map<string, { scorerId: string; scorerName: string; count: number }>();
+
+  for (const goal of goals) {
+    const current = counts.get(goal.scorerId);
+
+    if (current) {
+      current.count += 1;
+      continue;
+    }
+
+    counts.set(goal.scorerId, {
+      scorerId: goal.scorerId,
+      scorerName: goal.scorerName,
+      count: 1,
+    });
+  }
+
+  return [...counts.values()].sort((left, right) => right.count - left.count);
 }
 
 const SELF_LEAVE_LOCKOUT_MS = 60 * 60 * 1000;
@@ -159,17 +286,17 @@ export function canPlayerLeaveGame(game: Game, now = new Date()) {
   return getGameStartAt(game).getTime() - now.getTime() > SELF_LEAVE_LOCKOUT_MS;
 }
 
-export function getGameListBadge(game: Game): GameStatus {
+export function getGameListBadge(game: Game, now = new Date()): GameStatus {
   if (game.status === "cancelled") {
     return "cancelled";
   }
 
-  if (game.status === "active") {
-    return "active";
+  if (game.status === "completed" || hasMatchEnded(game, now)) {
+    return "completed";
   }
 
-  if (hasGameHappened(game)) {
-    return "completed";
+  if (isGameInPlay(game, now)) {
+    return "active";
   }
 
   return "upcoming";
@@ -184,18 +311,39 @@ export function formatGameTime(startTime: string) {
   return formatBangladeshClock(hours, minutes);
 }
 
+function formatClockParts(totalSeconds: number, includeDays = false) {
+  const days = Math.floor(totalSeconds / 86_400);
+  const hours = Math.floor((includeDays ? totalSeconds % 86_400 : totalSeconds) / 3_600);
+  const minutes = Math.floor((totalSeconds % 3_600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (includeDays) {
+    return `${days}d-${hours}h-${minutes}min-${seconds}s`;
+  }
+
+  return `${hours}h-${minutes}min-${seconds}s`;
+}
+
 export function formatRemainingToKickoff(
   game: Pick<Game, "date" | "startTime">,
   now = new Date(),
 ) {
   const remainingMs = Math.max(0, getGameStartAt(game).getTime() - now.getTime());
-  const totalSeconds = Math.floor(remainingMs / 1000);
-  const days = Math.floor(totalSeconds / 86_400);
-  const hours = Math.floor((totalSeconds % 86_400) / 3_600);
-  const minutes = Math.floor((totalSeconds % 3_600) / 60);
+  return formatClockParts(Math.floor(remainingMs / 1000), true);
+}
+
+export function formatElapsedMatchTime(
+  game: Pick<Game, "date" | "startTime" | "matchDurationMinutes">,
+  now = new Date(),
+) {
+  const startMs = getGameStartAt(game).getTime();
+  const endMs = getGameEndAt(game).getTime();
+  const elapsedMs = Math.max(0, Math.min(now.getTime(), endMs) - startMs);
+  const totalSeconds = Math.floor(elapsedMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
 
-  return `${days}d-${hours}h-${minutes}min-${seconds}s`;
+  return `${minutes}min-${seconds}s / ${game.matchDurationMinutes}min`;
 }
 
 export function getGameDisplayTitle(game: Game) {
