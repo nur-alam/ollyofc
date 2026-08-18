@@ -8,10 +8,11 @@
   "hosting": {
     "public": "dist",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-    "rewrites": [
+    "redirects": [
       {
-        "source": "**",
-        "destination": "/index.html"
+        "regex": "^(.*)$",
+        "destination": "https://ollyofc.vercel.app/:1",
+        "type": 301
       }
     ]
   }
