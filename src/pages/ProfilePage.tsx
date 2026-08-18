@@ -1,13 +1,28 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import toast from "react-hot-toast";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAuthStore } from "@/features/auth/auth.store";
-import { updateUserDisplayName } from "@/features/auth/auth.service";
+import {
+  updateUserDisplayName,
+  updateUserPosition,
+} from "@/features/auth/auth.service";
 import { ProfilePhotoUpload } from "@/features/players/components/ProfilePhotoUpload";
 import { getErrorMessage } from "@/lib/errors";
-import { formatPosition } from "@/types/player";
+import {
+  PLAYER_POSITIONS,
+  POSITION_LABELS,
+  type PlayerPosition,
+} from "@/types/player";
 
 export function ProfilePage() {
   const { firebaseUser, profile, setProfile } = useAuthStore();
@@ -41,12 +56,39 @@ export function ProfilePage() {
     }
   };
 
+  const handlePositionSave = async (value: string) => {
+    if (!PLAYER_POSITIONS.includes(value as PlayerPosition)) {
+      return;
+    }
+
+    const nextPosition = value as PlayerPosition;
+
+    if (!profile || nextPosition === profile.position) {
+      return;
+    }
+
+    setSaving(true);
+    setErrorMessage("");
+
+    try {
+      await updateUserPosition(profile.id, nextPosition);
+      setProfile({ ...profile, position: nextPosition });
+      toast.success(`Position updated to ${POSITION_LABELS[nextPosition]}`);
+    } catch (error) {
+      const message = getErrorMessage(error, "Could not update your position.");
+      setErrorMessage(message);
+      toast.error(message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="mx-auto w-full max-w-2xl">
       <h1 className="text-2xl font-bold tracking-tight">Profile</h1>
       <p className="text-muted-foreground">
         Your account is your player record. You can update your display name
-        here.
+        and position here.
       </p>
 
       <div className="mt-6 rounded-xl border bg-background p-5 shadow-sm">
@@ -94,9 +136,29 @@ export function ProfilePage() {
               {profile?.isActive === false ? "Inactive" : "Active"}
             </dd>
           </div>
-          <div>
-            <dt className="text-muted-foreground">Position</dt>
-            <dd className="font-medium">{formatPosition(profile?.position)}</dd>
+          <div className="grid gap-2">
+            <Label>Position</Label>
+            <Select
+              value={profile?.position || null}
+              onValueChange={(value) => {
+                if (!value) {
+                  return;
+                }
+
+                void handlePositionSave(value);
+              }}
+            >
+              <SelectTrigger className="w-full" disabled={!profile || saving}>
+                <SelectValue placeholder="Not set" />
+              </SelectTrigger>
+              <SelectContent>
+                {PLAYER_POSITIONS.map((position) => (
+                  <SelectItem key={position} value={position}>
+                    {POSITION_LABELS[position]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </dl>
       </div>
