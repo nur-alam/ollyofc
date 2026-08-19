@@ -14,7 +14,7 @@ import {
   formatGameTime,
   getGameDisplayTitle,
   getGameListBadge,
-  isGameInPlay,
+  isMatchClockRunning,
   type Game,
 } from "@/types/game";
 
@@ -29,7 +29,7 @@ export function LiveGameCard({
   const isStaff = profile ? isStaffRole(profile.role) : false;
   const { participants } = useParticipants(game.id);
   const now = useNow(1000);
-  const inPlay = isGameInPlay(game, now);
+  const clockRunning = isMatchClockRunning(game, now);
 
   return (
     <article className="rounded-xl border bg-background p-5 shadow-sm">
@@ -38,7 +38,7 @@ export function LiveGameCard({
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-lg font-semibold">{getGameDisplayTitle(game)}</h2>
             <GameStatusBadge status={getGameListBadge(game, now)} />
-            {inPlay ? <GameElapsedTimer game={game} now={now} /> : null}
+            {clockRunning ? <GameElapsedTimer game={game} now={now} /> : null}
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
             {formatGameDate(game)} · {formatGameTime(game.startTime)} · {game.location}

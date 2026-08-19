@@ -33,7 +33,7 @@ import {
   getGameDisplayTitle,
   getGameListBadge,
   hasGameTeams,
-  isGameInPlay,
+  isMatchClockRunning,
   isUpcomingGame,
 } from "@/types/game";
 
@@ -179,7 +179,7 @@ export function GameDetailPage() {
             {getGameDisplayTitle(game)}
           </h1>
           <GameStatusBadge status={badge} />
-          {isGameInPlay(game, now) ? <GameElapsedTimer game={game} now={now} /> : null}
+          {isMatchClockRunning(game, now) ? <GameElapsedTimer game={game} now={now} /> : null}
         </div>
         <p className="mt-1 text-muted-foreground">
           {formatGameDate(game)} · {formatGameTime(game.startTime)}
@@ -194,7 +194,7 @@ export function GameDetailPage() {
           value={`${game.matchDurationMinutes} minutes`}
         />
         {upcoming ? <GameCountDown game={game} /> : null}
-        {isGameInPlay(game, now) ? (
+        {isMatchClockRunning(game, now) ? (
           <div>
             <dt className="text-sm text-muted-foreground">Elapsed</dt>
             <dd className="mt-1">
@@ -287,7 +287,7 @@ export function GameDetailPage() {
       {showResult && (
         <section className="rounded-xl border bg-background p-5 shadow-sm">
           <h2 className="text-lg font-semibold">
-            {isGameInPlay(game, now) ? "Live result" : "Final result"}
+            {isMatchClockRunning(game, now) ? "Live result" : "Final result"}
           </h2>
           <div className="mt-4">
             {canEditResult && profile ? (

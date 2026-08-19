@@ -21,6 +21,7 @@ import {
 import { useNow } from "@/features/games/game.hooks";
 import {
   GAME_TEAM_IDS,
+  canRecordGameGoals,
   getTeamName,
   isGameInPlay,
   type Game,
@@ -44,6 +45,7 @@ export function GameResultUpdate({
   const [saving, setSaving] = useState(false);
   const [removingId, setRemovingId] = useState("");
   const now = useNow(1000);
+  const canRecordGoals = canRecordGameGoals(game);
 
   const scorers = useMemo(() => {
     const onTeam = participants.filter((participant) => participant.teamId === teamId);
@@ -137,10 +139,11 @@ export function GameResultUpdate({
 
       <GameResultBoard
         game={game}
-        onRemoveGoal={handleRemoveGoal}
+        onRemoveGoal={canRecordGoals ? handleRemoveGoal : undefined}
         removingId={removingId}
       />
 
+      {canRecordGoals ? (
       <div className="grid gap-3 rounded-lg border p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
         <div className="grid gap-2">
           <Label>Team</Label>
@@ -199,6 +202,7 @@ export function GameResultUpdate({
           {saving ? "Adding..." : "Add goal"}
         </Button>
       </div>
+      ) : null}
     </div>
   );
 }

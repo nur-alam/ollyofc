@@ -20,6 +20,7 @@ import {
 
 import { db } from "@/lib/firebase";
 import { getErrorMessage } from "@/lib/errors";
+import { getServerNowMs, syncServerClock } from "@/lib/clock";
 import { bangladeshDateTimeToUtc } from "@/lib/timezone";
 import { parsePosition } from "@/types/player";
 import type {
@@ -243,6 +244,8 @@ export function mapGame(id: string, data: DocumentData): Game {
     teams: mapTeams(data.teams),
     teamBuild: mapTeamBuild(data.teamBuild),
     result: mapResult(data.result),
+    startedAt: data.startedAt,
+    startedAtMs: typeof data.startedAtMs === "number" ? data.startedAtMs : undefined,
     createdBy: typeof data.createdBy === "string" ? data.createdBy : "",
     createdAt: data.createdAt,
     updatedAt: data.updatedAt,
@@ -500,13 +503,17 @@ export async function clearGameTeams(gameId: string): Promise<void> {
 export async function startGame(gameId: string, updatedBy: string): Promise<void> {
   const game = await getGameById(gameId);
   const result = game?.result ?? buildResult([], updatedBy);
+  await syncServerClock();
+  const startedAtMs = getServerNowMs();
 
   await updateDoc(doc(db, "games", gameId), {
     status: "active",
+    startedAt: serverTimestamp(),
+    startedAtMs,
     result: {
       ...result,
       updatedAt: serverTimestamp(),
-      updatedAtMs: Date.now(),
+      updatedAtMs: startedAtMs,
       updatedBy,
     },
     updatedAt: serverTimestamp(),
@@ -544,6 +551,10 @@ export async function addGameGoal(
     throw new Error("This game could not be found.");
   }
 
+  if (game.status !== "active") {
+    throw new Error("Start the game before adding goals.");
+  }
+
   const goals = [
     ...(game.result?.goals ?? []),
     {
@@ -558,7 +569,6 @@ export async function addGameGoal(
   const result = buildResult(goals, input.createdBy);
 
   await updateDoc(doc(db, "games", gameId), {
-    ...(game.status === "upcoming" ? { status: "active" } : {}),
     result: {
       ...result,
       updatedAt: serverTimestamp(),
