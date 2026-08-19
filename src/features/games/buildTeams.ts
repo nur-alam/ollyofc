@@ -74,8 +74,8 @@ export const TEAM_BUILD_COUNTDOWN_MS = 10_000;
 export const TEAM_BUILD_DEAL_INTERVAL_MS = 450;
 
 export function getTeamBuildProgress(build: GameTeamBuild, nowMs: number) {
-  const recordedStart = build.startedAtMs || build.startedAt?.toMillis() || nowMs;
-  const startedAt = recordedStart > nowMs ? nowMs : recordedStart;
+  const startedAt =
+    build.startedAtMs || build.startedAt?.toMillis() || nowMs;
   const elapsed = Math.max(0, nowMs - startedAt);
 
   if (elapsed < TEAM_BUILD_COUNTDOWN_MS) {

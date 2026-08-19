@@ -20,6 +20,7 @@ import {
   startTeamBuild,
 } from "@/features/games/game.service";
 import { useUserMap } from "@/features/players/player.hooks";
+import { getServerNowMs, syncServerClock } from "@/lib/clock";
 import { cn } from "@/lib/utils";
 import {
   DEFAULT_TEAM_NAMES,
@@ -164,7 +165,7 @@ export function GameTeamsPanel({
   generatedBy,
 }: GameTeamsPanelProps) {
   const usersById = useUserMap();
-  const [nowMs, setNowMs] = useState(() => Date.now());
+  const [nowMs, setNowMs] = useState(() => getServerNowMs());
   const [saving, setSaving] = useState(false);
   const [canceling, setCanceling] = useState(false);
   const [movingId, setMovingId] = useState("");
@@ -206,7 +207,9 @@ export function GameTeamsPanel({
       return;
     }
 
-    const timer = window.setInterval(() => setNowMs(Date.now()), 200);
+    void syncServerClock().then(() => setNowMs(getServerNowMs()));
+    setNowMs(getServerNowMs());
+    const timer = window.setInterval(() => setNowMs(getServerNowMs()), 200);
     return () => window.clearInterval(timer);
   }, [teamBuild]);
 
@@ -219,7 +222,7 @@ export function GameTeamsPanel({
       return;
     }
 
-    const buildKey = `${teamBuild.startedBy}-${teamBuild.dealOrder.length}-${teamBuild.startedAt?.toMillis() ?? 0}`;
+    const buildKey = `${teamBuild.startedBy}-${teamBuild.dealOrder.length}-${teamBuild.startedAtMs || teamBuild.startedAt?.toMillis() || 0}`;
 
     if (persistedBuildKey.current === buildKey) {
       return;

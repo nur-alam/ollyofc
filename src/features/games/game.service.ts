@@ -128,7 +128,7 @@ function mapTeamBuild(value: unknown): GameTeamBuild | undefined {
         ? data.startedAtMs
         : data.startedAt instanceof Timestamp
           ? data.startedAt.toMillis()
-          : Date.now(),
+          : 0,
     startedBy: typeof data.startedBy === "string" ? data.startedBy : "",
     dealOrder,
   };
@@ -465,10 +465,13 @@ export async function startTeamBuild(
   dealOrder: TeamDealStep[],
   startedBy: string,
 ): Promise<void> {
+  await syncServerClock();
+  const startedAtMs = getServerNowMs();
+
   await updateDoc(doc(db, "games", gameId), {
     teamBuild: {
       startedAt: serverTimestamp(),
-      startedAtMs: Date.now(),
+      startedAtMs,
       startedBy,
       dealOrder,
     },
