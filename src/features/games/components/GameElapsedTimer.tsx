@@ -3,10 +3,13 @@ import { formatElapsedMatchTime, type Game } from "@/types/game";
 
 export function GameElapsedTimer({
   game,
+  now: nowProp,
 }: {
   game: Pick<Game, "date" | "startTime" | "matchDurationMinutes">;
+  now?: Date;
 }) {
-  const now = useNow(1000);
+  const tickingNow = useNow(1000);
+  const now = nowProp ?? tickingNow;
 
   return (
     <span className="font-medium tabular-nums text-muted-foreground">

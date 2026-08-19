@@ -38,7 +38,7 @@ export function LiveGameCard({
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-lg font-semibold">{getGameDisplayTitle(game)}</h2>
             <GameStatusBadge status={getGameListBadge(game, now)} />
-            {inPlay ? <GameElapsedTimer game={game} /> : null}
+            {inPlay ? <GameElapsedTimer game={game} now={now} /> : null}
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
             {formatGameDate(game)} · {formatGameTime(game.startTime)} · {game.location}

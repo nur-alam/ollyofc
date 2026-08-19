@@ -1,5 +1,6 @@
 import type { Timestamp } from "firebase/firestore";
 
+import { getServerNow } from "@/lib/clock";
 import {
   bangladeshDateTimeToUtc,
   formatBangladeshClock,
@@ -326,7 +327,7 @@ function formatClockParts(totalSeconds: number, includeDays = false) {
 
 export function formatRemainingToKickoff(
   game: Pick<Game, "date" | "startTime">,
-  now = new Date(),
+  now = getServerNow(),
 ) {
   const remainingMs = Math.max(0, getGameStartAt(game).getTime() - now.getTime());
   return formatClockParts(Math.floor(remainingMs / 1000), true);
@@ -334,7 +335,7 @@ export function formatRemainingToKickoff(
 
 export function formatElapsedMatchTime(
   game: Pick<Game, "date" | "startTime" | "matchDurationMinutes">,
-  now = new Date(),
+  now = getServerNow(),
 ) {
   const startMs = getGameStartAt(game).getTime();
   const endMs = getGameEndAt(game).getTime();

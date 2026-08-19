@@ -179,7 +179,7 @@ export function GameDetailPage() {
             {getGameDisplayTitle(game)}
           </h1>
           <GameStatusBadge status={badge} />
-          {isGameInPlay(game, now) ? <GameElapsedTimer game={game} /> : null}
+          {isGameInPlay(game, now) ? <GameElapsedTimer game={game} now={now} /> : null}
         </div>
         <p className="mt-1 text-muted-foreground">
           {formatGameDate(game)} · {formatGameTime(game.startTime)}
@@ -198,7 +198,7 @@ export function GameDetailPage() {
           <div>
             <dt className="text-sm text-muted-foreground">Elapsed</dt>
             <dd className="mt-1">
-              <GameElapsedTimer game={game} />
+              <GameElapsedTimer game={game} now={now} />
             </dd>
           </div>
         ) : null}
