@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { subscribeToGame, subscribeToGames, subscribeToParticipants } from "@/features/games/game.service";
+import { getServerNow, syncServerClock } from "@/lib/clock";
 import type { Game, GameParticipant } from "@/types/game";
 import {
   canPlayerLeaveGame,
@@ -32,8 +33,8 @@ export function useGames() {
     );
   }, []);
 
-  const sortedGames = useMemo(() => sortGames(games), [games]);
   const now = useNow(1000);
+  const sortedGames = useMemo(() => sortGames(games, now), [games, now]);
 
   const upcomingGames = useMemo(
     () => sortedGames.filter((game) => isUpcomingGame(game, now)),
@@ -129,11 +130,23 @@ export function useParticipants(gameId: string | undefined) {
 }
 
 export function useNow(intervalMs = 1000) {
-  const [now, setNow] = useState(() => new Date());
+  const [now, setNow] = useState(() => getServerNow());
 
   useEffect(() => {
-    const timer = window.setInterval(() => setNow(new Date()), intervalMs);
-    return () => window.clearInterval(timer);
+    let cancelled = false;
+
+    void syncServerClock().then(() => {
+      if (!cancelled) {
+        setNow(getServerNow());
+      }
+    });
+
+    const timer = window.setInterval(() => setNow(getServerNow()), intervalMs);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
   }, [intervalMs]);
 
   return now;
