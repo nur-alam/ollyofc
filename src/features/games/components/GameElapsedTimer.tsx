@@ -5,7 +5,7 @@ export function GameElapsedTimer({
   game,
   now: nowProp,
 }: {
-  game: Pick<Game, "date" | "startTime" | "matchDurationMinutes">;
+  game: Pick<Game, "date" | "startTime" | "matchDurationMinutes" | "startedAtMs">;
   now?: Date;
 }) {
   const tickingNow = useNow(1000);

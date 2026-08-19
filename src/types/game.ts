@@ -74,6 +74,8 @@ export type Game = {
   teams?: GameTeams;
   teamBuild?: GameTeamBuild;
   result?: GameResult;
+  startedAt?: Timestamp;
+  startedAtMs?: number;
   createdBy: string;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
@@ -156,19 +158,29 @@ export function getGameStartAt(game: Pick<Game, "date" | "startTime">) {
   return bangladeshDateTimeToUtc(ymd, game.startTime);
 }
 
-export function hasKickoffPassed(game: Pick<Game, "date" | "startTime">, now = new Date()) {
+export function hasKickoffPassed(game: Pick<Game, "date" | "startTime">, now = getServerNow()) {
   return getGameStartAt(game).getTime() <= now.getTime();
 }
 
+export function getMatchClockStartMs(
+  game: Pick<Game, "date" | "startTime" | "startedAtMs">,
+) {
+  if (typeof game.startedAtMs === "number" && game.startedAtMs > 0) {
+    return game.startedAtMs;
+  }
+
+  return getGameStartAt(game).getTime();
+}
+
 export function getGameEndAt(
-  game: Pick<Game, "date" | "startTime" | "matchDurationMinutes">,
+  game: Pick<Game, "date" | "startTime" | "matchDurationMinutes" | "startedAtMs">,
 ) {
   return new Date(
-    getGameStartAt(game).getTime() + game.matchDurationMinutes * 60 * 1000,
+    getMatchClockStartMs(game) + game.matchDurationMinutes * 60 * 1000,
   );
 }
 
-export function hasMatchEnded(game: Game, now = new Date()) {
+export function hasMatchEnded(game: Game, now = getServerNow()) {
   if (game.status === "completed") {
     return true;
   }
@@ -180,16 +192,30 @@ export function hasMatchEnded(game: Game, now = new Date()) {
   return now.getTime() >= getGameEndAt(game).getTime();
 }
 
-export function isGameInPlay(game: Game, now = new Date()) {
+export function isGameInPlay(game: Game, now = getServerNow()) {
   if (game.status === "cancelled" || game.status === "completed") {
     return false;
   }
 
   const time = now.getTime();
-  return time >= getGameStartAt(game).getTime() && time < getGameEndAt(game).getTime();
+  const startMs = game.status === "active" ? getMatchClockStartMs(game) : getGameStartAt(game).getTime();
+  const endMs =
+    game.status === "active"
+      ? getGameEndAt(game).getTime()
+      : getGameStartAt(game).getTime() + game.matchDurationMinutes * 60 * 1000;
+
+  return time >= startMs && time < endMs;
 }
 
-export function hasGameHappened(game: Game, now = new Date()) {
+export function isMatchClockRunning(game: Game, now = getServerNow()) {
+  return game.status === "active" && isGameInPlay(game, now);
+}
+
+export function canRecordGameGoals(game: Game) {
+  return game.status === "active";
+}
+
+export function hasGameHappened(game: Game, now = getServerNow()) {
   if (game.status === "cancelled") {
     return false;
   }
@@ -201,11 +227,11 @@ export function hasGameHappened(game: Game, now = new Date()) {
   return hasKickoffPassed(game, now);
 }
 
-export function isUpcomingGame(game: Game, now = new Date()) {
+export function isUpcomingGame(game: Game, now = getServerNow()) {
   return !hasGameHappened(game, now) && game.status !== "cancelled";
 }
 
-export function getLastFinishedGame(games: Game[], now = new Date()) {
+export function getLastFinishedGame(games: Game[], now = getServerNow()) {
   const finished = games.filter(
     (game) => hasMatchEnded(game, now) && game.status !== "cancelled",
   );
@@ -219,11 +245,11 @@ export function getLastFinishedGame(games: Game[], now = new Date()) {
   );
 }
 
-export function canShowGameResult(game: Game, now = new Date()) {
+export function canShowGameResult(game: Game, now = getServerNow()) {
   return hasGameHappened(game, now);
 }
 
-export function canUpdateGameResult(game: Game, now = new Date()) {
+export function canUpdateGameResult(game: Game, now = getServerNow()) {
   return canShowGameResult(game, now) && game.status !== "cancelled";
 }
 
@@ -279,7 +305,7 @@ export function getPlayerGoalCounts(goals: GameGoal[]) {
 
 const SELF_LEAVE_LOCKOUT_MS = 60 * 60 * 1000;
 
-export function canPlayerLeaveGame(game: Game, now = new Date()) {
+export function canPlayerLeaveGame(game: Game, now = getServerNow()) {
   if (!isUpcomingGame(game, now)) {
     return false;
   }
@@ -287,7 +313,7 @@ export function canPlayerLeaveGame(game: Game, now = new Date()) {
   return getGameStartAt(game).getTime() - now.getTime() > SELF_LEAVE_LOCKOUT_MS;
 }
 
-export function getGameListBadge(game: Game, now = new Date()): GameStatus {
+export function getGameListBadge(game: Game, now = getServerNow()): GameStatus {
   if (game.status === "cancelled") {
     return "cancelled";
   }
@@ -334,10 +360,10 @@ export function formatRemainingToKickoff(
 }
 
 export function formatElapsedMatchTime(
-  game: Pick<Game, "date" | "startTime" | "matchDurationMinutes">,
+  game: Pick<Game, "date" | "startTime" | "matchDurationMinutes" | "startedAtMs">,
   now = getServerNow(),
 ) {
-  const startMs = getGameStartAt(game).getTime();
+  const startMs = getMatchClockStartMs(game);
   const endMs = getGameEndAt(game).getTime();
   const elapsedMs = Math.max(0, Math.min(now.getTime(), endMs) - startMs);
   const totalSeconds = Math.floor(elapsedMs / 1000);
@@ -367,7 +393,7 @@ export function gameToInput(game: Game): GameInput {
   };
 }
 
-export function sortGames(games: Game[], now = new Date()) {
+export function sortGames(games: Game[], now = getServerNow()) {
   return [...games].sort((left, right) => {
     const leftUpcoming = isUpcomingGame(left, now);
     const rightUpcoming = isUpcomingGame(right, now);
