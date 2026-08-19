@@ -318,10 +318,10 @@ function formatClockParts(totalSeconds: number, includeDays = false) {
   const seconds = totalSeconds % 60;
 
   if (includeDays) {
-    return `${days}d-${hours}h-${minutes}min-${seconds}s`;
+    return `${days}d-${hours}h-${minutes}m-${seconds}s`;
   }
 
-  return `${hours}h-${minutes}min-${seconds}s`;
+  return `${hours}h-${minutes}m-${seconds}s`;
 }
 
 export function formatRemainingToKickoff(
