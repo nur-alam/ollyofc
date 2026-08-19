@@ -26,62 +26,23 @@ export function syncServerClock() {
 }
 
 async function measureClockOffset() {
-  const sources = [offsetFromWorldTime, offsetFromTimeApi, offsetFromDateHeader];
+  const startedAt = Date.now();
+  const response = await fetch(`${window.location.origin}/api/time?t=${startedAt}`, {
+    cache: "no-store",
+    signal: AbortSignal.timeout(4000),
+  });
+  const endedAt = Date.now();
 
-  for (const source of sources) {
-    try {
-      const offset = await source();
-
-      if (Number.isFinite(offset)) {
-        return offset;
-      }
-    } catch {
-      // Try the next source.
-    }
+  if (!response.ok) {
+    throw new Error("Time endpoint failed");
   }
 
-  return 0;
-}
+  const data = (await response.json()) as { now?: number };
+  const serverMs = Number(data.now);
 
-function offsetFromSample(serverMs: number, startedAt: number, endedAt: number) {
   if (!Number.isFinite(serverMs)) {
     throw new Error("Invalid server time");
   }
 
   return serverMs - Math.round((startedAt + endedAt) / 2);
-}
-
-async function offsetFromWorldTime() {
-  const startedAt = Date.now();
-  const response = await fetch("https://worldtimeapi.org/api/timezone/Asia/Dhaka", {
-    cache: "no-store",
-    signal: AbortSignal.timeout(4000),
-  });
-  const endedAt = Date.now();
-  const data = (await response.json()) as { unixtime?: number };
-  return offsetFromSample(Number(data.unixtime) * 1000, startedAt, endedAt);
-}
-
-async function offsetFromTimeApi() {
-  const startedAt = Date.now();
-  const response = await fetch(
-    "https://timeapi.io/api/Time/current/zone?timeZone=UTC",
-    {
-      cache: "no-store",
-      signal: AbortSignal.timeout(4000),
-    },
-  );
-  const endedAt = Date.now();
-  const data = (await response.json()) as { dateTime?: string };
-  return offsetFromSample(Date.parse(data.dateTime ?? ""), startedAt, endedAt);
-}
-
-async function offsetFromDateHeader() {
-  const startedAt = Date.now();
-  const response = await fetch(`${window.location.origin}/favicon.svg?t=${startedAt}`, {
-    cache: "no-store",
-    signal: AbortSignal.timeout(4000),
-  });
-  const endedAt = Date.now();
-  return offsetFromSample(Date.parse(response.headers.get("date") ?? ""), startedAt, endedAt);
 }
