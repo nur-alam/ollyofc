@@ -1,14 +1,8 @@
-import { useEffect, useState } from "react";
-
 import { formatRemainingToKickoff, type Game } from "@/types/game";
+import { useNow } from "@/features/games/game.hooks";
 
 export function GameCountDown({ game }: { game: Pick<Game, "date" | "startTime"> }) {
-  const [now, setNow] = useState(() => new Date());
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(new Date()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
+  const now = useNow(1000);
 
   return (
     <div>

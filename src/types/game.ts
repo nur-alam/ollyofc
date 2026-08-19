@@ -366,10 +366,10 @@ export function gameToInput(game: Game): GameInput {
   };
 }
 
-export function sortGames(games: Game[]) {
+export function sortGames(games: Game[], now = new Date()) {
   return [...games].sort((left, right) => {
-    const leftUpcoming = isUpcomingGame(left);
-    const rightUpcoming = isUpcomingGame(right);
+    const leftUpcoming = isUpcomingGame(left, now);
+    const rightUpcoming = isUpcomingGame(right, now);
 
     if (leftUpcoming !== rightUpcoming) {
       return leftUpcoming ? -1 : 1;

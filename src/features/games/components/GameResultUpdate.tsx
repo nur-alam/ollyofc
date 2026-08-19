@@ -18,6 +18,7 @@ import {
   removeGameGoal,
   startGame,
 } from "@/features/games/game.service";
+import { useNow } from "@/features/games/game.hooks";
 import {
   GAME_TEAM_IDS,
   getTeamName,
@@ -42,6 +43,7 @@ export function GameResultUpdate({
   const [scorerId, setScorerId] = useState("");
   const [saving, setSaving] = useState(false);
   const [removingId, setRemovingId] = useState("");
+  const now = useNow(1000);
 
   const scorers = useMemo(() => {
     const onTeam = participants.filter((participant) => participant.teamId === teamId);
@@ -115,12 +117,12 @@ export function GameResultUpdate({
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-end gap-2">
-        {game.status === "upcoming" && isGameInPlay(game) && (
+        {game.status === "upcoming" && isGameInPlay(game, now) && (
           <Button type="button" size="sm" disabled={saving} onClick={() => void handleStart()}>
             {saving ? "Starting..." : "Start game"}
           </Button>
         )}
-        {game.status === "active" && isGameInPlay(game) && (
+        {game.status === "active" && isGameInPlay(game, now) && (
           <Button
             type="button"
             variant="outline"
