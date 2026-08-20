@@ -189,7 +189,7 @@ export function GameResultUpdate({
             }}
           >
             <SelectTrigger className="w-full">
-              <SelectValue />
+              <SelectValue>{getTeamName(game, teamId)}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               {GAME_TEAM_IDS.map((id) => (
@@ -214,7 +214,9 @@ export function GameResultUpdate({
             }}
           >
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select player" />
+              <SelectValue placeholder="Select player">
+                {selectedScorer?.displayName}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="unset">Select player</SelectItem>

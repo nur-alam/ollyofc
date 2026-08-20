@@ -19,12 +19,14 @@ import {
   saveGeneratedTeams,
   startTeamBuild,
 } from "@/features/games/game.service";
+import { TeamFireworks } from "@/features/games/components/TeamFireworks";
 import { useUserMap } from "@/features/players/player.hooks";
 import { getServerNowMs, syncServerClock } from "@/lib/clock";
 import { cn } from "@/lib/utils";
 import {
   DEFAULT_TEAM_NAMES,
   GAME_TEAM_IDS,
+  getGameScore,
   getTeamName,
   hasGameTeams,
   type Game,
@@ -186,6 +188,9 @@ export function GameTeamsPanel({
   );
 
   const teamsReady = hasGameTeams(game);
+  const score = getGameScore(game);
+  const winningTeam: GameTeamId | null =
+    score.a === score.b ? null : score.a > score.b ? "a" : "b";
   const teamBuild = game.teamBuild;
   const progress = teamBuild ? getTeamBuildProgress(teamBuild, nowMs) : null;
   const isAnimating = Boolean(teamBuild);
@@ -511,12 +516,18 @@ export function GameTeamsPanel({
                 ),
               );
               const otherTeam: GameTeamId = teamId === "a" ? "b" : "a";
+              const isWinner = winningTeam === teamId;
 
               return (
                 <section
                   key={teamId}
-                  className="rounded-lg border bg-background p-3"
+                  className={cn(
+                    "relative overflow-hidden rounded-lg border bg-background p-3",
+                    isWinner && "border-primary",
+                  )}
                 >
+                  {isWinner ? <TeamFireworks /> : null}
+                  <div className="relative z-10">
                   <div className="flex items-start justify-between gap-2">
                     <TeamName
                       name={getTeamName(game, teamId)}
@@ -564,6 +575,7 @@ export function GameTeamsPanel({
                       </li>
                     ))}
                   </ul>
+                  </div>
                 </section>
               );
             })}
