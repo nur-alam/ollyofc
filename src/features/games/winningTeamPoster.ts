@@ -78,19 +78,36 @@ export async function drawWinningTeamPoster(
     throw new Error("Could not draw the result image.");
   }
 
+  const objectUrls: string[] = [];
   const photos = await Promise.all(
-    input.players.map((player) =>
-      player.photoURL ? loadSafeImage(player.photoURL) : Promise.resolve(null),
-    ),
+    input.players.map(async (player) => {
+      const url = player.photoURL?.trim();
+
+      if (!url) {
+        return null;
+      }
+
+      const loaded = await loadSafeImage(url);
+
+      if (loaded?.objectUrl) {
+        objectUrls.push(loaded.objectUrl);
+      }
+
+      return loaded?.image ?? null;
+    }),
   );
 
-  drawBackground(ctx);
-  BURSTS.forEach((burst) => drawBurst(ctx, burst));
-  drawCopy(ctx, input);
-  drawScore(ctx, input);
-  drawPlayers(ctx, input.players, photos);
+  try {
+    drawBackground(ctx);
+    BURSTS.forEach((burst) => drawBurst(ctx, burst));
+    drawCopy(ctx, input);
+    drawScore(ctx, input);
+    drawPlayers(ctx, input.players, photos);
 
-  return canvasToBlob(canvas);
+    return await canvasToBlob(canvas);
+  } finally {
+    objectUrls.forEach((url) => URL.revokeObjectURL(url));
+  }
 }
 
 function drawBackground(ctx: CanvasRenderingContext2D) {
@@ -318,13 +335,7 @@ function drawInitialCircle(
 }
 
 function getInitials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-
-  if (parts.length >= 2) {
-    return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
-  }
-
-  return (parts[0]?.[0] ?? "?").toUpperCase();
+  return (name.trim().charAt(0) || "?").toUpperCase();
 }
 
 function fitText(
@@ -387,31 +398,46 @@ function truncateText(ctx: CanvasRenderingContext2D, text: string, maxWidth: num
   return `${truncated}…`;
 }
 
-async function loadSafeImage(url: string): Promise<HTMLImageElement | null> {
+async function loadSafeImage(
+  url: string,
+): Promise<{ image: HTMLImageElement; objectUrl?: string } | null> {
+  const objectUrl = await urlToObjectUrl(url);
+
+  if (!objectUrl) {
+    return null;
+  }
+
   try {
-    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error("image"));
-      img.src = url;
+    return { image: await decodeImage(objectUrl), objectUrl };
+  } catch {
+    URL.revokeObjectURL(objectUrl);
+    return null;
+  }
+}
+
+async function urlToObjectUrl(url: string) {
+  try {
+    const response = await fetch(`/api/image?url=${encodeURIComponent(url)}`, {
+      cache: "reload",
     });
 
-    const probe = document.createElement("canvas");
-    probe.width = 1;
-    probe.height = 1;
-    const probeCtx = probe.getContext("2d");
-
-    if (!probeCtx) {
+    if (!response.ok) {
       return null;
     }
 
-    probeCtx.drawImage(image, 0, 0, 1, 1);
-    probe.toDataURL("image/png");
-    return image;
+    return URL.createObjectURL(await response.blob());
   } catch {
     return null;
   }
+}
+
+function decodeImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("image"));
+    img.src = src;
+  });
 }
 
 function canvasToBlob(canvas: HTMLCanvasElement) {
