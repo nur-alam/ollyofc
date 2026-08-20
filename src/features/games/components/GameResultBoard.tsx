@@ -1,6 +1,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useNow } from "@/features/games/game.hooks";
+import { GameResultStatus } from "@/features/games/components/GameResultStatus";
 import { GameTossCoin } from "@/features/games/components/GameTossCoin";
 import { ScoreFireworks } from "@/features/games/components/ScoreFireworks";
 import { useUserMap } from "@/features/players/player.hooks";
@@ -8,9 +9,6 @@ import {
   getGameScore,
   getPlayerGoalCounts,
   getTeamName,
-  getWinnerLabel,
-  hasMatchEnded,
-  isTossFlipping,
   isTossLanded,
   shouldShowLiveToss,
   type Game,
@@ -86,10 +84,7 @@ export function GameResultBoard({
   const nowMs = now.getTime();
   const score = getGameScore(game);
   const resultGoals = goals ?? game.result?.goals ?? [];
-  const winner = getWinnerLabel(game);
-  const finished = hasMatchEnded(game);
   const tallies = getPlayerGoalCounts(resultGoals);
-  const flipping = isTossFlipping(game.toss, now);
   const tossLanded = isTossLanded(game.toss, now);
   const goalsByTeam = (teamId: GameTeamId) =>
     resultGoals.filter((goal) => goal.teamId === teamId);
@@ -116,23 +111,7 @@ export function GameResultBoard({
         />
       </div>
 
-      <p className="text-center text-sm text-muted-foreground">
-        {showToss && flipping
-          ? "Tossing..."
-          : showToss && tossLanded && game.toss
-            ? `${getTeamName(game, game.toss.winner)} wins the toss and will kick off.`
-            : score.a === 0 && score.b === 0
-              ? finished
-                ? "No goals were scored."
-                : "No goals yet."
-              : score.a === score.b
-                ? finished
-                  ? "The match ended in a draw."
-                  : "Currently a draw."
-                : finished
-                  ? `${winner} won.`
-                  : `${winner} currently winning.`}
-      </p>
+      <GameResultStatus game={game} now={now} />
 
       {tallies.length > 0 && (
         <div>

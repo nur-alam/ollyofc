@@ -522,12 +522,26 @@ export function GameTeamsPanel({
                 <section
                   key={teamId}
                   className={cn(
-                    "relative overflow-hidden rounded-lg border bg-background p-3",
-                    isWinner && "border-primary",
+                    "relative flex h-full flex-col rounded-lg",
+                    isWinner ? "p-[3px]" : "border",
                   )}
                 >
-                  {isWinner ? <TeamFireworks /> : null}
-                  <div className="relative z-10">
+                  {isWinner ? (
+                    <div
+                      className="pointer-events-none absolute inset-0 overflow-hidden rounded-lg"
+                      aria-hidden
+                    >
+                      <div className="winner-ring absolute top-1/2 left-1/2 size-[220%] -translate-x-1/2 -translate-y-1/2" />
+                    </div>
+                  ) : null}
+                  <div
+                    className={cn(
+                      "relative flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background p-3",
+                      isWinner ? "rounded-[calc(var(--radius-lg)-2px)]" : "rounded-lg",
+                    )}
+                  >
+                    {isWinner ? <TeamFireworks /> : null}
+                    <div className="relative z-10">
                   <div className="flex items-start justify-between gap-2">
                     <TeamName
                       name={getTeamName(game, teamId)}
@@ -575,6 +589,7 @@ export function GameTeamsPanel({
                       </li>
                     ))}
                   </ul>
+                    </div>
                   </div>
                 </section>
               );
