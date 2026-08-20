@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { GameResultBoard } from "@/features/games/components/GameResultBoard";
+import { WinningTeamPosterDialog } from "@/features/games/components/WinningTeamPosterDialog";
 import {
   addGameGoal,
   finishGame,
@@ -24,6 +25,7 @@ import {
   GAME_TEAM_IDS,
   canRecordGameGoals,
   getGameScore,
+  getResultWinner,
   getTeamName,
   isGameInPlay,
   isTossFlipping,
@@ -48,6 +50,7 @@ export function GameResultUpdate({
   const [scorerId, setScorerId] = useState("");
   const [saving, setSaving] = useState(false);
   const [finishOpen, setFinishOpen] = useState(false);
+  const [posterOpen, setPosterOpen] = useState(false);
   const [removingId, setRemovingId] = useState("");
   const now = useNow(game.toss && game.status === "upcoming" ? 32 : 1000);
   const canRecordGoals = canRecordGameGoals(game);
@@ -55,6 +58,8 @@ export function GameResultUpdate({
   const tossing = isTossFlipping(game.toss, now);
   const tossed = isTossLanded(game.toss, now);
   const score = getGameScore(game);
+  const winner = game.result?.winner ?? getResultWinner(score.a, score.b);
+  const canShareResult = game.status === "completed" && winner !== "draw";
 
   const scorers = useMemo(() => {
     const onTeam = participants.filter((participant) => participant.teamId === teamId);
@@ -138,8 +143,14 @@ export function GameResultUpdate({
     }
   };
 
+  const showActions =
+    canStart ||
+    canShareResult ||
+    (game.status === "active" && isGameInPlay(game, now));
+
   return (
     <div className="space-y-5">
+      {showActions ? (
       <div className="flex flex-wrap items-center justify-end gap-2">
         {canStart && !tossed && (
           <Button
@@ -167,7 +178,18 @@ export function GameResultUpdate({
             Finish game
           </Button>
         )}
+        {canShareResult && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setPosterOpen(true)}
+          >
+            Share result
+          </Button>
+        )}
       </div>
+      ) : null}
 
       <GameResultBoard
         game={game}
@@ -237,6 +259,15 @@ export function GameResultUpdate({
         </Button>
       </div>
       ) : null}
+
+      {posterOpen && (
+        <WinningTeamPosterDialog
+          open={posterOpen}
+          game={game}
+          participants={participants}
+          onClose={() => setPosterOpen(false)}
+        />
+      )}
 
       {finishOpen && (
         <div
