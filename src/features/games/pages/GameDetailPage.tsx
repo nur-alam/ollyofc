@@ -220,6 +220,7 @@ export function GameDetailPage() {
 
       {actionError && <p className="error-text">{actionError}</p>}
 
+      {/* Join section */}
       {upcoming && (
         <section className="rounded-xl border bg-background p-5 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -257,6 +258,26 @@ export function GameDetailPage() {
         </section>
       )}
 
+      {/* Result section */}
+      {showResult && (
+        <section className="rounded-xl border bg-background p-5 shadow-sm">
+          <h2 className="text-lg font-semibold">
+            {isMatchClockRunning(game, now) ? "Live result" : "Final result"}
+          </h2>
+          <div className="mt-4">
+            {canEditResult && profile ? (
+              <GameResultUpdate
+                game={game}
+                participants={participants}
+                updatedBy={profile.id}
+              />
+            ) : (
+              <GameResultBoard game={game} />
+            )}
+          </div>
+        </section>
+      )}
+
       {(upcoming || hasGameTeams(game)) && (
         <section className="rounded-xl border bg-background p-5 shadow-sm">
           <GameTeamsPanel
@@ -283,25 +304,6 @@ export function GameDetailPage() {
           </p>
         )}
       </section>
-
-      {showResult && (
-        <section className="rounded-xl border bg-background p-5 shadow-sm">
-          <h2 className="text-lg font-semibold">
-            {isMatchClockRunning(game, now) ? "Live result" : "Final result"}
-          </h2>
-          <div className="mt-4">
-            {canEditResult && profile ? (
-              <GameResultUpdate
-                game={game}
-                participants={participants}
-                updatedBy={profile.id}
-              />
-            ) : (
-              <GameResultBoard game={game} />
-            )}
-          </div>
-        </section>
-      )}
 
       <JoinUsersDialog
         open={addOpen}

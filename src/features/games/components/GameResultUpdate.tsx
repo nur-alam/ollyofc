@@ -17,13 +17,17 @@ import {
   getErrorMessage,
   removeGameGoal,
   startGame,
+  startGameToss,
 } from "@/features/games/game.service";
 import { useNow } from "@/features/games/game.hooks";
 import {
   GAME_TEAM_IDS,
   canRecordGameGoals,
+  getGameScore,
   getTeamName,
   isGameInPlay,
+  isTossFlipping,
+  isTossLanded,
   type Game,
   type GameParticipant,
   type GameTeamId,
@@ -43,9 +47,14 @@ export function GameResultUpdate({
   const [teamId, setTeamId] = useState<GameTeamId>("a");
   const [scorerId, setScorerId] = useState("");
   const [saving, setSaving] = useState(false);
+  const [finishOpen, setFinishOpen] = useState(false);
   const [removingId, setRemovingId] = useState("");
-  const now = useNow(1000);
+  const now = useNow(game.toss && game.status === "upcoming" ? 32 : 1000);
   const canRecordGoals = canRecordGameGoals(game);
+  const canStart = game.status === "upcoming" && isGameInPlay(game, now);
+  const tossing = isTossFlipping(game.toss, now);
+  const tossed = isTossLanded(game.toss, now);
+  const score = getGameScore(game);
 
   const scorers = useMemo(() => {
     const onTeam = participants.filter((participant) => participant.teamId === teamId);
@@ -53,6 +62,18 @@ export function GameResultUpdate({
   }, [participants, teamId]);
 
   const selectedScorer = scorers.find((participant) => participant.userId === scorerId);
+
+  const handleToss = async () => {
+    setSaving(true);
+
+    try {
+      await startGameToss(game.id, updatedBy);
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Could not start the toss."));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleStart = async () => {
     setSaving(true);
@@ -72,6 +93,7 @@ export function GameResultUpdate({
 
     try {
       await finishGame(game.id, updatedBy);
+      setFinishOpen(false);
       toast.success("Game finished");
     } catch (error) {
       toast.error(getErrorMessage(error, "Could not finish this game."));
@@ -119,9 +141,19 @@ export function GameResultUpdate({
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-end gap-2">
-        {game.status === "upcoming" && isGameInPlay(game, now) && (
+        {canStart && !tossed && (
+          <Button
+            type="button"
+            size="sm"
+            disabled={saving || tossing}
+            onClick={() => void handleToss()}
+          >
+            {saving || tossing ? "Tossing..." : "Start game"}
+          </Button>
+        )}
+        {canStart && tossed && (
           <Button type="button" size="sm" disabled={saving} onClick={() => void handleStart()}>
-            {saving ? "Starting..." : "Start game"}
+            {saving ? "Starting..." : "Kick off"}
           </Button>
         )}
         {game.status === "active" && isGameInPlay(game, now) && (
@@ -130,9 +162,9 @@ export function GameResultUpdate({
             variant="outline"
             size="sm"
             disabled={saving}
-            onClick={() => void handleFinish()}
+            onClick={() => setFinishOpen(true)}
           >
-            {saving ? "Finishing..." : "Finish game"}
+            Finish game
           </Button>
         )}
       </div>
@@ -203,6 +235,43 @@ export function GameResultUpdate({
         </Button>
       </div>
       ) : null}
+
+      {finishOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => {
+            if (!saving) {
+              setFinishOpen(false);
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="w-full max-w-md rounded-xl border bg-background p-6 shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 className="text-lg font-semibold">Finish game</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              End this match at {getTeamName(game, "a")} {score.a}–{score.b}{" "}
+              {getTeamName(game, "b")}? The result will be final.
+            </p>
+            <div className="mt-6 flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={saving}
+                onClick={() => setFinishOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="button" disabled={saving} onClick={() => void handleFinish()}>
+                {saving ? "Finishing..." : "Finish game"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,10 +1,15 @@
 import { cn } from "@/lib/utils";
+import { useNow } from "@/features/games/game.hooks";
+import { GameTossCoin } from "@/features/games/components/GameTossCoin";
 import {
   getGameScore,
   getPlayerGoalCounts,
   getTeamName,
   getWinnerLabel,
   hasMatchEnded,
+  isTossFlipping,
+  isTossLanded,
+  shouldShowLiveToss,
   type Game,
   type GameGoal,
   type GameTeamId,
@@ -14,14 +19,23 @@ function TeamScore({
   name,
   score,
   isWinning,
+  isTossWinner,
 }: {
   name: string;
   score: number;
   isWinning: boolean;
+  isTossWinner?: boolean;
 }) {
   return (
     <div className="min-w-0 text-center">
-      <p className="truncate text-sm font-medium">{name}</p>
+      <p
+        className={cn(
+          "truncate text-sm font-medium",
+          isTossWinner && "text-primary",
+        )}
+      >
+        {name}
+      </p>
       <p
         className={cn(
           "mt-1 text-4xl font-bold tabular-nums",
@@ -45,11 +59,16 @@ export function GameResultBoard({
   onRemoveGoal?: (goalId: string) => void;
   removingId?: string;
 }) {
+  const showToss = shouldShowLiveToss(game);
+  const now = useNow(showToss ? 32 : 1000);
+  const nowMs = now.getTime();
   const score = getGameScore(game);
   const resultGoals = goals ?? game.result?.goals ?? [];
   const winner = getWinnerLabel(game);
   const finished = hasMatchEnded(game);
   const tallies = getPlayerGoalCounts(resultGoals);
+  const flipping = isTossFlipping(game.toss, now);
+  const tossLanded = isTossLanded(game.toss, now);
   const goalsByTeam = (teamId: GameTeamId) =>
     resultGoals.filter((goal) => goal.teamId === teamId);
 
@@ -60,27 +79,37 @@ export function GameResultBoard({
           name={getTeamName(game, "a")}
           score={score.a}
           isWinning={score.a > score.b}
+          isTossWinner={showToss && tossLanded && game.toss?.winner === "a"}
         />
-        <p className="text-xl font-semibold text-muted-foreground">–</p>
+        {showToss && game.toss ? (
+          <GameTossCoin toss={game.toss} nowMs={nowMs} />
+        ) : (
+          <p className="text-xl font-semibold text-muted-foreground">–</p>
+        )}
         <TeamScore
           name={getTeamName(game, "b")}
           score={score.b}
           isWinning={score.b > score.a}
+          isTossWinner={showToss && tossLanded && game.toss?.winner === "b"}
         />
       </div>
 
       <p className="text-center text-sm text-muted-foreground">
-        {score.a === 0 && score.b === 0
-          ? finished
-            ? "No goals were scored."
-            : "No goals yet."
-          : score.a === score.b
-            ? finished
-              ? "The match ended in a draw."
-              : "Currently a draw."
-            : finished
-              ? `${winner} won.`
-              : `${winner} currently winning.`}
+        {showToss && flipping
+          ? "Tossing..."
+          : showToss && tossLanded && game.toss
+            ? `${getTeamName(game, game.toss.winner)} wins the toss and will kick off.`
+            : score.a === 0 && score.b === 0
+              ? finished
+                ? "No goals were scored."
+                : "No goals yet."
+              : score.a === score.b
+                ? finished
+                  ? "The match ended in a draw."
+                  : "Currently a draw."
+                : finished
+                  ? `${winner} won.`
+                  : `${winner} currently winning.`}
       </p>
 
       {tallies.length > 0 && (
