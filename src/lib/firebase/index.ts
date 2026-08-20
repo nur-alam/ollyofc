@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, initializeFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 function envValue(value: string | undefined) {
@@ -32,9 +32,20 @@ const firebaseConfig = {
 
 export const isFirebaseConfigured = Object.values(firebaseConfig).every(Boolean);
 
+/** Named Firestore DB for `pnpm dev`. Production builds use `(default)`. */
+export const firestoreDatabaseId = import.meta.env.DEV ? "ollyofcdev" : "(default)";
+
+export const isUsingDevFirebase = firestoreDatabaseId !== "(default)";
+
 const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+export const db = import.meta.env.DEV
+  ? initializeFirestore(
+      app,
+      { experimentalForceLongPolling: true },
+      firestoreDatabaseId,
+    )
+  : getFirestore(app);
 export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();

@@ -24,7 +24,7 @@ type AuthState = {
   clearError: () => void;
 };
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+export const useAuthStore = create<AuthState>((set) => ({
   firebaseUser: null,
   profile: null,
   loading: true,
@@ -32,10 +32,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   errorMessage: "",
 
   initialize: () => {
-    if (get().initialized) {
-      return () => undefined;
-    }
-
     set({ initialized: true, loading: true });
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
