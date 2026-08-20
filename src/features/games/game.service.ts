@@ -33,12 +33,14 @@ import type {
   GameTeamBuild,
   GameTeamId,
   GameTeams,
+  GameToss,
 } from "@/types/game";
 import {
   canPlayerLeaveGame,
   DEFAULT_TEAM_NAMES,
   GAME_LOCATIONS,
   getResultWinner,
+  isTossLanded,
 } from "@/types/game";
 import type { TeamDealStep } from "@/features/games/buildTeams";
 import type { UserProfile } from "@/types/user";
@@ -131,6 +133,32 @@ function mapTeamBuild(value: unknown): GameTeamBuild | undefined {
           : 0,
     startedBy: typeof data.startedBy === "string" ? data.startedBy : "",
     dealOrder,
+  };
+}
+
+function mapToss(value: unknown): GameToss | undefined {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  const data = value as DocumentData;
+  const winner = mapTeamId(data.winner);
+
+  if (!winner) {
+    return undefined;
+  }
+
+  return {
+    winner,
+    spins:
+      typeof data.spins === "number" && Number.isFinite(data.spins) && data.spins > 0
+        ? data.spins
+        : 6,
+    startedAtMs:
+      typeof data.startedAtMs === "number" && Number.isFinite(data.startedAtMs)
+        ? data.startedAtMs
+        : 0,
+    startedBy: typeof data.startedBy === "string" ? data.startedBy : "",
   };
 }
 
@@ -243,6 +271,7 @@ export function mapGame(id: string, data: DocumentData): Game {
     teamCount: 2,
     teams: mapTeams(data.teams),
     teamBuild: mapTeamBuild(data.teamBuild),
+    toss: mapToss(data.toss),
     result: mapResult(data.result),
     startedAt: data.startedAt,
     startedAtMs: typeof data.startedAtMs === "number" ? data.startedAtMs : undefined,
@@ -503,9 +532,46 @@ export async function clearGameTeams(gameId: string): Promise<void> {
   await batch.commit();
 }
 
+export async function startGameToss(gameId: string, startedBy: string): Promise<void> {
+  const game = await getGameById(gameId);
+
+  if (!game) {
+    throw new Error("Game not found.");
+  }
+
+  if (game.status !== "upcoming") {
+    throw new Error("This game cannot be tossed.");
+  }
+
+  if (game.toss) {
+    return;
+  }
+
+  await syncServerClock();
+
+  await updateDoc(doc(db, "games", gameId), {
+    toss: {
+      winner: Math.random() < 0.5 ? "a" : "b",
+      spins: 12 + Math.floor(Math.random() * 4),
+      startedAtMs: getServerNowMs(),
+      startedBy,
+    },
+    updatedAt: serverTimestamp(),
+  });
+}
+
 export async function startGame(gameId: string, updatedBy: string): Promise<void> {
   const game = await getGameById(gameId);
-  const result = game?.result ?? buildResult([], updatedBy);
+
+  if (!game) {
+    throw new Error("Game not found.");
+  }
+
+  if (!isTossLanded(game.toss)) {
+    throw new Error("Finish the coin toss before kick-off.");
+  }
+
+  const result = game.result ?? buildResult([], updatedBy);
   await syncServerClock();
   const startedAtMs = getServerNowMs();
 

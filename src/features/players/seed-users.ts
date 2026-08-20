@@ -40,8 +40,7 @@ export const SEED_USERS: SeedUser[] = [
   { id: "seed-defender-4", displayName: "Adnan Sheikh", email: "seed.defender.4@ollyofc.test", position: "defender" },
   { id: "seed-defender-5", displayName: "Tareq Mahmud", email: "seed.defender.5@ollyofc.test", position: "defender" },
   { id: "seed-goalkeeper-1", displayName: "Sohel Rana", email: "seed.goalkeeper.1@ollyofc.test", position: "goalkeeper" },
-  { id: "seed-goalkeeper-2", displayName: "Anik Das", email: "seed.goalkeeper.2@ollyofc.test", position: "goalkeeper" },
-  { id: "seed-goalkeeper-3", displayName: "Liton Roy", email: "seed.goalkeeper.3@ollyofc.test", position: "goalkeeper" },
+  { id: "seed-goalkeeper-2", displayName: "Jabed Hasan", email: "seed.goalkeeper.2@ollyofc.test", position: "goalkeeper" },
 ];
 
 export async function seedTestUsers() {

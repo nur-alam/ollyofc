@@ -1,10 +1,16 @@
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { useNow } from "@/features/games/game.hooks";
+import { GameResultStatus } from "@/features/games/components/GameResultStatus";
+import { GameTossCoin } from "@/features/games/components/GameTossCoin";
+import { ScoreFireworks } from "@/features/games/components/ScoreFireworks";
+import { useUserMap } from "@/features/players/player.hooks";
 import {
   getGameScore,
   getPlayerGoalCounts,
   getTeamName,
-  getWinnerLabel,
-  hasMatchEnded,
+  isTossLanded,
+  shouldShowLiveToss,
   type Game,
   type GameGoal,
   type GameTeamId,
@@ -14,23 +20,50 @@ function TeamScore({
   name,
   score,
   isWinning,
+  isTossWinner,
 }: {
   name: string;
   score: number;
   isWinning: boolean;
+  isTossWinner?: boolean;
 }) {
   return (
-    <div className="min-w-0 text-center">
-      <p className="truncate text-sm font-medium">{name}</p>
-      <p
-        className={cn(
-          "mt-1 text-4xl font-bold tabular-nums",
-          isWinning && "text-primary",
-        )}
-      >
-        {score}
-      </p>
+    <div className="flex justify-center">
+      <div className="relative size-28">
+        {isWinning ? (
+          <div className="winner-ring absolute -inset-[3px] rounded-full" aria-hidden />
+        ) : null}
+        <div
+          className={cn(
+            "relative z-10 flex size-full flex-col items-center justify-center overflow-hidden rounded-full border bg-background px-2",
+            isWinning && "border-transparent text-primary",
+            !isWinning && isTossWinner && "border-primary text-primary",
+          )}
+        >
+          {isWinning ? <ScoreFireworks /> : null}
+          <p className="relative z-10 max-w-full truncate text-xs font-medium">{name}</p>
+          <p className="relative z-10 text-4xl font-bold tabular-nums leading-none">{score}</p>
+        </div>
+      </div>
     </div>
+  );
+}
+
+function ScorerLabel({
+  name,
+  photoURL,
+}: {
+  name: string;
+  photoURL?: string;
+}) {
+  return (
+    <span className="flex min-w-0 items-center gap-2">
+      <Avatar size="sm">
+        {photoURL ? <AvatarImage src={photoURL} alt={name} /> : null}
+        <AvatarFallback>{name.charAt(0).toUpperCase()}</AvatarFallback>
+      </Avatar>
+      <span className="truncate">{name}</span>
+    </span>
   );
 }
 
@@ -45,11 +78,14 @@ export function GameResultBoard({
   onRemoveGoal?: (goalId: string) => void;
   removingId?: string;
 }) {
+  const usersById = useUserMap();
+  const showToss = shouldShowLiveToss(game);
+  const now = useNow(showToss ? 32 : 1000);
+  const nowMs = now.getTime();
   const score = getGameScore(game);
   const resultGoals = goals ?? game.result?.goals ?? [];
-  const winner = getWinnerLabel(game);
-  const finished = hasMatchEnded(game);
   const tallies = getPlayerGoalCounts(resultGoals);
+  const tossLanded = isTossLanded(game.toss, now);
   const goalsByTeam = (teamId: GameTeamId) =>
     resultGoals.filter((goal) => goal.teamId === teamId);
 
@@ -60,28 +96,22 @@ export function GameResultBoard({
           name={getTeamName(game, "a")}
           score={score.a}
           isWinning={score.a > score.b}
+          isTossWinner={showToss && tossLanded && game.toss?.winner === "a"}
         />
-        <p className="text-xl font-semibold text-muted-foreground">–</p>
+        {showToss && game.toss ? (
+          <GameTossCoin toss={game.toss} nowMs={nowMs} />
+        ) : (
+          <p className="text-xl font-semibold text-muted-foreground">–</p>
+        )}
         <TeamScore
           name={getTeamName(game, "b")}
           score={score.b}
           isWinning={score.b > score.a}
+          isTossWinner={showToss && tossLanded && game.toss?.winner === "b"}
         />
       </div>
 
-      <p className="text-center text-sm text-muted-foreground">
-        {score.a === 0 && score.b === 0
-          ? finished
-            ? "No goals were scored."
-            : "No goals yet."
-          : score.a === score.b
-            ? finished
-              ? "The match ended in a draw."
-              : "Currently a draw."
-            : finished
-              ? `${winner} won.`
-              : `${winner} currently winning.`}
-      </p>
+      <GameResultStatus game={game} now={now} />
 
       {tallies.length > 0 && (
         <div>
@@ -92,7 +122,10 @@ export function GameResultBoard({
                 key={tally.scorerId}
                 className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
               >
-                <span className="truncate">{tally.scorerName}</span>
+                <ScorerLabel
+                  name={tally.scorerName}
+                  photoURL={usersById.get(tally.scorerId)?.photoURL}
+                />
                 <span className="tabular-nums text-muted-foreground">
                   {tally.count}
                 </span>
@@ -114,7 +147,10 @@ export function GameResultBoard({
                       key={goal.id}
                       className="flex items-center justify-between gap-2 px-3 py-2 text-sm"
                     >
-                      <span className="truncate">{goal.scorerName}</span>
+                      <ScorerLabel
+                        name={goal.scorerName}
+                        photoURL={usersById.get(goal.scorerId)?.photoURL}
+                      />
                       {onRemoveGoal && (
                         <button
                           type="button"

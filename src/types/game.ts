@@ -39,6 +39,15 @@ export type GameTeamBuild = {
   }>;
 };
 
+export const TOSS_DURATION_MS = 5000;
+
+export type GameToss = {
+  winner: GameTeamId;
+  spins: number;
+  startedAtMs: number;
+  startedBy: string;
+};
+
 export type GameResultWinner = GameTeamId | "draw";
 
 export type GameGoal = {
@@ -73,6 +82,7 @@ export type Game = {
   teamCount: 2;
   teams?: GameTeams;
   teamBuild?: GameTeamBuild;
+  toss?: GameToss;
   result?: GameResult;
   startedAt?: Timestamp;
   startedAtMs?: number;
@@ -115,6 +125,35 @@ export function hasGameTeams(game: Game) {
 export function getTeamName(game: Game, teamId: GameTeamId) {
   const name = game.teams?.[teamId]?.name?.trim();
   return name || DEFAULT_TEAM_NAMES[teamId];
+}
+
+export function isTossFlipping(toss: GameToss | undefined, now = getServerNow()) {
+  if (!toss) {
+    return false;
+  }
+
+  return now.getTime() - toss.startedAtMs < TOSS_DURATION_MS;
+}
+
+export function isTossLanded(toss: GameToss | undefined, now = getServerNow()) {
+  if (!toss) {
+    return false;
+  }
+
+  return now.getTime() - toss.startedAtMs >= TOSS_DURATION_MS;
+}
+
+export function getTossRotationDeg(toss: GameToss, nowMs: number) {
+  const elapsed = Math.max(0, nowMs - toss.startedAtMs);
+  const progress = Math.min(1, elapsed / TOSS_DURATION_MS);
+  const eased = 1 - (1 - progress) ** 3;
+  const endDeg = toss.spins * 360 + (toss.winner === "b" ? 180 : 0);
+
+  return endDeg * eased;
+}
+
+export function shouldShowLiveToss(game: Game) {
+  return Boolean(game.toss) && game.status === "upcoming";
 }
 
 export const GAME_LOCATIONS = [

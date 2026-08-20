@@ -33,6 +33,7 @@ import {
   getGameDisplayTitle,
   getGameListBadge,
   hasGameTeams,
+  isGameInPlay,
   isMatchClockRunning,
   isUpcomingGame,
 } from "@/types/game";
@@ -60,8 +61,10 @@ export function GameDetailPage() {
   const [savingId, setSavingId] = useState("");
 
   const upcoming = game ? isUpcomingGame(game, now) : false;
+  const inPlay = game ? isGameInPlay(game, now) : false;
   const showResult = game ? canShowGameResult(game, now) : false;
   const canEditResult = Boolean(isStaff && game && canUpdateGameResult(game, now));
+  const canEditTeams = Boolean(isStaff && game && game.status === "upcoming");
   const alreadyJoined = Boolean(
     profile && participants.some((participant) => participant.userId === profile.id),
   );
@@ -220,6 +223,7 @@ export function GameDetailPage() {
 
       {actionError && <p className="error-text">{actionError}</p>}
 
+      {/* Join section */}
       {upcoming && (
         <section className="rounded-xl border bg-background p-5 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -257,33 +261,7 @@ export function GameDetailPage() {
         </section>
       )}
 
-      {(upcoming || hasGameTeams(game)) && (
-        <section className="rounded-xl border bg-background p-5 shadow-sm">
-          <GameTeamsPanel
-            game={game}
-            participants={participants}
-            canEdit={isStaff && upcoming}
-            generatedBy={profile?.id}
-          />
-        </section>
-      )}
-
-      <section className="rounded-xl border bg-background p-5 shadow-sm">
-        <h2 className="text-lg font-semibold">Joined players</h2>
-        {participants.length ? (
-          <JoinedPlayersList
-            participants={participants}
-            canRemove={isStaff && upcoming}
-            savingId={savingId}
-            onRemove={handleStaffRemove}
-          />
-        ) : (
-          <p className="mt-2 text-sm text-muted-foreground">
-            No one has joined yet.
-          </p>
-        )}
-      </section>
-
+      {/* Result section */}
       {showResult && (
         <section className="rounded-xl border bg-background p-5 shadow-sm">
           <h2 className="text-lg font-semibold">
@@ -302,6 +280,40 @@ export function GameDetailPage() {
           </div>
         </section>
       )}
+
+      {(upcoming || inPlay || hasGameTeams(game) || game.teamBuild) && (
+        <section className="rounded-xl border bg-background p-5 shadow-sm">
+          <GameTeamsPanel
+            game={game}
+            participants={participants}
+            canEdit={canEditTeams}
+            generatedBy={profile?.id}
+          />
+        </section>
+      )}
+
+      <section className="rounded-xl border bg-background p-5 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold">Joined players</h2>
+          {isStaff && (upcoming || inPlay) ? (
+            <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
+              Add player
+            </Button>
+          ) : null}
+        </div>
+        {participants.length ? (
+          <JoinedPlayersList
+            participants={participants}
+            canRemove={isStaff && (upcoming || inPlay)}
+            savingId={savingId}
+            onRemove={handleStaffRemove}
+          />
+        ) : (
+          <p className="mt-2 text-sm text-muted-foreground">
+            No one has joined yet.
+          </p>
+        )}
+      </section>
 
       <JoinUsersDialog
         open={addOpen}
