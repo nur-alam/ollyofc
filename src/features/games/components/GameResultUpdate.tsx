@@ -21,6 +21,7 @@ import {
   startGameToss,
 } from "@/features/games/game.service";
 import { useNow } from "@/features/games/game.hooks";
+import { useAuthStore } from "@/features/auth/auth.store";
 import {
   GAME_TEAM_IDS,
   canRecordGameGoals,
@@ -54,13 +55,14 @@ export function GameResultUpdate({
   const [posterOpen, setPosterOpen] = useState(false);
   const [removingId, setRemovingId] = useState("");
   const now = useNow(game.toss && game.status === "upcoming" ? 32 : 1000);
+  const isAdmin = useAuthStore((state) => state.profile?.role === "admin");
   const canRecordGoals = canRecordGameGoals(game);
   const canStart = game.status === "upcoming" && isGameInPlay(game, now);
   const tossing = isTossFlipping(game.toss, now);
   const tossed = isTossLanded(game.toss, now);
   const score = getGameScore(game);
   const winner = game.result?.winner ?? getResultWinner(score.a, score.b);
-  const canShareResult = hasMatchEnded(game, now) && winner !== "draw";
+  const canShareResult = isAdmin && hasMatchEnded(game, now) && winner !== "draw";
 
   const scorers = useMemo(() => {
     const onTeam = participants.filter((participant) => participant.teamId === teamId);
@@ -261,7 +263,7 @@ export function GameResultUpdate({
       </div>
       ) : null}
 
-      {posterOpen && (
+      {posterOpen && canShareResult && (
         <WinningTeamPosterDialog
           open={posterOpen}
           game={game}
