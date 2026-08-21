@@ -141,11 +141,8 @@ export function WinningTeamPosterDialog({
     }
 
     try {
-      await navigator.share({
-        files: [file],
-        title: shareText,
-        text: `${shareText} · ${title}`,
-      });
+      // Slack (and some other apps) drop the image if text/title is also sent.
+      await navigator.share({ files: [file] });
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
         return;
