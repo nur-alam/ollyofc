@@ -14,6 +14,7 @@ import {
   formatGameDate,
   getGameDisplayTitle,
   getGameScore,
+  getPlayerGoalCounts,
   getResultWinner,
   getTeamName,
   type Game,
@@ -46,6 +47,12 @@ export function WinningTeamPosterDialog({
   const usersById = useUserMap();
   const title = getGameDisplayTitle(game);
   const dateLabel = formatGameDate(game);
+  const goalsByPlayer = new Map(
+    getPlayerGoalCounts(game.result?.goals ?? []).map((tally) => [
+      tally.scorerId,
+      tally.count,
+    ]),
+  );
   const players = winnerId
     ? sortTeamPlayers(
         participants.filter((participant) => participant.teamId === winnerId),
@@ -55,10 +62,11 @@ export function WinningTeamPosterDialog({
           usersById.get(participant.userId)?.photoURL?.trim() ||
           participant.photoURL?.trim() ||
           undefined,
+        goals: goalsByPlayer.get(participant.userId) ?? 0,
       }))
     : [];
   const playerKey = players
-    .map((player) => `${player.displayName}:${player.photoURL ?? ""}`)
+    .map((player) => `${player.displayName}:${player.photoURL ?? ""}:${player.goals}`)
     .join("|");
   const canShare = useMemo(() => (file ? canSharePosterFile(file) : false), [file]);
 

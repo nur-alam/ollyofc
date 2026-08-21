@@ -27,6 +27,7 @@ import {
   getGameScore,
   getResultWinner,
   getTeamName,
+  hasMatchEnded,
   isGameInPlay,
   isTossFlipping,
   isTossLanded,
@@ -59,7 +60,7 @@ export function GameResultUpdate({
   const tossed = isTossLanded(game.toss, now);
   const score = getGameScore(game);
   const winner = game.result?.winner ?? getResultWinner(score.a, score.b);
-  const canShareResult = game.status === "completed" && winner !== "draw";
+  const canShareResult = hasMatchEnded(game, now) && winner !== "draw";
 
   const scorers = useMemo(() => {
     const onTeam = participants.filter((participant) => participant.teamId === teamId);

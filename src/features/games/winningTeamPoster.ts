@@ -13,6 +13,7 @@ const FIREWORK_COLORS = [
 export type WinningTeamPosterPlayer = {
   displayName: string;
   photoURL?: string;
+  goals?: number;
 };
 
 export type WinningTeamPosterInput = {
@@ -239,6 +240,15 @@ function drawScoreCircle(
   ctx.fillText(String(value), x, y + 2);
 }
 
+function getPlayerRowSizes(count: number) {
+  if (count <= 5) {
+    return [count];
+  }
+
+  const top = Math.ceil(count / 2);
+  return [top, count - top];
+}
+
 function drawPlayers(
   ctx: CanvasRenderingContext2D,
   players: WinningTeamPosterPlayer[],
@@ -250,39 +260,84 @@ function drawPlayers(
 
   const pad = 56;
   const areaWidth = POSTER_SIZE - pad * 2;
-  const columns = Math.min(players.length, players.length <= 5 ? players.length : 6);
-  const rows = Math.ceil(players.length / columns);
+  const rowSizes = getPlayerRowSizes(players.length);
+  const maxCols = Math.max(...rowSizes);
   const gapX = 14;
   const nameH = 28;
   const maxAvatar = 88;
   const avatar = Math.min(
     maxAvatar,
-    Math.floor((areaWidth - gapX * (columns - 1)) / columns),
+    Math.floor((areaWidth - gapX * (maxCols - 1)) / maxCols),
   );
   const rowH = avatar + nameH + 10;
-  const gridWidth = columns * avatar + (columns - 1) * gapX;
-  const startX = (POSTER_SIZE - gridWidth) / 2 + avatar / 2;
-  const startY = Math.max(640, POSTER_SIZE - 48 - rows * rowH + avatar / 2);
+  const badgeSpace = 16;
+  const startY =
+    Math.max(640, POSTER_SIZE - 48 - rowSizes.length * rowH + avatar / 2) +
+    badgeSpace;
 
-  players.forEach((player, index) => {
-    const col = index % columns;
-    const row = Math.floor(index / columns);
-    const x = startX + col * (avatar + gapX);
+  let index = 0;
+
+  rowSizes.forEach((rowCount, row) => {
+    const rowWidth = rowCount * avatar + (rowCount - 1) * gapX;
+    const startX = (POSTER_SIZE - rowWidth) / 2 + avatar / 2;
     const y = startY + row * rowH;
-    const photo = photos[index];
 
-    if (photo) {
-      drawCircleImage(ctx, photo, x, y, avatar / 2 - 2);
-    } else {
-      drawInitialCircle(ctx, x, y, avatar / 2 - 2, player.displayName);
+    for (let col = 0; col < rowCount; col += 1) {
+      const player = players[index];
+      const photo = photos[index];
+      const x = startX + col * (avatar + gapX);
+
+      if (photo) {
+        drawCircleImage(ctx, photo, x, y, avatar / 2 - 2);
+      } else {
+        drawInitialCircle(ctx, x, y, avatar / 2 - 2, player.displayName);
+      }
+
+      drawGoalBadge(ctx, x, y, avatar / 2 - 2, player.goals ?? 0);
+
+      ctx.fillStyle = "rgba(255,255,255,0.82)";
+      ctx.font = `600 16px ${FONT}`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.fillText(
+        truncateText(ctx, player.displayName, avatar + 8),
+        x,
+        y + avatar / 2 + 8,
+      );
+
+      index += 1;
     }
-
-    ctx.fillStyle = "rgba(255,255,255,0.82)";
-    ctx.font = `600 16px ${FONT}`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "top";
-    ctx.fillText(truncateText(ctx, player.displayName, avatar + 8), x, y + avatar / 2 + 8);
   });
+}
+
+function drawGoalBadge(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  radius: number,
+  goals: number,
+) {
+  if (goals < 1) {
+    return;
+  }
+
+  const badgeR = Math.max(12, Math.round(radius * 0.34));
+  const bx = x;
+  const by = y - radius + 1;
+
+  ctx.beginPath();
+  ctx.arc(bx, by, badgeR, 0, Math.PI * 2);
+  ctx.fillStyle = "#fbbf24";
+  ctx.fill();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "#0c1433";
+  ctx.stroke();
+
+  ctx.fillStyle = "#0c1433";
+  ctx.font = `800 ${Math.round(badgeR * 1.2)}px ${FONT}`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(String(goals), bx, by + 1);
 }
 
 function drawCircleImage(
