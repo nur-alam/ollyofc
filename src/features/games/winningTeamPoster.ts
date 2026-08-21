@@ -262,9 +262,9 @@ function drawPlayers(
   const areaWidth = POSTER_SIZE - pad * 2;
   const rowSizes = getPlayerRowSizes(players.length);
   const maxCols = Math.max(...rowSizes);
-  const gapX = 14;
-  const nameH = 28;
-  const maxAvatar = 88;
+  const gapX = 16;
+  const nameH = 34;
+  const maxAvatar = 118;
   const avatar = Math.min(
     maxAvatar,
     Math.floor((areaWidth - gapX * (maxCols - 1)) / maxCols),
@@ -296,13 +296,13 @@ function drawPlayers(
       drawGoalBadge(ctx, x, y, avatar / 2 - 2, player.goals ?? 0);
 
       ctx.fillStyle = "rgba(255,255,255,0.82)";
-      ctx.font = `600 16px ${FONT}`;
+      ctx.font = `600 19px ${FONT}`;
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
       ctx.fillText(
-        truncateText(ctx, player.displayName, avatar + 8),
+        truncateText(ctx, player.displayName, avatar + 10),
         x,
-        y + avatar / 2 + 8,
+        y + avatar / 2 + 10,
       );
 
       index += 1;
