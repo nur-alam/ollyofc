@@ -35,7 +35,7 @@ export function UpcomingGamesList() {
               Final score from the latest match.
             </p>
           </div>
-          <LiveGameCard game={lastFinishedGame} allowUpdate={false} />
+          <LiveGameCard game={lastFinishedGame} />
         </section>
       ) : null}
 
