@@ -83,6 +83,7 @@ export type Game = {
   teams?: GameTeams;
   teamBuild?: GameTeamBuild;
   toss?: GameToss;
+  teamSwapLocked?: boolean;
   result?: GameResult;
   startedAt?: Timestamp;
   startedAtMs?: number;
@@ -120,6 +121,10 @@ export const DEFAULT_TEAM_NAMES: Record<GameTeamId, string> = {
 
 export function hasGameTeams(game: Game) {
   return Boolean(game.teams?.a && game.teams?.b);
+}
+
+export function isTeamSwapLocked(game: Pick<Game, "status" | "teamSwapLocked">) {
+  return game.status === "cancelled" || Boolean(game.teamSwapLocked);
 }
 
 export function getTeamName(game: Game, teamId: GameTeamId) {

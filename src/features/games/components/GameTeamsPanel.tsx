@@ -17,10 +17,12 @@ import {
   moveParticipantTeam,
   renameGameTeam,
   saveGeneratedTeams,
+  setTeamSwapLocked,
   startTeamBuild,
 } from "@/features/games/game.service";
 import { TeamFireworks } from "@/features/games/components/TeamFireworks";
 import { useUserMap } from "@/features/players/player.hooks";
+import { useAuthStore } from "@/features/auth/auth.store";
 import { getServerNowMs, syncServerClock } from "@/lib/clock";
 import { cn } from "@/lib/utils";
 import {
@@ -29,10 +31,12 @@ import {
   getGameScore,
   getTeamName,
   hasGameTeams,
+  isTeamSwapLocked,
   type Game,
   type GameParticipant,
   type GameTeamId,
 } from "@/types/game";
+import { isStaffRole } from "@/types/user";
 import { formatPosition } from "@/types/player";
 
 const MIN_PLAYERS_TO_BUILD = 2;
@@ -166,10 +170,14 @@ export function GameTeamsPanel({
   canEdit,
   generatedBy,
 }: GameTeamsPanelProps) {
+  const { profile } = useAuthStore();
+  const isStaff = profile ? isStaffRole(profile.role) : false;
+  const isAdmin = profile?.role === "admin";
   const usersById = useUserMap();
   const [nowMs, setNowMs] = useState(() => getServerNowMs());
   const [saving, setSaving] = useState(false);
   const [canceling, setCanceling] = useState(false);
+  const [lockingSwap, setLockingSwap] = useState(false);
   const [movingId, setMovingId] = useState("");
   const [actionError, setActionError] = useState("");
   const [confirmAction, setConfirmAction] = useState<
@@ -188,6 +196,9 @@ export function GameTeamsPanel({
   );
 
   const teamsReady = hasGameTeams(game);
+  const swapLocked = isTeamSwapLocked(game);
+  const canSwap = isStaff && teamsReady && !swapLocked;
+  const canLockSwap = isAdmin && game.status !== "cancelled";
   const score = getGameScore(game);
   const winningTeam: GameTeamId | null =
     score.a === score.b ? null : score.a > score.b ? "a" : "b";
@@ -350,6 +361,10 @@ export function GameTeamsPanel({
   };
 
   const handleMove = async (userId: string, teamId: GameTeamId) => {
+    if (!canSwap) {
+      return;
+    }
+
     setMovingId(userId);
     setActionError("");
 
@@ -359,6 +374,19 @@ export function GameTeamsPanel({
       setActionError(getErrorMessage(error, "Could not move this player."));
     } finally {
       setMovingId("");
+    }
+  };
+
+  const handleSwapLock = async () => {
+    setLockingSwap(true);
+    setActionError("");
+
+    try {
+      await setTeamSwapLocked(game.id, !game.teamSwapLocked);
+    } catch (error) {
+      setActionError(getErrorMessage(error, "Could not update player swaps."));
+    } finally {
+      setLockingSwap(false);
     }
   };
 
@@ -395,41 +423,61 @@ export function GameTeamsPanel({
               Placing players...
             </p>
           ) : (
-            canEdit && (
-              <>
-                {teamsReady && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={saving || canceling}
-                    onClick={() => setConfirmAction("cancel")}
-                  >
-                    {canceling ? "Canceling..." : "Cancel teams"}
-                  </Button>
-                )}
+            <>
+              {canLockSwap && teamsReady && (
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  disabled={
-                    saving ||
-                    canceling ||
-                    resolvedParticipants.length < MIN_PLAYERS_TO_BUILD
-                  }
-                  onClick={() =>
-                    setConfirmAction(teamsReady ? "rebuild" : "build")
-                  }
+                  disabled={lockingSwap}
+                  onClick={() => void handleSwapLock()}
                 >
-                  {teamsReady ? "Rebuild teams" : "Build teams"}
+                  {lockingSwap
+                    ? "Saving..."
+                    : game.teamSwapLocked
+                      ? "Unlock swaps"
+                      : "Lock swaps"}
                 </Button>
-              </>
-            )
+              )}
+              {canEdit && (
+                <>
+                  {teamsReady && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={saving || canceling}
+                      onClick={() => setConfirmAction("cancel")}
+                    >
+                      {canceling ? "Canceling..." : "Cancel teams"}
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={
+                      saving ||
+                      canceling ||
+                      resolvedParticipants.length < MIN_PLAYERS_TO_BUILD
+                    }
+                    onClick={() =>
+                      setConfirmAction(teamsReady ? "rebuild" : "build")
+                    }
+                  >
+                    {teamsReady ? "Rebuild teams" : "Build teams"}
+                  </Button>
+                </>
+              )}
+            </>
           )}
         </div>
       </div>
 
       {actionError && <p className="error-text mt-2">{actionError}</p>}
+      {swapLocked && isStaff && game.status !== "cancelled" && teamsReady && !isAnimating ? (
+        <p className="mt-2 text-sm text-muted-foreground">Player swaps are locked.</p>
+      ) : null}
 
       {isAnimating ? (
         <div className="mt-3 space-y-3">
@@ -561,7 +609,7 @@ export function GameTeamsPanel({
                         key={participant.userId}
                         className="flex items-center gap-2 py-2 first:pt-0 last:pb-0"
                       >
-                        {canEdit && teamId === "b" && (
+                        {canSwap && teamId === "b" && (
                           <Button
                             type="button"
                             variant="ghost"
@@ -574,7 +622,7 @@ export function GameTeamsPanel({
                           </Button>
                         )}
                         <PlayerLine participant={participant} className="flex-1" />
-                        {canEdit && teamId === "a" && (
+                        {canSwap && teamId === "a" && (
                           <Button
                             type="button"
                             variant="ghost"
@@ -608,7 +656,7 @@ export function GameTeamsPanel({
                     className="flex items-center justify-between gap-2"
                   >
                     <PlayerLine participant={participant} />
-                    {canEdit && (
+                    {canSwap && (
                       <div className="flex gap-1">
                         {GAME_TEAM_IDS.map((teamId) => (
                           <Button
