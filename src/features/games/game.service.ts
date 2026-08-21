@@ -272,6 +272,7 @@ export function mapGame(id: string, data: DocumentData): Game {
     teams: mapTeams(data.teams),
     teamBuild: mapTeamBuild(data.teamBuild),
     toss: mapToss(data.toss),
+    teamSwapLocked: data.teamSwapLocked === true,
     result: mapResult(data.result),
     startedAt: data.startedAt,
     startedAtMs: typeof data.startedAtMs === "number" ? data.startedAtMs : undefined,
@@ -477,6 +478,16 @@ export async function renameGameTeam(
 ): Promise<void> {
   await updateDoc(doc(db, "games", gameId), {
     [`teams.${teamId}.name`]: name.trim() || DEFAULT_TEAM_NAMES[teamId],
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function setTeamSwapLocked(
+  gameId: string,
+  locked: boolean,
+): Promise<void> {
+  await updateDoc(doc(db, "games", gameId), {
+    teamSwapLocked: locked,
     updatedAt: serverTimestamp(),
   });
 }

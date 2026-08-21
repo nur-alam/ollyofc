@@ -295,7 +295,7 @@ export function GameDetailPage() {
       <section className="rounded-xl border bg-background p-5 shadow-sm">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-lg font-semibold">Joined players</h2>
-          {isStaff && (upcoming || inPlay) ? (
+          {isStaff && game.status !== "cancelled" ? (
             <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
               Add player
             </Button>

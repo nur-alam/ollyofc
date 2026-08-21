@@ -46,8 +46,9 @@ export function LiveGameCard({
     game.status !== "cancelled";
   const teamsReady = hasGameTeams(game);
   const showTeams =
-    game.status !== "completed" && game.status !== "cancelled";
-  const showJoinedList = showTeams && !teamsReady && !game.teamBuild;
+    game.status !== "cancelled" &&
+    (teamsReady || game.teamBuild || game.status !== "completed");
+  const showJoinedList = showTeams && !teamsReady && !game.teamBuild && game.status !== "completed";
 
   const [addOpen, setAddOpen] = useState(false);
   const [savingId, setSavingId] = useState("");
