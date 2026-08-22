@@ -8,9 +8,10 @@ import { DashboardPage } from "@/pages/DashboardPage";
 import { HomePage } from "@/pages/HomePage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { ProfilePage } from "@/pages/ProfilePage";
-import { PlayersPage } from "@/features/players/pages/PlayersPage";
 import { GamesPage } from "@/features/games/pages/GamesPage";
 import { GameDetailPage } from "@/features/games/pages/GameDetailPage";
+import { PlayerPage } from "@/features/players/pages/PlayerPage";
+import { PlayersPage } from "@/features/players/pages/PlayersPage";
 import { STAFF_ROLES } from "@/types/user";
 
 export function AppRouter() {
@@ -21,6 +22,7 @@ export function AppRouter() {
 
       <Route element={<AppLayout />}>
         <Route path="/squad" element={<PlayersPage />} />
+        <Route path="/player/:playerId" element={<PlayerPage />} />
         <Route path="/games" element={<GamesPage />} />
         <Route path="/games/:gameId" element={<GameDetailPage />} />
 

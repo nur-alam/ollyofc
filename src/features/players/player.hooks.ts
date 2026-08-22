@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { subscribeToUsers } from "@/features/auth/auth.service";
+import { subscribeToUser, subscribeToUsers } from "@/features/auth/auth.service";
+import {
+  toPlayerMatchStats,
+  type PlayerMatchStats,
+} from "@/features/games/playerStats";
 import type { UserProfile } from "@/types/user";
 import type { PlayerFilterState } from "@/types/player";
 
@@ -74,6 +78,44 @@ export function useSquad(filters: PlayerFilterState) {
     errorMessage,
     stats,
   };
+}
+
+/** Single user document. Career stats travel on the profile, so no game reads. */
+export function usePlayerProfile(userId: string | undefined) {
+  const [player, setPlayer] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    if (!userId) {
+      setPlayer(null);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+
+    return subscribeToUser(
+      userId,
+      (nextPlayer) => {
+        setPlayer(nextPlayer);
+        setLoading(false);
+        setErrorMessage("");
+      },
+      (message) => {
+        setPlayer(null);
+        setLoading(false);
+        setErrorMessage(message);
+      },
+    );
+  }, [userId]);
+
+  const stats: PlayerMatchStats = useMemo(
+    () => toPlayerMatchStats(player?.stats),
+    [player?.stats],
+  );
+
+  return { player, stats, loading, errorMessage };
 }
 
 export function useUserMap() {

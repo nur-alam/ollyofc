@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router-dom";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { GameCountDown } from "@/features/games/components/GameCountDown";
 import { GameElapsedTimer } from "@/features/games/components/GameElapsedTimer";
+import { GamePlayStatusControl } from "@/features/games/components/GamePlayStatusControl";
 import { GameResultBoard } from "@/features/games/components/GameResultBoard";
 import { GameResultUpdate } from "@/features/games/components/GameResultUpdate";
 import { GameStatusBadge } from "@/features/games/components/GameStatusBadge";
@@ -26,6 +27,8 @@ import { cn } from "@/lib/utils";
 import { isStaffRole } from "@/types/user";
 import type { UserProfile } from "@/types/user";
 import {
+  canChangeGamePlayStatus,
+  canRemoveGamePlayers,
   canShowGameResult,
   canUpdateGameResult,
   formatGameDate,
@@ -51,6 +54,7 @@ export function GameDetailPage() {
   const { gameId } = useParams();
   const { firebaseUser, profile } = useAuthStore();
   const isStaff = profile ? isStaffRole(profile.role) : false;
+  const isAdmin = profile?.role === "admin";
   const { game, loading, errorMessage } = useGame(gameId);
   const { participants } = useParticipants(gameId);
   const now = useNow(1000);
@@ -219,6 +223,11 @@ export function GameDetailPage() {
             <dd className="mt-1 font-medium">{game.notes}</dd>
           </div>
         )}
+        {isAdmin && profile && canChangeGamePlayStatus(game) ? (
+          <div className="sm:col-span-2 lg:col-span-3">
+            <GamePlayStatusControl game={game} updatedBy={profile.id} />
+          </div>
+        ) : null}
       </dl>
 
       {actionError && <p className="error-text">{actionError}</p>}
@@ -304,7 +313,7 @@ export function GameDetailPage() {
         {participants.length ? (
           <JoinedPlayersList
             participants={participants}
-            canRemove={isStaff && (upcoming || inPlay)}
+            canRemove={isStaff && canRemoveGamePlayers(game)}
             savingId={savingId}
             onRemove={handleStaffRemove}
           />

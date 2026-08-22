@@ -24,6 +24,13 @@ service cloud.firestore {
         .hasOnly(['displayName', 'email', 'position', 'isActive', 'photoURL', 'updatedAt']);
     }
 
+    // Finishing or editing a game rewrites career stats for everyone who played,
+    // so staff need to touch these fields on other players' documents.
+    function isPlayerStatsUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['stats', 'statGames', 'updatedAt']);
+    }
+
     function isStaffUserCreate() {
       return request.resource.data.role == 'user'
         && request.resource.data.email is string
@@ -49,6 +56,8 @@ service cloud.firestore {
         && (request.auth.uid != userId || request.resource.data.role == resource.data.role)
       ) || (
         isStaff() && isStaffUserFieldsUpdate()
+      ) || (
+        isStaff() && isPlayerStatsUpdate()
       ) || (
         isSignedIn()
         && request.auth.uid == userId

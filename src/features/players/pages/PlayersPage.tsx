@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { UserPlusIcon } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -52,6 +53,7 @@ const defaultFilters: PlayerFilterState = {
 };
 
 export function PlayersPage() {
+  const navigate = useNavigate();
   const { profile, setProfile } = useAuthStore();
   const isStaff = profile ? isStaffRole(profile.role) : false;
   const isAdmin = profile?.role === "admin";
@@ -292,7 +294,20 @@ export function PlayersPage() {
               </TableRow>
             ) : users.length ? (
               users.map((user) => (
-                <TableRow key={user.id}>
+                <TableRow
+                  key={user.id}
+                  role="link"
+                  tabIndex={0}
+                  aria-label={`View ${user.displayName}`}
+                  className="cursor-pointer"
+                  onClick={() => navigate(`/player/${user.id}`)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      navigate(`/player/${user.id}`);
+                    }
+                  }}
+                >
                   <TableCell>
                     <div className="flex min-w-0 items-center gap-3">
                       <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-sm font-semibold">
@@ -328,7 +343,10 @@ export function PlayersPage() {
                     </Badge>
                   </TableCell>
                   {isStaff && (
-                    <TableCell className="text-right">
+                    <TableCell
+                      className="text-right"
+                      onClick={(event) => event.stopPropagation()}
+                    >
                       <PlayerRowMenu
                         user={user}
                         canDelete={isAdmin && user.id !== profile?.id}
