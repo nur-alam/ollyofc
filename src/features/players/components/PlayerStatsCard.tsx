@@ -25,9 +25,10 @@ export function PlayerStatsCard({
       {loading ? (
         <p className="mt-4 text-sm text-muted-foreground">Loading stats...</p>
       ) : (
-        <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
           <StatTile label="Games" value={String(stats.games)} />
           <StatTile label="Goals" value={String(stats.goals)} />
+          <StatTile label="Assists" value={String(stats.assists)} />
           <StatTile label="Wins" value={String(stats.wins)} />
           <StatTile label="Losses" value={String(stats.losses)} />
           <StatTile label="Draws" value={String(stats.draws)} />

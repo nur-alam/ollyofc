@@ -12,11 +12,13 @@ export type PlayerGameStat = {
   teamId?: GameTeamId;
   result?: PlayerGameResult;
   goals: number;
+  assists: number;
 };
 
 export type PlayerStatTotals = {
   games: number;
   goals: number;
+  assists: number;
   wins: number;
   losses: number;
   draws: number;
@@ -25,6 +27,7 @@ export type PlayerStatTotals = {
 export const EMPTY_STAT_TOTALS: PlayerStatTotals = {
   games: 0,
   goals: 0,
+  assists: 0,
   wins: 0,
   losses: 0,
   draws: 0,
@@ -57,7 +60,10 @@ export function parsePlayerGameStat(value: unknown): PlayerGameStat | null {
   }
 
   const data = value as Record<string, unknown>;
-  const stat: PlayerGameStat = { goals: parseCount(data.goals) };
+  const stat: PlayerGameStat = {
+    goals: parseCount(data.goals),
+    assists: parseCount(data.assists),
+  };
 
   if (data.teamId === "a" || data.teamId === "b") {
     stat.teamId = data.teamId;
@@ -93,6 +99,7 @@ export function sumStatGames(
   for (const stat of Object.values(statGames)) {
     totals.games += 1;
     totals.goals += stat.goals;
+    totals.assists += stat.assists;
 
     if (stat.result === "win") {
       totals.wins += 1;

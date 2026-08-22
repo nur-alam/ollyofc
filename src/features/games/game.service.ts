@@ -185,7 +185,7 @@ function mapGoal(value: unknown): GameGoal | null {
     return null;
   }
 
-  return {
+  const goal: GameGoal = {
     id: data.id,
     teamId,
     scorerId: data.scorerId,
@@ -196,6 +196,16 @@ function mapGoal(value: unknown): GameGoal | null {
         ? data.createdAtMs
         : 0,
   };
+
+  if (typeof data.assistId === "string" && data.assistId) {
+    goal.assistId = data.assistId;
+    goal.assistName =
+      typeof data.assistName === "string" && data.assistName
+        ? data.assistName
+        : "Player";
+  }
+
+  return goal;
 }
 
 function mapResult(value: unknown): GameResult | undefined {
@@ -747,6 +757,8 @@ export async function addGameGoal(
     teamId: GameTeamId;
     scorerId: string;
     scorerName: string;
+    assistId?: string;
+    assistName?: string;
     createdBy: string;
   },
 ): Promise<void> {
@@ -760,17 +772,25 @@ export async function addGameGoal(
     throw new Error("Start the game before adding goals.");
   }
 
-  const goals = [
-    ...(game.result?.goals ?? []),
-    {
-      id: createGoalId(),
-      teamId: input.teamId,
-      scorerId: input.scorerId,
-      scorerName: input.scorerName,
-      createdBy: input.createdBy,
-      createdAtMs: Date.now(),
-    },
-  ];
+  if (input.assistId && input.assistId === input.scorerId) {
+    throw new Error("A player cannot assist their own goal.");
+  }
+
+  const goal: GameGoal = {
+    id: createGoalId(),
+    teamId: input.teamId,
+    scorerId: input.scorerId,
+    scorerName: input.scorerName,
+    createdBy: input.createdBy,
+    createdAtMs: Date.now(),
+  };
+
+  if (input.assistId) {
+    goal.assistId = input.assistId;
+    goal.assistName = input.assistName?.trim() || "Player";
+  }
+
+  const goals = [...(game.result?.goals ?? []), goal];
   const result = buildResult(goals, input.createdBy);
 
   await updateDoc(doc(db, "games", gameId), {

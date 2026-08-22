@@ -62,6 +62,7 @@ export function buildGameStatContributions(
   for (const participant of participants) {
     const stat: PlayerGameStat = {
       goals: goals.filter((goal) => goal.scorerId === participant.userId).length,
+      assists: goals.filter((goal) => goal.assistId === participant.userId).length,
     };
 
     if (participant.teamId) {
@@ -90,6 +91,7 @@ export function isSamePlayerGameStat(
 
   return (
     left.goals === right.goals &&
+    left.assists === right.assists &&
     left.result === right.result &&
     left.teamId === right.teamId
   );
