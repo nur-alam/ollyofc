@@ -94,6 +94,8 @@ export function GameResultBoard({
   const score = getGameScore(game);
   const resultGoals = goals ?? game.result?.goals ?? [];
   const tallies = getPlayerGoalCounts(resultGoals);
+  // Index of the first cell on the final grid row (2 columns), so its row skips the divider.
+  const lastTallyRowStart = Math.floor((tallies.length - 1) / 2) * 2;
   const tossLanded = isTossLanded(game.toss, now);
   const goalsByTeam = (teamId: GameTeamId) =>
     resultGoals.filter((goal) => goal.teamId === teamId);
@@ -125,11 +127,14 @@ export function GameResultBoard({
       {tallies.length > 0 && (
         <div>
           <h3 className="text-sm font-medium">Goals by player</h3>
-          <ul className="mt-2 divide-y rounded-lg border">
-            {tallies.map((tally) => (
+          <ul className="grid grid-cols-2 mt-2 rounded-lg border">
+            {tallies.map((tally, index) => (
               <li
                 key={tally.scorerId}
-                className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
+                className={cn(
+                  "flex items-center justify-between gap-3 px-3 py-2 text-sm",
+                  index < lastTallyRowStart && "border-b",
+                )}
               >
                 <ScorerLabel
                   name={tally.scorerName}
