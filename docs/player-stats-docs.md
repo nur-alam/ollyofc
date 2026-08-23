@@ -1,6 +1,6 @@
 Stats are written only when a game is completed. Every trigger below re-syncs that one game and writes only what changed.
 
-Finish game — the main one. Games, goals, and win/loss/draw land for everyone who played (finishGame → setGamePlayStatus).
+Finish game — the main one. Games, goals, assists, and win/loss/draw land for everyone who played (finishGame → setGamePlayStatus).
 Reopen a completed game back to active — contributions are removed until it's finished again.
 Add a player to a finished game — pure add for that player.
 Delete a game — contributions stripped first, then the game is deleted.

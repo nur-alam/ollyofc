@@ -48,8 +48,15 @@ import {
   isSamePlayerGameStat,
 } from "@/features/games/playerStats";
 import type { TeamDealStep } from "@/features/games/buildTeams";
-import { parseStatGames, sumStatGames } from "@/types/user";
-import type { PlayerGameStat, UserProfile } from "@/types/user";
+import {
+  addStatTotals,
+  applyStatDelta,
+  EMPTY_STAT_TOTALS,
+  parseStatGames,
+  parseStatTotals,
+  totalsFromContribution,
+} from "@/types/user";
+import type { PlayerGameStat, PlayerStatTotals, UserProfile } from "@/types/user";
 
 function parseStatus(value: unknown): GameStatus {
   if (
@@ -185,7 +192,7 @@ function mapGoal(value: unknown): GameGoal | null {
     return null;
   }
 
-  return {
+  const goal: GameGoal = {
     id: data.id,
     teamId,
     scorerId: data.scorerId,
@@ -196,6 +203,16 @@ function mapGoal(value: unknown): GameGoal | null {
         ? data.createdAtMs
         : 0,
   };
+
+  if (typeof data.assistId === "string" && data.assistId) {
+    goal.assistId = data.assistId;
+    goal.assistName =
+      typeof data.assistName === "string" && data.assistName
+        ? data.assistName
+        : "Player";
+  }
+
+  return goal;
 }
 
 function mapResult(value: unknown): GameResult | undefined {
@@ -441,18 +458,15 @@ export async function syncGameStats(
       return;
     }
 
-    const statGames = parseStatGames(snapshot.data().statGames);
-    const contribution = next[affected[index]];
-
-    if (contribution) {
-      statGames[gameId] = contribution;
-    } else {
-      delete statGames[gameId];
-    }
+    const userId = affected[index];
 
     batch.update(snapshot.ref, {
-      statGames,
-      stats: sumStatGames(statGames),
+      stats: applyStatDelta(
+        parseStatTotals(snapshot.data().stats),
+        applied[userId],
+        next[userId],
+      ),
+      statGames: deleteField(),
       updatedAt: serverTimestamp(),
     });
   });
@@ -464,18 +478,79 @@ export async function syncGameStats(
   await batch.commit();
 }
 
-/** One-off backfill / repair across every game. Returns the games processed. */
+const STAT_WRITE_CHUNK = 400;
+
+/** Rebuilds every player's totals from completed games. Returns games processed. */
 export async function syncAllGameStats(
   onProgress?: (done: number, total: number) => void,
 ): Promise<number> {
-  const games = await getDocs(collection(db, "games"));
+  const [games, users] = await Promise.all([
+    getDocs(collection(db, "games")),
+    getDocs(collection(db, "users")),
+  ]);
+
+  const totalsByUser = new Map<string, PlayerStatTotals>();
+  const appliedByGame = new Map<string, Record<string, PlayerGameStat>>();
 
   let done = 0;
 
   for (const gameDoc of games.docs) {
-    await syncGameStats(gameDoc.id);
+    const game = mapGame(gameDoc.id, gameDoc.data());
+    let next: Record<string, PlayerGameStat> = {};
+
+    if (game.status === "completed") {
+      const participants = await getDocs(
+        collection(db, "games", game.id, "participants"),
+      );
+
+      next = buildGameStatContributions(
+        game,
+        participants.docs.map((item) => mapParticipant(item.id, item.data())),
+      );
+
+      for (const [userId, stat] of Object.entries(next)) {
+        totalsByUser.set(
+          userId,
+          addStatTotals(
+            totalsByUser.get(userId) ?? { ...EMPTY_STAT_TOTALS },
+            totalsFromContribution(stat),
+          ),
+        );
+      }
+    }
+
+    appliedByGame.set(game.id, next);
     done += 1;
     onProgress?.(done, games.size);
+  }
+
+  const writes: Array<(batch: ReturnType<typeof writeBatch>) => void> = [];
+
+  users.docs.forEach((userDoc) => {
+    writes.push((batch) => {
+      batch.update(userDoc.ref, {
+        stats: totalsByUser.get(userDoc.id) ?? { ...EMPTY_STAT_TOTALS },
+        statGames: deleteField(),
+        updatedAt: serverTimestamp(),
+      });
+    });
+  });
+
+  games.docs.forEach((gameDoc) => {
+    writes.push((batch) => {
+      batch.update(gameDoc.ref, {
+        statsApplied: {
+          players: appliedByGame.get(gameDoc.id) ?? {},
+          at: serverTimestamp(),
+        },
+      });
+    });
+  });
+
+  for (let index = 0; index < writes.length; index += STAT_WRITE_CHUNK) {
+    const batch = writeBatch(db);
+    writes.slice(index, index + STAT_WRITE_CHUNK).forEach((write) => write(batch));
+    await batch.commit();
   }
 
   return games.size;
@@ -747,6 +822,8 @@ export async function addGameGoal(
     teamId: GameTeamId;
     scorerId: string;
     scorerName: string;
+    assistId?: string;
+    assistName?: string;
     createdBy: string;
   },
 ): Promise<void> {
@@ -760,17 +837,25 @@ export async function addGameGoal(
     throw new Error("Start the game before adding goals.");
   }
 
-  const goals = [
-    ...(game.result?.goals ?? []),
-    {
-      id: createGoalId(),
-      teamId: input.teamId,
-      scorerId: input.scorerId,
-      scorerName: input.scorerName,
-      createdBy: input.createdBy,
-      createdAtMs: Date.now(),
-    },
-  ];
+  if (input.assistId && input.assistId === input.scorerId) {
+    throw new Error("A player cannot assist their own goal.");
+  }
+
+  const goal: GameGoal = {
+    id: createGoalId(),
+    teamId: input.teamId,
+    scorerId: input.scorerId,
+    scorerName: input.scorerName,
+    createdBy: input.createdBy,
+    createdAtMs: Date.now(),
+  };
+
+  if (input.assistId) {
+    goal.assistId = input.assistId;
+    goal.assistName = input.assistName?.trim() || "Player";
+  }
+
+  const goals = [...(game.result?.goals ?? []), goal];
   const result = buildResult(goals, input.createdBy);
 
   await updateDoc(doc(db, "games", gameId), {

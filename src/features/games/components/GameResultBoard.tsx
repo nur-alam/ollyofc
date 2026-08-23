@@ -52,9 +52,11 @@ function TeamScore({
 function ScorerLabel({
   name,
   photoURL,
+  assistName,
 }: {
   name: string;
   photoURL?: string;
+  assistName?: string;
 }) {
   return (
     <span className="flex min-w-0 items-center gap-2">
@@ -62,7 +64,14 @@ function ScorerLabel({
         {photoURL ? <AvatarImage src={photoURL} alt={name} /> : null}
         <AvatarFallback>{name.charAt(0).toUpperCase()}</AvatarFallback>
       </Avatar>
-      <span className="truncate">{name}</span>
+      <span className="flex min-w-0 flex-col">
+        <span className="truncate">{name}</span>
+        {assistName ? (
+          <span className="truncate text-xs text-muted-foreground">
+            Assist: {assistName}
+          </span>
+        ) : null}
+      </span>
     </span>
   );
 }
@@ -150,6 +159,7 @@ export function GameResultBoard({
                       <ScorerLabel
                         name={goal.scorerName}
                         photoURL={usersById.get(goal.scorerId)?.photoURL}
+                        assistName={goal.assistName}
                       />
                       {onRemoveGoal && (
                         <button

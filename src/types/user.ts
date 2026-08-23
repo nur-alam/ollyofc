@@ -12,11 +12,13 @@ export type PlayerGameStat = {
   teamId?: GameTeamId;
   result?: PlayerGameResult;
   goals: number;
+  assists: number;
 };
 
 export type PlayerStatTotals = {
   games: number;
   goals: number;
+  assists: number;
   wins: number;
   losses: number;
   draws: number;
@@ -25,6 +27,7 @@ export type PlayerStatTotals = {
 export const EMPTY_STAT_TOTALS: PlayerStatTotals = {
   games: 0,
   goals: 0,
+  assists: 0,
   wins: 0,
   losses: 0,
   draws: 0,
@@ -40,7 +43,6 @@ export type UserProfile = {
   position: PlayerPosition | "";
   isSeed?: boolean;
   stats: PlayerStatTotals;
-  statGames: Record<string, PlayerGameStat>;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 };
@@ -57,7 +59,10 @@ export function parsePlayerGameStat(value: unknown): PlayerGameStat | null {
   }
 
   const data = value as Record<string, unknown>;
-  const stat: PlayerGameStat = { goals: parseCount(data.goals) };
+  const stat: PlayerGameStat = {
+    goals: parseCount(data.goals),
+    assists: parseCount(data.assists),
+  };
 
   if (data.teamId === "a" || data.teamId === "b") {
     stat.teamId = data.teamId;
@@ -85,25 +90,72 @@ export function parseStatGames(value: unknown): Record<string, PlayerGameStat> {
   return Object.fromEntries(entries);
 }
 
-export function sumStatGames(
-  statGames: Record<string, PlayerGameStat>,
-): PlayerStatTotals {
-  const totals = { ...EMPTY_STAT_TOTALS };
-
-  for (const stat of Object.values(statGames)) {
-    totals.games += 1;
-    totals.goals += stat.goals;
-
-    if (stat.result === "win") {
-      totals.wins += 1;
-    } else if (stat.result === "loss") {
-      totals.losses += 1;
-    } else if (stat.result === "draw") {
-      totals.draws += 1;
-    }
+export function parseStatTotals(value: unknown): PlayerStatTotals {
+  if (!value || typeof value !== "object") {
+    return { ...EMPTY_STAT_TOTALS };
   }
 
-  return totals;
+  const data = value as Record<string, unknown>;
+
+  return {
+    games: parseCount(data.games),
+    goals: parseCount(data.goals),
+    assists: parseCount(data.assists),
+    wins: parseCount(data.wins),
+    losses: parseCount(data.losses),
+    draws: parseCount(data.draws),
+  };
+}
+
+export function totalsFromContribution(
+  stat: PlayerGameStat | undefined,
+): PlayerStatTotals {
+  if (!stat) {
+    return { ...EMPTY_STAT_TOTALS };
+  }
+
+  return {
+    games: 1,
+    goals: stat.goals,
+    assists: stat.assists,
+    wins: stat.result === "win" ? 1 : 0,
+    losses: stat.result === "loss" ? 1 : 0,
+    draws: stat.result === "draw" ? 1 : 0,
+  };
+}
+
+export function addStatTotals(
+  left: PlayerStatTotals,
+  right: PlayerStatTotals,
+): PlayerStatTotals {
+  return {
+    games: Math.max(0, left.games + right.games),
+    goals: Math.max(0, left.goals + right.goals),
+    assists: Math.max(0, left.assists + right.assists),
+    wins: Math.max(0, left.wins + right.wins),
+    losses: Math.max(0, left.losses + right.losses),
+    draws: Math.max(0, left.draws + right.draws),
+  };
+}
+
+export function applyStatDelta(
+  current: PlayerStatTotals,
+  previous: PlayerGameStat | undefined,
+  next: PlayerGameStat | undefined,
+): PlayerStatTotals {
+  const previousTotals = totalsFromContribution(previous);
+
+  return addStatTotals(
+    addStatTotals(current, {
+      games: -previousTotals.games,
+      goals: -previousTotals.goals,
+      assists: -previousTotals.assists,
+      wins: -previousTotals.wins,
+      losses: -previousTotals.losses,
+      draws: -previousTotals.draws,
+    }),
+    totalsFromContribution(next),
+  );
 }
 
 export const STAFF_ROLES: UserRole[] = ["admin", "moderator"];

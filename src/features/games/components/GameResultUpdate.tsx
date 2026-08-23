@@ -50,6 +50,7 @@ export function GameResultUpdate({
 }: GameResultUpdateProps) {
   const [teamId, setTeamId] = useState<GameTeamId>("a");
   const [scorerId, setScorerId] = useState("");
+  const [assistId, setAssistId] = useState("");
   const [saving, setSaving] = useState(false);
   const [finishOpen, setFinishOpen] = useState(false);
   const [posterOpen, setPosterOpen] = useState(false);
@@ -70,6 +71,15 @@ export function GameResultUpdate({
   }, [participants, teamId]);
 
   const selectedScorer = scorers.find((participant) => participant.userId === scorerId);
+
+  const assisters = useMemo(
+    () => scorers.filter((participant) => participant.userId !== scorerId),
+    [scorers, scorerId],
+  );
+
+  const selectedAssister = assisters.find(
+    (participant) => participant.userId === assistId,
+  );
 
   const handleToss = async () => {
     setSaving(true);
@@ -122,10 +132,13 @@ export function GameResultUpdate({
         teamId,
         scorerId: selectedScorer.userId,
         scorerName: selectedScorer.displayName,
+        assistId: selectedAssister?.userId,
+        assistName: selectedAssister?.displayName,
         createdBy: updatedBy,
       });
       setScorerId("");
-      toast.success("Goal added");
+      setAssistId("");
+      toast.success(selectedAssister ? "Goal and assist added" : "Goal added");
     } catch (error) {
       toast.error(getErrorMessage(error, "Could not add this goal."));
     } finally {
@@ -201,7 +214,7 @@ export function GameResultUpdate({
       />
 
       {canRecordGoals ? (
-      <div className="grid gap-3 rounded-lg border p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+      <div className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_auto] lg:items-end">
         <div className="grid gap-2">
           <Label>Team</Label>
           <Select
@@ -210,6 +223,7 @@ export function GameResultUpdate({
               if (value === "a" || value === "b") {
                 setTeamId(value);
                 setScorerId("");
+                setAssistId("");
               }
             }}
           >
@@ -232,10 +246,15 @@ export function GameResultUpdate({
             onValueChange={(value) => {
               if (!value || value === "unset") {
                 setScorerId("");
+                setAssistId("");
                 return;
               }
 
               setScorerId(value);
+
+              if (value === assistId) {
+                setAssistId("");
+              }
             }}
           >
             <SelectTrigger className="w-full">
@@ -246,6 +265,29 @@ export function GameResultUpdate({
             <SelectContent>
               <SelectItem value="unset">Select player</SelectItem>
               {scorers.map((participant) => (
+                <SelectItem key={participant.userId} value={participant.userId}>
+                  {participant.displayName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid gap-2">
+          <Label>Assist</Label>
+          <Select
+            value={assistId || "unset"}
+            onValueChange={(value) => {
+              setAssistId(!value || value === "unset" ? "" : value);
+            }}
+          >
+            <SelectTrigger className="w-full" disabled={!selectedScorer}>
+              <SelectValue placeholder="No assist">
+                {selectedAssister?.displayName}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="unset">No assist</SelectItem>
+              {assisters.map((participant) => (
                 <SelectItem key={participant.userId} value={participant.userId}>
                   {participant.displayName}
                 </SelectItem>

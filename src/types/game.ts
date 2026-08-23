@@ -55,6 +55,8 @@ export type GameGoal = {
   teamId: GameTeamId;
   scorerId: string;
   scorerName: string;
+  assistId?: string;
+  assistName?: string;
   createdBy: string;
   createdAtMs: number;
 };
