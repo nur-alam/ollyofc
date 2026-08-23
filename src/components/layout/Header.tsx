@@ -66,11 +66,61 @@ export function Header() {
 
   return (
     <header className="topbar">
-      <Link to="/" className="brand shrink-0 whitespace-nowrap text-white no-underline">
-        Ollyo FC
-      </Link>
+      <div>
+        {/* Phones have no room for the full nav beside the auth button. */}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 shrink-0 cursor-pointer bg-white/15 text-white hover:bg-white/30 hover:text-white sm:hidden"
+                aria-label="Open menu"
+              >
+                <MenuIcon />
+              </Button>
+            }
+          />
+          <DropdownMenuContent
+            align="start"
+            className="min-w-44 [&_[data-slot=dropdown-menu-item]]:cursor-pointer"
+          >
+            {navItems.map((item) => (
+              <DropdownMenuItem
+                key={item.to}
+                className={cn(
+                  (pathname === item.to || pathname.startsWith(`${item.to}/`)) &&
+                    "bg-muted",
+                )}
+                onClick={() => navigate(item.to)}
+              >
+                <item.icon />
+                {item.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <Link to="/" className="ml-1 brand shrink-0 whitespace-nowrap text-white no-underline">
+          Ollyo FC
+        </Link>
+      </div>
 
       <div className="topbar-actions h-8">
+
+        <nav className="hidden items-center gap-1 sm:flex">
+          {navItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              className={headerNavClassName}
+            >
+              <item.icon />
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
 
         {firebaseUser ? (
           <DropdownMenu>
@@ -134,54 +184,6 @@ export function Header() {
             )}
           </Button>
         )}
-        
-        {/* Phones have no room for the full nav beside the auth button. */}
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8 shrink-0 cursor-pointer bg-white/15 text-white hover:bg-white/30 hover:text-white sm:hidden"
-                aria-label="Open menu"
-              >
-                <MenuIcon />
-              </Button>
-            }
-          />
-          <DropdownMenuContent
-            align="start"
-            className="min-w-44 [&_[data-slot=dropdown-menu-item]]:cursor-pointer"
-          >
-            {navItems.map((item) => (
-              <DropdownMenuItem
-                key={item.to}
-                className={cn(
-                  (pathname === item.to || pathname.startsWith(`${item.to}/`)) &&
-                    "bg-muted",
-                )}
-                onClick={() => navigate(item.to)}
-              >
-                <item.icon />
-                {item.label}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <nav className="hidden items-center gap-1 sm:flex">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={headerNavClassName}
-            >
-              <item.icon />
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
       </div>
     </header>
   );
