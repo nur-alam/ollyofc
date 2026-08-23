@@ -274,7 +274,7 @@ export function GameResultUpdate({
           </Select>
         </div>
         <div className="grid gap-2">
-          <Label>{goalKind === "own" ? "Conceded by" : "Team"}</Label>
+          <Label>{goalKind === "own" ? `Conceded by` : "Team"}</Label>
           <Select
             value={teamId}
             onValueChange={(value) => {
@@ -296,11 +296,6 @@ export function GameResultUpdate({
               ))}
             </SelectContent>
           </Select>
-          {goalKind === "own" ? (
-            <p className="text-xs text-muted-foreground">
-              Counts for {getTeamName(game, creditedTeamId)}
-            </p>
-          ) : null}
         </div>
         <div className="grid gap-2">
           <Label>{goalKind === "own" ? "Own goal by" : "Scorer"}</Label>

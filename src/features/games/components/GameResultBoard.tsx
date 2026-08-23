@@ -62,7 +62,7 @@ function ScorerLabel({
 }: {
   name: string;
   photoURL?: string;
-  detail?: string;
+  detail?: ReactNode;
 }) {
   return (
     <span className="flex min-w-0 items-center gap-2">
@@ -76,6 +76,22 @@ function ScorerLabel({
           <span className="truncate text-xs text-muted-foreground">{detail}</span>
         ) : null}
       </span>
+    </span>
+  );
+}
+
+function AssistLabel({ name, photoURL }: { name: string; photoURL?: string }) {
+  return (
+    <span className="inline-flex min-w-0 max-w-full items-center gap-1 align-middle">
+      <span className="shrink-0">Assist:</span>
+      
+      <Avatar size="default" className="size-4">
+        {photoURL ? <AvatarImage src={photoURL} alt={name} /> : null}
+        <AvatarFallback className="text-[0.5rem]">
+          {name.charAt(0).toUpperCase()}
+        </AvatarFallback>
+      </Avatar>
+      <span className="truncate">{name}</span>
     </span>
   );
 }
@@ -272,7 +288,16 @@ export function GameResultBoard({
                               name={tally.scorerName || "Player"}
                               photoURL={usersById.get(tally.scorerId)?.photoURL}
                               detail={
-                                tally.assistName ? `Assist: ${tally.assistName}` : undefined
+                                tally.assistName ? (
+                                  <AssistLabel
+                                    name={tally.assistName}
+                                    photoURL={
+                                      tally.assistId
+                                        ? usersById.get(tally.assistId)?.photoURL
+                                        : undefined
+                                    }
+                                  />
+                                ) : undefined
                               }
                             />
                           ) : (

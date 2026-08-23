@@ -406,6 +406,7 @@ export type TeamGoalTally = {
   key: string;
   scorerId?: string;
   scorerName?: string;
+  assistId?: string;
   assistName?: string;
   count: number;
   goalIds: string[];
@@ -446,8 +447,9 @@ export function getTeamGoalTallies(
       tally.scorerName = goal.scorerName || "Player";
     }
 
-    if (goal.assistName) {
-      tally.assistName = goal.assistName;
+    if (goal.assistId) {
+      tally.assistId = goal.assistId;
+      tally.assistName = goal.assistName || "Player";
     }
 
     tallies.set(key, tally);
