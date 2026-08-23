@@ -67,6 +67,9 @@ export function Header() {
           <NavLink to="/games" end className={headerNavClassName}>
             Games
           </NavLink>
+          <NavLink to="/leaderboard" className={headerNavClassName}>
+            Leaderboard
+          </NavLink>
         </nav>
 
         {firebaseUser ? (
