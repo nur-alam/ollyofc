@@ -41,9 +41,13 @@ export function WinningTeamPosterDialog({
   const score = getGameScore(game);
   const winner = game.result?.winner ?? getResultWinner(score.a, score.b);
   const winnerId: GameTeamId | null = winner === "a" || winner === "b" ? winner : null;
+  const teamNameA = getTeamName(game, "a");
+  const teamNameB = getTeamName(game, "b");
   const teamName = winnerId ? getTeamName(game, winnerId) : "";
-  const fileName = getPosterFileName(teamName || "team");
-  const shareText = `${teamName} won ${score.a}–${score.b}`;
+  const fileName = getPosterFileName(teamName || "result");
+  const shareText = winnerId
+    ? `${teamName} won ${score.a}–${score.b}`
+    : `${teamNameA} ${score.a}–${score.b} ${teamNameB}`;
   const usersById = useUserMap();
   const title = getGameDisplayTitle(game);
   const dateLabel = formatGameDate(game);
@@ -53,19 +57,21 @@ export function WinningTeamPosterDialog({
       tally.count,
     ]),
   );
-  const players = winnerId
-    ? sortTeamPlayers(
-        participants.filter((participant) => participant.teamId === winnerId),
-      ).map((participant) => ({
-        displayName: participant.displayName,
-        photoURL:
-          usersById.get(participant.userId)?.photoURL?.trim() ||
-          participant.photoURL?.trim() ||
-          undefined,
-        goals: goalsByPlayer.get(participant.userId) ?? 0,
-      }))
-    : [];
-  const playerKey = players
+  const toPosterPlayer = (participant: GameParticipant) => ({
+    displayName: participant.displayName,
+    photoURL:
+      usersById.get(participant.userId)?.photoURL?.trim() ||
+      participant.photoURL?.trim() ||
+      undefined,
+    goals: goalsByPlayer.get(participant.userId) ?? 0,
+  });
+  const playersA = sortTeamPlayers(
+    participants.filter((participant) => participant.teamId === "a"),
+  ).map(toPosterPlayer);
+  const playersB = sortTeamPlayers(
+    participants.filter((participant) => participant.teamId === "b"),
+  ).map(toPosterPlayer);
+  const playerKey = [...playersA, ...playersB]
     .map((player) => `${player.displayName}:${player.photoURL ?? ""}:${player.goals}`)
     .join("|");
   const canShare = useMemo(() => (file ? canSharePosterFile(file) : false), [file]);
@@ -84,11 +90,13 @@ export function WinningTeamPosterDialog({
     void drawWinningTeamPoster({
       title,
       dateLabel,
-      teamName,
+      teamNameA,
+      teamNameB,
       scoreA: score.a,
       scoreB: score.b,
       winnerId,
-      players,
+      playersA,
+      playersB,
     })
       .then((blob) => {
         objectUrl = URL.createObjectURL(blob);
@@ -118,7 +126,7 @@ export function WinningTeamPosterDialog({
         URL.revokeObjectURL(objectUrl);
       }
     };
-  }, [open, winnerId, teamName, score.a, score.b, fileName, title, dateLabel, playerKey]);
+  }, [open, winnerId, teamNameA, teamNameB, score.a, score.b, fileName, title, dateLabel, playerKey]);
 
   if (!open) {
     return null;
