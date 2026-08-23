@@ -53,15 +53,7 @@ export function useGames() {
 
   const nextUpcomingGame = upcomingGames[0] ?? null;
 
-  return {
-    games: sortedGames,
-    upcomingGames,
-    liveGames,
-    lastFinishedGame,
-    nextUpcomingGame,
-    loading,
-    errorMessage,
-  };
+  return { games: sortedGames, upcomingGames, liveGames, lastFinishedGame, nextUpcomingGame, loading, errorMessage };
 }
 
 export function useGame(gameId: string | undefined) {

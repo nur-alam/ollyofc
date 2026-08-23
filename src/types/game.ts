@@ -83,7 +83,6 @@ export type Game = {
   teams?: GameTeams;
   teamBuild?: GameTeamBuild;
   toss?: GameToss;
-  teamSwapLocked?: boolean;
   result?: GameResult;
   startedAt?: Timestamp;
   startedAtMs?: number;
@@ -123,8 +122,9 @@ export function hasGameTeams(game: Game) {
   return Boolean(game.teams?.a && game.teams?.b);
 }
 
-export function isTeamSwapLocked(game: Pick<Game, "status" | "teamSwapLocked">) {
-  return game.status === "cancelled" || Boolean(game.teamSwapLocked);
+/** Teams stay rearrangeable until the match is finished. */
+export function canSwapGameTeams(game: Pick<Game, "status">) {
+  return game.status !== "completed" && game.status !== "cancelled";
 }
 
 export function getTeamName(game: Game, teamId: GameTeamId) {
@@ -259,6 +259,15 @@ export function canRecordGameGoals(game: Game) {
   return game.status === "active";
 }
 
+/**
+ * Staff can pull a player off the roster until the match is finished. Keyed on
+ * the Firestore status, not the clock, so the window between the clock running
+ * out and Finish being tapped still allows corrections.
+ */
+export function canRemoveGamePlayers(game: Game) {
+  return game.status !== "completed" && game.status !== "cancelled";
+}
+
 export function hasGameHappened(game: Game, now = getServerNow()) {
   if (game.status === "cancelled") {
     return false;
@@ -362,15 +371,36 @@ export function getGameListBadge(game: Game, now = getServerNow()): GameStatus {
     return "cancelled";
   }
 
-  if (game.status === "completed" || hasMatchEnded(game, now)) {
+  const time = now.getTime();
+  const scheduledStart = getGameStartAt(game).getTime();
+  const kickedOff = typeof game.startedAtMs === "number" && game.startedAtMs > 0;
+  const startMs = kickedOff ? getMatchClockStartMs(game) : scheduledStart;
+  const endMs = kickedOff
+    ? getGameEndAt(game).getTime()
+    : scheduledStart + game.matchDurationMinutes * 60 * 1000;
+
+  if (time >= endMs) {
     return "completed";
   }
 
-  if (isGameInPlay(game, now)) {
+  if (time >= startMs) {
     return "active";
   }
 
   return "upcoming";
+}
+
+export const GAME_PLAY_STATUSES = ["active", "completed"] as const;
+
+export type GamePlayStatus = (typeof GAME_PLAY_STATUSES)[number];
+
+export const GAME_PLAY_STATUS_LABELS: Record<GamePlayStatus, string> = {
+  active: "Active",
+  completed: "Completed",
+};
+
+export function canChangeGamePlayStatus(game: Game) {
+  return game.status === "active" || game.status === "completed";
 }
 
 export function formatGameDate(game: Pick<Game, "date">) {

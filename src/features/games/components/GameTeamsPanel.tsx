@@ -17,7 +17,6 @@ import {
   moveParticipantTeam,
   renameGameTeam,
   saveGeneratedTeams,
-  setTeamSwapLocked,
   startTeamBuild,
 } from "@/features/games/game.service";
 import { TeamFireworks } from "@/features/games/components/TeamFireworks";
@@ -29,9 +28,9 @@ import {
   DEFAULT_TEAM_NAMES,
   GAME_TEAM_IDS,
   getGameScore,
+  canSwapGameTeams,
   getTeamName,
   hasGameTeams,
-  isTeamSwapLocked,
   type Game,
   type GameParticipant,
   type GameTeamId,
@@ -172,12 +171,10 @@ export function GameTeamsPanel({
 }: GameTeamsPanelProps) {
   const { profile } = useAuthStore();
   const isStaff = profile ? isStaffRole(profile.role) : false;
-  const isAdmin = profile?.role === "admin";
   const usersById = useUserMap();
   const [nowMs, setNowMs] = useState(() => getServerNowMs());
   const [saving, setSaving] = useState(false);
   const [canceling, setCanceling] = useState(false);
-  const [lockingSwap, setLockingSwap] = useState(false);
   const [movingId, setMovingId] = useState("");
   const [actionError, setActionError] = useState("");
   const [confirmAction, setConfirmAction] = useState<
@@ -196,9 +193,7 @@ export function GameTeamsPanel({
   );
 
   const teamsReady = hasGameTeams(game);
-  const swapLocked = isTeamSwapLocked(game);
-  const canSwap = isStaff && teamsReady && !swapLocked;
-  const canLockSwap = isAdmin && game.status !== "cancelled";
+  const canSwap = isStaff && teamsReady && canSwapGameTeams(game);
   const score = getGameScore(game);
   const winningTeam: GameTeamId | null =
     score.a === score.b ? null : score.a > score.b ? "a" : "b";
@@ -377,19 +372,6 @@ export function GameTeamsPanel({
     }
   };
 
-  const handleSwapLock = async () => {
-    setLockingSwap(true);
-    setActionError("");
-
-    try {
-      await setTeamSwapLocked(game.id, !game.teamSwapLocked);
-    } catch (error) {
-      setActionError(getErrorMessage(error, "Could not update player swaps."));
-    } finally {
-      setLockingSwap(false);
-    }
-  };
-
   const waitingPlayers = resolvedParticipants.filter(
     (participant) => !visibleAssignments[participant.userId],
   );
@@ -424,21 +406,6 @@ export function GameTeamsPanel({
             </p>
           ) : (
             <>
-              {canLockSwap && teamsReady && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={lockingSwap}
-                  onClick={() => void handleSwapLock()}
-                >
-                  {lockingSwap
-                    ? "Saving..."
-                    : game.teamSwapLocked
-                      ? "Unlock swaps"
-                      : "Lock swaps"}
-                </Button>
-              )}
               {canEdit && (
                 <>
                   {teamsReady && (
@@ -475,9 +442,6 @@ export function GameTeamsPanel({
       </div>
 
       {actionError && <p className="error-text mt-2">{actionError}</p>}
-      {swapLocked && isStaff && game.status !== "cancelled" && teamsReady && !isAnimating ? (
-        <p className="mt-2 text-sm text-muted-foreground">Player swaps are locked.</p>
-      ) : null}
 
       {isAnimating ? (
         <div className="mt-3 space-y-3">

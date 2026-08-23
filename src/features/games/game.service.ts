@@ -28,6 +28,7 @@ import type {
   GameGoal,
   GameInput,
   GameParticipant,
+  GamePlayStatus,
   GameResult,
   GameStatus,
   GameTeamBuild,
@@ -42,8 +43,13 @@ import {
   getResultWinner,
   isTossLanded,
 } from "@/types/game";
+import {
+  buildGameStatContributions,
+  isSamePlayerGameStat,
+} from "@/features/games/playerStats";
 import type { TeamDealStep } from "@/features/games/buildTeams";
-import type { UserProfile } from "@/types/user";
+import { parseStatGames, sumStatGames } from "@/types/user";
+import type { PlayerGameStat, UserProfile } from "@/types/user";
 
 function parseStatus(value: unknown): GameStatus {
   if (
@@ -272,7 +278,6 @@ export function mapGame(id: string, data: DocumentData): Game {
     teams: mapTeams(data.teams),
     teamBuild: mapTeamBuild(data.teamBuild),
     toss: mapToss(data.toss),
-    teamSwapLocked: data.teamSwapLocked === true,
     result: mapResult(data.result),
     startedAt: data.startedAt,
     startedAtMs: typeof data.startedAtMs === "number" ? data.startedAtMs : undefined,
@@ -377,6 +382,105 @@ export function mapParticipant(id: string, data: DocumentData): GameParticipant 
   };
 }
 
+/**
+ * Recomputes what this game contributes to every player's career stats and
+ * writes only the difference against what was applied last time.
+ *
+ * Safe to call repeatedly: running it twice in a row is a no-op, so a double
+ * tap on Finish cannot double-count, and it doubles as a repair tool when a
+ * post-finish swap, added player, or edited goal changes the outcome.
+ *
+ * Pass `forceEmpty` to strip the game's contribution entirely (used before
+ * deleting a game, while its participants are still readable).
+ */
+export async function syncGameStats(
+  gameId: string,
+  options?: { forceEmpty?: boolean },
+): Promise<void> {
+  const gameRef = doc(db, "games", gameId);
+  const gameSnapshot = await getDoc(gameRef);
+
+  if (!gameSnapshot.exists()) {
+    return;
+  }
+
+  const data = gameSnapshot.data();
+  const applied = parseStatGames(
+    (data.statsApplied as DocumentData | undefined)?.players,
+  );
+  const game = mapGame(gameSnapshot.id, data);
+
+  let next: Record<string, PlayerGameStat> = {};
+
+  if (!options?.forceEmpty && game.status === "completed") {
+    const participants = await getDocs(
+      collection(db, "games", gameId, "participants"),
+    );
+
+    next = buildGameStatContributions(
+      game,
+      participants.docs.map((item) => mapParticipant(item.id, item.data())),
+    );
+  }
+
+  const affected = [
+    ...new Set([...Object.keys(applied), ...Object.keys(next)]),
+  ].filter((userId) => !isSamePlayerGameStat(applied[userId], next[userId]));
+
+  if (!affected.length) {
+    return;
+  }
+
+  const userSnapshots = await Promise.all(
+    affected.map((userId) => getDoc(doc(db, "users", userId))),
+  );
+  const batch = writeBatch(db);
+
+  userSnapshots.forEach((snapshot, index) => {
+    if (!snapshot.exists()) {
+      return;
+    }
+
+    const statGames = parseStatGames(snapshot.data().statGames);
+    const contribution = next[affected[index]];
+
+    if (contribution) {
+      statGames[gameId] = contribution;
+    } else {
+      delete statGames[gameId];
+    }
+
+    batch.update(snapshot.ref, {
+      statGames,
+      stats: sumStatGames(statGames),
+      updatedAt: serverTimestamp(),
+    });
+  });
+
+  batch.update(gameRef, {
+    statsApplied: { players: next, at: serverTimestamp() },
+  });
+
+  await batch.commit();
+}
+
+/** One-off backfill / repair across every game. Returns the games processed. */
+export async function syncAllGameStats(
+  onProgress?: (done: number, total: number) => void,
+): Promise<number> {
+  const games = await getDocs(collection(db, "games"));
+
+  let done = 0;
+
+  for (const gameDoc of games.docs) {
+    await syncGameStats(gameDoc.id);
+    done += 1;
+    onProgress?.(done, games.size);
+  }
+
+  return games.size;
+}
+
 export function subscribeToParticipants(
   gameId: string,
   onData: (participants: GameParticipant[]) => void,
@@ -422,6 +526,8 @@ export async function joinGame(
     joinedBy,
     joinedAt: serverTimestamp(),
   });
+
+  await syncGameStats(gameId);
 }
 
 export async function leaveGame(
@@ -438,6 +544,7 @@ export async function leaveGame(
   }
 
   await deleteDoc(doc(db, "games", gameId, "participants", userId));
+  await syncGameStats(gameId);
 }
 
 export async function saveGeneratedTeams(
@@ -469,6 +576,7 @@ export async function saveGeneratedTeams(
   });
 
   await batch.commit();
+  await syncGameStats(gameId);
 }
 
 export async function renameGameTeam(
@@ -482,22 +590,13 @@ export async function renameGameTeam(
   });
 }
 
-export async function setTeamSwapLocked(
-  gameId: string,
-  locked: boolean,
-): Promise<void> {
-  await updateDoc(doc(db, "games", gameId), {
-    teamSwapLocked: locked,
-    updatedAt: serverTimestamp(),
-  });
-}
-
 export async function moveParticipantTeam(
   gameId: string,
   userId: string,
   teamId: GameTeamId,
 ): Promise<void> {
   await updateDoc(doc(db, "games", gameId, "participants", userId), { teamId });
+  await syncGameStats(gameId);
 }
 
 export async function startTeamBuild(
@@ -541,6 +640,7 @@ export async function clearGameTeams(gameId: string): Promise<void> {
   });
 
   await batch.commit();
+  await syncGameStats(gameId);
 }
 
 export async function startGameToss(gameId: string, startedBy: string): Promise<void> {
@@ -598,14 +698,33 @@ export async function startGame(gameId: string, updatedBy: string): Promise<void
     },
     updatedAt: serverTimestamp(),
   });
+
+  await syncGameStats(gameId);
 }
 
-export async function finishGame(gameId: string, updatedBy: string): Promise<void> {
+export async function setGamePlayStatus(
+  gameId: string,
+  status: GamePlayStatus,
+  updatedBy: string,
+): Promise<void> {
   const game = await getGameById(gameId);
-  const result = game?.result ?? buildResult([], updatedBy);
+
+  if (!game) {
+    throw new Error("Game not found.");
+  }
+
+  if (game.status !== "active" && game.status !== "completed") {
+    throw new Error("Only active or completed games can change status.");
+  }
+
+  if (game.status === status) {
+    return;
+  }
+
+  const result = game.result ?? buildResult([], updatedBy);
 
   await updateDoc(doc(db, "games", gameId), {
-    status: "completed",
+    status,
     result: {
       ...result,
       updatedAt: serverTimestamp(),
@@ -614,6 +733,12 @@ export async function finishGame(gameId: string, updatedBy: string): Promise<voi
     },
     updatedAt: serverTimestamp(),
   });
+
+  await syncGameStats(gameId);
+}
+
+export async function finishGame(gameId: string, updatedBy: string): Promise<void> {
+  await setGamePlayStatus(gameId, "completed", updatedBy);
 }
 
 export async function addGameGoal(
@@ -655,6 +780,8 @@ export async function addGameGoal(
     },
     updatedAt: serverTimestamp(),
   });
+
+  await syncGameStats(gameId);
 }
 
 export async function removeGameGoal(
@@ -680,9 +807,13 @@ export async function removeGameGoal(
     },
     updatedAt: serverTimestamp(),
   });
+
+  await syncGameStats(gameId);
 }
 
 export async function deleteGame(gameId: string): Promise<void> {
+  await syncGameStats(gameId, { forceEmpty: true });
+
   const participants = await getDocs(collection(db, "games", gameId, "participants"));
   const batch = writeBatch(db);
 

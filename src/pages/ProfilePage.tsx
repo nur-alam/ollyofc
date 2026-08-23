@@ -16,7 +16,9 @@ import {
   updateUserDisplayName,
   updateUserPosition,
 } from "@/features/auth/auth.service";
+import { PlayerStatsCard } from "@/features/players/components/PlayerStatsCard";
 import { ProfilePhotoUpload } from "@/features/players/components/ProfilePhotoUpload";
+import { usePlayerProfile } from "@/features/players/player.hooks";
 import { getErrorMessage } from "@/lib/errors";
 import {
   PLAYER_POSITIONS,
@@ -26,6 +28,7 @@ import {
 
 export function ProfilePage() {
   const { firebaseUser, profile, setProfile } = useAuthStore();
+  const { stats, loading: statsLoading } = usePlayerProfile(profile?.id);
   const [displayName, setDisplayName] = useState(profile?.displayName ?? "");
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -161,6 +164,14 @@ export function ProfilePage() {
             </Select>
           </div>
         </dl>
+      </div>
+
+      <div className="mt-6">
+        <PlayerStatsCard
+          stats={stats}
+          loading={statsLoading}
+          description="From finished games you joined."
+        />
       </div>
 
       {errorMessage && <p className="error-text">{errorMessage}</p>}

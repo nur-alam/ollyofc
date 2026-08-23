@@ -1,7 +1,11 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import toast from "react-hot-toast";
 
+import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/features/auth/auth.store";
 import { useGames } from "@/features/games/game.hooks";
+import { getErrorMessage, syncAllGameStats } from "@/features/games/game.service";
 import { useSquad } from "@/features/players/player.hooks";
 import { formatGameDate, hasGameHappened } from "@/types/game";
 import { isStaffRole } from "@/types/user";
@@ -27,6 +31,9 @@ function StatCard({
 export function DashboardPage() {
   const profile = useAuthStore((state) => state.profile);
   const isStaff = profile ? isStaffRole(profile.role) : false;
+  const isAdmin = profile?.role === "admin";
+  const [syncing, setSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState("");
   const { stats } = useSquad({
     search: "",
     position: "all",
@@ -34,6 +41,23 @@ export function DashboardPage() {
   });
   const { nextUpcomingGame, games } = useGames();
   const playedCount = games.filter((game) => hasGameHappened(game)).length;
+
+  const handleRecalculateStats = async () => {
+    setSyncing(true);
+    setSyncProgress("");
+
+    try {
+      const total = await syncAllGameStats((done, count) => {
+        setSyncProgress(`${done} / ${count}`);
+      });
+      toast.success(`Player stats rebuilt from ${total} games`);
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Could not rebuild player stats."));
+    } finally {
+      setSyncing(false);
+      setSyncProgress("");
+    }
+  };
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
@@ -100,6 +124,33 @@ export function DashboardPage() {
           </p>
         </section>
       </div>
+
+      {isAdmin && (
+        <section className="rounded-xl border bg-background p-5 shadow-sm">
+          <h2 className="text-lg font-semibold">Player stats</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Career stats update automatically when a game is finished or edited.
+            Rebuild them from every game if totals ever look wrong, or after
+            importing older matches.
+          </p>
+          <div className="mt-4 flex items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={syncing}
+              onClick={() => void handleRecalculateStats()}
+            >
+              {syncing ? "Rebuilding..." : "Rebuild player stats"}
+            </Button>
+            {syncProgress && (
+              <span className="text-sm text-muted-foreground tabular-nums">
+                {syncProgress}
+              </span>
+            )}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
