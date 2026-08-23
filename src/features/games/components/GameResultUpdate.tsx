@@ -23,9 +23,12 @@ import {
 import { useNow } from "@/features/games/game.hooks";
 import { useAuthStore } from "@/features/auth/auth.store";
 import {
+  GAME_GOAL_KIND_LABELS,
+  GAME_GOAL_KINDS,
   GAME_TEAM_IDS,
   canRecordGameGoals,
   getGameScore,
+  getOpponentTeamId,
   getResultWinner,
   getTeamName,
   hasMatchEnded,
@@ -33,9 +36,14 @@ import {
   isTossFlipping,
   isTossLanded,
   type Game,
+  type GameGoalKind,
   type GameParticipant,
   type GameTeamId,
 } from "@/types/game";
+
+function isGameGoalKind(value: unknown): value is GameGoalKind {
+  return (GAME_GOAL_KINDS as string[]).includes(value as string);
+}
 
 type GameResultUpdateProps = {
   game: Game;
@@ -48,6 +56,7 @@ export function GameResultUpdate({
   participants,
   updatedBy,
 }: GameResultUpdateProps) {
+  const [goalKind, setGoalKind] = useState<GameGoalKind>("player");
   const [teamId, setTeamId] = useState<GameTeamId>("a");
   const [scorerId, setScorerId] = useState("");
   const [assistId, setAssistId] = useState("");
@@ -64,6 +73,13 @@ export function GameResultUpdate({
   const score = getGameScore(game);
   const winner = game.result?.winner ?? getResultWinner(score.a, score.b);
   const canShareResult = isAdmin && hasMatchEnded(game, now) && winner !== "draw";
+
+  const needsScorer = goalKind === "player";
+  // Own goals name the player who conceded it, but leaving it unknown is fine.
+  const allowsPlayer = goalKind === "player" || goalKind === "own";
+  const playerPlaceholder = goalKind === "own" ? "Unknown player" : "Select player";
+  // For an own goal the picked team is the one that conceded it, so the point goes the other way.
+  const creditedTeamId = goalKind === "own" ? getOpponentTeamId(teamId) : teamId;
 
   const scorers = useMemo(() => {
     const onTeam = participants.filter((participant) => participant.teamId === teamId);
@@ -121,7 +137,7 @@ export function GameResultUpdate({
   };
 
   const handleAddGoal = async () => {
-    if (!selectedScorer) {
+    if (needsScorer && !selectedScorer) {
       return;
     }
 
@@ -129,16 +145,34 @@ export function GameResultUpdate({
 
     try {
       await addGameGoal(game.id, {
-        teamId,
-        scorerId: selectedScorer.userId,
-        scorerName: selectedScorer.displayName,
-        assistId: selectedAssister?.userId,
-        assistName: selectedAssister?.displayName,
+        teamId: creditedTeamId,
+        kind: goalKind,
+        ...(goalKind === "player" && selectedScorer
+          ? {
+              scorerId: selectedScorer.userId,
+              scorerName: selectedScorer.displayName,
+              assistId: selectedAssister?.userId,
+              assistName: selectedAssister?.displayName,
+            }
+          : {}),
+        ...(goalKind === "own" && selectedScorer
+          ? {
+              ownGoalById: selectedScorer.userId,
+              ownGoalByName: selectedScorer.displayName,
+            }
+          : {}),
         createdBy: updatedBy,
       });
       setScorerId("");
       setAssistId("");
-      toast.success(selectedAssister ? "Goal and assist added" : "Goal added");
+
+      if (goalKind === "own") {
+        toast.success(`Own goal added for ${getTeamName(game, creditedTeamId)}`);
+      } else if (goalKind === "team") {
+        toast.success("Team goal added");
+      } else {
+        toast.success(selectedAssister ? "Goal and assist added" : "Goal added");
+      }
     } catch (error) {
       toast.error(getErrorMessage(error, "Could not add this goal."));
     } finally {
@@ -214,9 +248,33 @@ export function GameResultUpdate({
       />
 
       {canRecordGoals ? (
-      <div className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_auto] lg:items-end">
+      <div className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_auto] lg:items-end">
         <div className="grid gap-2">
-          <Label>Team</Label>
+          <Label>Goal type</Label>
+          <Select
+            value={goalKind}
+            onValueChange={(value) => {
+              if (isGameGoalKind(value)) {
+                setGoalKind(value);
+                setScorerId("");
+                setAssistId("");
+              }
+            }}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue>{GAME_GOAL_KIND_LABELS[goalKind]}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {GAME_GOAL_KINDS.map((kind) => (
+                <SelectItem key={kind} value={kind}>
+                  {GAME_GOAL_KIND_LABELS[kind]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid gap-2">
+          <Label>{goalKind === "own" ? "Conceded by" : "Team"}</Label>
           <Select
             value={teamId}
             onValueChange={(value) => {
@@ -238,9 +296,14 @@ export function GameResultUpdate({
               ))}
             </SelectContent>
           </Select>
+          {goalKind === "own" ? (
+            <p className="text-xs text-muted-foreground">
+              Counts for {getTeamName(game, creditedTeamId)}
+            </p>
+          ) : null}
         </div>
         <div className="grid gap-2">
-          <Label>Scorer</Label>
+          <Label>{goalKind === "own" ? "Own goal by" : "Scorer"}</Label>
           <Select
             value={scorerId || "unset"}
             onValueChange={(value) => {
@@ -257,13 +320,13 @@ export function GameResultUpdate({
               }
             }}
           >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select player">
+            <SelectTrigger className="w-full" disabled={!allowsPlayer}>
+              <SelectValue placeholder={allowsPlayer ? playerPlaceholder : "Not needed"}>
                 {selectedScorer?.displayName}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="unset">Select player</SelectItem>
+              <SelectItem value="unset">{playerPlaceholder}</SelectItem>
               {scorers.map((participant) => (
                 <SelectItem key={participant.userId} value={participant.userId}>
                   {participant.displayName}
@@ -280,7 +343,7 @@ export function GameResultUpdate({
               setAssistId(!value || value === "unset" ? "" : value);
             }}
           >
-            <SelectTrigger className="w-full" disabled={!selectedScorer}>
+            <SelectTrigger className="w-full" disabled={!needsScorer || !selectedScorer}>
               <SelectValue placeholder="No assist">
                 {selectedAssister?.displayName}
               </SelectValue>
@@ -297,7 +360,7 @@ export function GameResultUpdate({
         </div>
         <Button
           type="button"
-          disabled={saving || !selectedScorer}
+          disabled={saving || (needsScorer && !selectedScorer)}
           onClick={() => void handleAddGoal()}
         >
           {saving ? "Adding..." : "Add goal"}
