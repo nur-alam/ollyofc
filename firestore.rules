@@ -24,8 +24,8 @@ service cloud.firestore {
         .hasOnly(['displayName', 'email', 'position', 'isActive', 'photoURL', 'updatedAt']);
     }
 
-    // Finishing or editing a game rewrites career stats for everyone who played,
-    // so staff need to touch these fields on other players' documents.
+    // Finishing or editing a game rewrites career totals for everyone who played.
+    // statGames may still be deleted from older user documents.
     function isPlayerStatsUpdate() {
       return request.resource.data.diff(resource.data).affectedKeys()
         .hasOnly(['stats', 'statGames', 'updatedAt']);

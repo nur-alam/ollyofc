@@ -13,7 +13,7 @@ import {
 import type { User } from "firebase/auth";
 
 import { auth, db } from "@/lib/firebase";
-import { parseStatGames, sumStatGames } from "@/types/user";
+import { parseStatTotals } from "@/types/user";
 import type { UserProfile, UserRole } from "@/types/user";
 import { parsePosition, type PlayerPosition } from "@/types/player";
 
@@ -30,9 +30,6 @@ function parseUserRole(value: unknown): UserRole {
 }
 
 export function mapUserProfile(id: string, data: DocumentData): UserProfile {
-  // Totals are derived from statGames so a stale stored `stats` can never be shown.
-  const statGames = parseStatGames(data.statGames);
-
   return {
     id,
     email: typeof data.email === "string" ? data.email : "",
@@ -47,8 +44,7 @@ export function mapUserProfile(id: string, data: DocumentData): UserProfile {
     isActive: typeof data.isActive === "boolean" ? data.isActive : true,
     position: parsePosition(data.position ?? data.Position),
     isSeed: data.isSeed === true,
-    stats: sumStatGames(statGames),
-    statGames,
+    stats: parseStatTotals(data.stats),
     createdAt: data.createdAt,
     updatedAt: data.updatedAt,
   };
