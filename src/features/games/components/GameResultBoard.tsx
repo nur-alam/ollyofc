@@ -1,4 +1,9 @@
+import type { ReactNode } from "react";
+import { Loader2Icon, Trash2Icon } from "lucide-react";
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useNow } from "@/features/games/game.hooks";
 import { GameResultStatus } from "@/features/games/components/GameResultStatus";
@@ -7,13 +12,14 @@ import { ScoreFireworks } from "@/features/games/components/ScoreFireworks";
 import { useUserMap } from "@/features/players/player.hooks";
 import {
   getGameScore,
+  getOwnGoalTallies,
   getPlayerGoalCounts,
+  getTeamGoalTallies,
   getTeamName,
   isTossLanded,
   shouldShowLiveToss,
   type Game,
   type GameGoal,
-  type GameTeamId,
 } from "@/types/game";
 
 function TeamScore({
@@ -52,11 +58,11 @@ function TeamScore({
 function ScorerLabel({
   name,
   photoURL,
-  assistName,
+  detail,
 }: {
   name: string;
   photoURL?: string;
-  assistName?: string;
+  detail?: ReactNode;
 }) {
   return (
     <span className="flex min-w-0 items-center gap-2">
@@ -66,13 +72,90 @@ function ScorerLabel({
       </Avatar>
       <span className="flex min-w-0 flex-col">
         <span className="truncate">{name}</span>
-        {assistName ? (
-          <span className="truncate text-xs text-muted-foreground">
-            Assist: {assistName}
-          </span>
+        {detail ? (
+          <span className="truncate text-xs text-muted-foreground">{detail}</span>
         ) : null}
       </span>
     </span>
+  );
+}
+
+function AssistLabel({ name, photoURL }: { name: string; photoURL?: string }) {
+  return (
+    <span className="inline-flex min-w-0 max-w-full items-center gap-1 align-middle">
+      <span className="shrink-0">Assist:</span>
+      
+      <Avatar size="default" className="size-4">
+        {photoURL ? <AvatarImage src={photoURL} alt={name} /> : null}
+        <AvatarFallback className="text-[0.5rem]">
+          {name.charAt(0).toUpperCase()}
+        </AvatarFallback>
+      </Avatar>
+      <span className="truncate">{name}</span>
+    </span>
+  );
+}
+
+function RemoveGoalButton({
+  goalId,
+  removing,
+  label,
+  onRemoveGoal,
+}: {
+  goalId: string;
+  removing: boolean;
+  label: string;
+  onRemoveGoal: (goalId: string) => void;
+}) {
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon-sm"
+      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+      disabled={removing}
+      onClick={() => onRemoveGoal(goalId)}
+      aria-label={label}
+      title={label}
+    >
+      {removing ? <Loader2Icon className="animate-spin" /> : <Trash2Icon />}
+    </Button>
+  );
+}
+
+function GoalTallyRow({
+  label,
+  removeLabel,
+  count,
+  goalIds,
+  removingId,
+  onRemoveGoal,
+}: {
+  label: ReactNode;
+  removeLabel: string;
+  count: number;
+  goalIds: string[];
+  removingId?: string;
+  onRemoveGoal?: (goalId: string) => void;
+}) {
+  return (
+    <li className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+      {label}
+      <span className="flex shrink-0 items-center gap-2">
+        <Badge variant="outline" className="tabular-nums">
+          {count}
+        </Badge>
+        {onRemoveGoal && (
+          <RemoveGoalButton
+            // Removing takes the latest of the grouped goals, one tap per goal.
+            goalId={goalIds[goalIds.length - 1]}
+            removing={goalIds.some((id) => id === removingId)}
+            label={removeLabel}
+            onRemoveGoal={onRemoveGoal}
+          />
+        )}
+      </span>
+    </li>
   );
 }
 
@@ -97,8 +180,7 @@ export function GameResultBoard({
   // Index of the first cell on the final grid row (2 columns), so its row skips the divider.
   const lastTallyRowStart = Math.floor((tallies.length - 1) / 2) * 2;
   const tossLanded = isTossLanded(game.toss, now);
-  const goalsByTeam = (teamId: GameTeamId) =>
-    resultGoals.filter((goal) => goal.teamId === teamId);
+  const ownGoalTallies = getOwnGoalTallies(resultGoals);
 
   return (
     <div className="space-y-5">
@@ -140,52 +222,106 @@ export function GameResultBoard({
                   name={tally.scorerName}
                   photoURL={usersById.get(tally.scorerId)?.photoURL}
                 />
-                <span className="tabular-nums text-muted-foreground">
+                <Badge variant="outline" className="tabular-nums">
                   {tally.count}
-                </span>
+                </Badge>
               </li>
             ))}
           </ul>
         </div>
       )}
 
+      {ownGoalTallies.length > 0 && (
+        <div>
+          <h3 className="text-sm font-medium">Own goals</h3>
+          <ul className="mt-2 divide-y rounded-lg border">
+            {ownGoalTallies.map((tally) => {
+              const detail = `${getTeamName(game, tally.concededBy)} · counts for ${getTeamName(game, tally.teamId)}`;
+
+              return (
+                <GoalTallyRow
+                  key={tally.key}
+                  label={
+                    tally.playerId ? (
+                      <ScorerLabel
+                        name={tally.playerName || "Player"}
+                        photoURL={usersById.get(tally.playerId)?.photoURL}
+                        detail={detail}
+                      />
+                    ) : (
+                      <span className="flex min-w-0 flex-col">
+                        <span className="truncate">Unknown player</span>
+                        <span className="truncate text-xs text-muted-foreground">
+                          {detail}
+                        </span>
+                      </span>
+                    )
+                  }
+                  removeLabel={`Remove own goal by ${tally.playerName || "unknown player"}`}
+                  count={tally.count}
+                  goalIds={tally.goalIds}
+                  removingId={removingId}
+                  onRemoveGoal={onRemoveGoal}
+                />
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
       {resultGoals.length > 0 && (
         <div className="grid gap-3 sm:grid-cols-2">
-          {(["a", "b"] as const).map((teamId) => (
-            <div key={teamId}>
-              <h3 className="text-sm font-medium">{getTeamName(game, teamId)}</h3>
-              <ul className="mt-2 divide-y rounded-lg border">
-                {goalsByTeam(teamId).length ? (
-                  goalsByTeam(teamId).map((goal) => (
-                    <li
-                      key={goal.id}
-                      className="flex items-center justify-between gap-2 px-3 py-2 text-sm"
-                    >
-                      <ScorerLabel
-                        name={goal.scorerName}
-                        photoURL={usersById.get(goal.scorerId)?.photoURL}
-                        assistName={goal.assistName}
+          {(["a", "b"] as const).map((teamId) => {
+            const teamTallies = getTeamGoalTallies(resultGoals, teamId);
+
+            return (
+              <div key={teamId}>
+                <h3 className="text-sm font-medium">{getTeamName(game, teamId)}</h3>
+                <ul className="mt-2 divide-y rounded-lg border">
+                  {teamTallies.length ? (
+                    teamTallies.map((tally) => (
+                      <GoalTallyRow
+                        key={tally.key}
+                        label={
+                          tally.scorerId ? (
+                            <ScorerLabel
+                              name={tally.scorerName || "Player"}
+                              photoURL={usersById.get(tally.scorerId)?.photoURL}
+                              detail={
+                                tally.assistName ? (
+                                  <AssistLabel
+                                    name={tally.assistName}
+                                    photoURL={
+                                      tally.assistId
+                                        ? usersById.get(tally.assistId)?.photoURL
+                                        : undefined
+                                    }
+                                  />
+                                ) : undefined
+                              }
+                            />
+                          ) : (
+                            <span className="truncate text-muted-foreground">
+                              Team goal
+                            </span>
+                          )
+                        }
+                        removeLabel={`Remove goal by ${tally.scorerName || getTeamName(game, teamId)}`}
+                        count={tally.count}
+                        goalIds={tally.goalIds}
+                        removingId={removingId}
+                        onRemoveGoal={onRemoveGoal}
                       />
-                      {onRemoveGoal && (
-                        <button
-                          type="button"
-                          className="text-xs text-destructive hover:underline disabled:opacity-50"
-                          disabled={removingId === goal.id}
-                          onClick={() => onRemoveGoal(goal.id)}
-                        >
-                          {removingId === goal.id ? "Removing..." : "Remove"}
-                        </button>
-                      )}
+                    ))
+                  ) : (
+                    <li className="px-3 py-2 text-sm text-muted-foreground">
+                      No goals
                     </li>
-                  ))
-                ) : (
-                  <li className="px-3 py-2 text-sm text-muted-foreground">
-                    No goals
-                  </li>
-                )}
-              </ul>
-            </div>
-          ))}
+                  )}
+                </ul>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

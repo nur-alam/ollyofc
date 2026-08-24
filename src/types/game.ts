@@ -50,15 +50,38 @@ export type GameToss = {
 
 export type GameResultWinner = GameTeamId | "draw";
 
+/**
+ * `player` credits a named scorer, `team` credits the team when the scorer is
+ * unknown, and `own` credits the opponent of the team that put it in their net.
+ */
+export type GameGoalKind = "player" | "team" | "own";
+
 export type GameGoal = {
   id: string;
+  /** Team the goal counts for, including for own goals. */
   teamId: GameTeamId;
-  scorerId: string;
-  scorerName: string;
+  /** Missing on goals recorded before goal kinds existed. */
+  kind?: GameGoalKind;
+  scorerId?: string;
+  scorerName?: string;
   assistId?: string;
   assistName?: string;
+  /**
+   * Player who put an own goal into their own net. Kept apart from `scorerId`
+   * so it never counts towards their goals in tallies or career stats.
+   */
+  ownGoalById?: string;
+  ownGoalByName?: string;
   createdBy: string;
   createdAtMs: number;
+};
+
+export const GAME_GOAL_KINDS: GameGoalKind[] = ["player", "team", "own"];
+
+export const GAME_GOAL_KIND_LABELS: Record<GameGoalKind, string> = {
+  player: "Player goal",
+  team: "Team goal",
+  own: "Own goal",
 };
 
 export type GameResult = {
@@ -127,6 +150,23 @@ export function hasGameTeams(game: Game) {
 /** Teams stay rearrangeable until the match is finished. */
 export function canSwapGameTeams(game: Pick<Game, "status">) {
   return game.status !== "completed" && game.status !== "cancelled";
+}
+
+export function getOpponentTeamId(teamId: GameTeamId): GameTeamId {
+  return teamId === "a" ? "b" : "a";
+}
+
+export function getGoalKind(goal: GameGoal): GameGoalKind {
+  return goal.kind ?? (goal.scorerId ? "player" : "team");
+}
+
+export function isOwnGoal(goal: GameGoal) {
+  return getGoalKind(goal) === "own";
+}
+
+/** The team that scored into their own net, i.e. the opponent of the credited team. */
+export function getOwnGoalConcededBy(goal: GameGoal) {
+  return getOpponentTeamId(goal.teamId);
 }
 
 export function getTeamName(game: Game, teamId: GameTeamId) {
@@ -341,6 +381,10 @@ export function getPlayerGoalCounts(goals: GameGoal[]) {
   const counts = new Map<string, { scorerId: string; scorerName: string; count: number }>();
 
   for (const goal of goals) {
+    if (getGoalKind(goal) !== "player" || !goal.scorerId) {
+      continue;
+    }
+
     const current = counts.get(goal.scorerId);
 
     if (current) {
@@ -350,12 +394,116 @@ export function getPlayerGoalCounts(goals: GameGoal[]) {
 
     counts.set(goal.scorerId, {
       scorerId: goal.scorerId,
-      scorerName: goal.scorerName,
+      scorerName: goal.scorerName || "Player",
       count: 1,
     });
   }
 
   return [...counts.values()].sort((left, right) => right.count - left.count);
+}
+
+export type TeamGoalTally = {
+  key: string;
+  scorerId?: string;
+  scorerName?: string;
+  assistId?: string;
+  assistName?: string;
+  count: number;
+  goalIds: string[];
+};
+
+/**
+ * A team's goals grouped into one row per scorer and assist pairing. Own goals
+ * are left out; they belong to their own list.
+ */
+export function getTeamGoalTallies(
+  goals: GameGoal[],
+  teamId: GameTeamId,
+): TeamGoalTally[] {
+  const tallies = new Map<string, TeamGoalTally>();
+
+  for (const goal of goals) {
+    if (goal.teamId !== teamId || isOwnGoal(goal)) {
+      continue;
+    }
+
+    const key = `${goal.scorerId || "team"}:${goal.assistId || ""}`;
+    const current = tallies.get(key);
+
+    if (current) {
+      current.count += 1;
+      current.goalIds.push(goal.id);
+      continue;
+    }
+
+    const tally: TeamGoalTally = {
+      key,
+      count: 1,
+      goalIds: [goal.id],
+    };
+
+    if (goal.scorerId) {
+      tally.scorerId = goal.scorerId;
+      tally.scorerName = goal.scorerName || "Player";
+    }
+
+    if (goal.assistId) {
+      tally.assistId = goal.assistId;
+      tally.assistName = goal.assistName || "Player";
+    }
+
+    tallies.set(key, tally);
+  }
+
+  return [...tallies.values()].sort((left, right) => right.count - left.count);
+}
+
+export type OwnGoalTally = {
+  key: string;
+  /** Team the own goals count for. */
+  teamId: GameTeamId;
+  concededBy: GameTeamId;
+  playerId?: string;
+  playerName?: string;
+  count: number;
+  goalIds: string[];
+};
+
+/** Repeat own goals by the same player collapse into a single counted row. */
+export function getOwnGoalTallies(goals: GameGoal[]): OwnGoalTally[] {
+  const tallies = new Map<string, OwnGoalTally>();
+
+  for (const goal of goals) {
+    if (!isOwnGoal(goal)) {
+      continue;
+    }
+
+    const key = `${goal.teamId}:${goal.ownGoalById || "unknown"}`;
+    const current = tallies.get(key);
+
+    if (current) {
+      current.count += 1;
+      current.goalIds.push(goal.id);
+      continue;
+    }
+
+    const tally: OwnGoalTally = {
+      key,
+      teamId: goal.teamId,
+      concededBy: getOwnGoalConcededBy(goal),
+      count: 1,
+      goalIds: [goal.id],
+    };
+
+    if (goal.ownGoalById) {
+      tally.playerId = goal.ownGoalById;
+      tally.playerName = goal.ownGoalByName || "Player";
+    }
+
+    tallies.set(key, tally);
+  }
+
+  return [...tallies.values()].sort((left, right) => right.count - left.count);
 }
 
 const SELF_LEAVE_LOCKOUT_MS = 60 * 60 * 1000;

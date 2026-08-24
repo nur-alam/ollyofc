@@ -26,6 +26,7 @@ import { parsePosition } from "@/types/player";
 import type {
   Game,
   GameGoal,
+  GameGoalKind,
   GameInput,
   GameParticipant,
   GamePlayStatus,
@@ -175,6 +176,15 @@ function mapToss(value: unknown): GameToss | undefined {
   };
 }
 
+/** Goals stored before goal kinds existed always carried a scorer. */
+function mapGoalKind(value: unknown, scorerId: unknown): GameGoalKind {
+  if (value === "player" || value === "team" || value === "own") {
+    return value;
+  }
+
+  return typeof scorerId === "string" && scorerId ? "player" : "team";
+}
+
 function mapGoal(value: unknown): GameGoal | null {
   if (!value || typeof value !== "object") {
     return null;
@@ -183,20 +193,15 @@ function mapGoal(value: unknown): GameGoal | null {
   const data = value as DocumentData;
   const teamId = mapTeamId(data.teamId);
 
-  if (
-    typeof data.id !== "string" ||
-    !teamId ||
-    typeof data.scorerId !== "string" ||
-    typeof data.scorerName !== "string"
-  ) {
+  if (typeof data.id !== "string" || !teamId) {
     return null;
   }
 
+  const kind = mapGoalKind(data.kind, data.scorerId);
   const goal: GameGoal = {
     id: data.id,
     teamId,
-    scorerId: data.scorerId,
-    scorerName: data.scorerName,
+    kind,
     createdBy: typeof data.createdBy === "string" ? data.createdBy : "",
     createdAtMs:
       typeof data.createdAtMs === "number" && Number.isFinite(data.createdAtMs)
@@ -204,11 +209,31 @@ function mapGoal(value: unknown): GameGoal | null {
         : 0,
   };
 
-  if (typeof data.assistId === "string" && data.assistId) {
-    goal.assistId = data.assistId;
-    goal.assistName =
-      typeof data.assistName === "string" && data.assistName
-        ? data.assistName
+  if (kind === "player") {
+    if (typeof data.scorerId !== "string" || !data.scorerId) {
+      return null;
+    }
+
+    goal.scorerId = data.scorerId;
+    goal.scorerName =
+      typeof data.scorerName === "string" && data.scorerName
+        ? data.scorerName
+        : "Player";
+
+    if (typeof data.assistId === "string" && data.assistId) {
+      goal.assistId = data.assistId;
+      goal.assistName =
+        typeof data.assistName === "string" && data.assistName
+          ? data.assistName
+          : "Player";
+    }
+  }
+
+  if (kind === "own" && typeof data.ownGoalById === "string" && data.ownGoalById) {
+    goal.ownGoalById = data.ownGoalById;
+    goal.ownGoalByName =
+      typeof data.ownGoalByName === "string" && data.ownGoalByName
+        ? data.ownGoalByName
         : "Player";
   }
 
@@ -819,11 +844,15 @@ export async function finishGame(gameId: string, updatedBy: string): Promise<voi
 export async function addGameGoal(
   gameId: string,
   input: {
+    /** Team the goal counts for; callers pass the opponent for an own goal. */
     teamId: GameTeamId;
-    scorerId: string;
-    scorerName: string;
+    kind?: GameGoalKind;
+    scorerId?: string;
+    scorerName?: string;
     assistId?: string;
     assistName?: string;
+    ownGoalById?: string;
+    ownGoalByName?: string;
     createdBy: string;
   },
 ): Promise<void> {
@@ -837,6 +866,12 @@ export async function addGameGoal(
     throw new Error("Start the game before adding goals.");
   }
 
+  const kind = input.kind ?? "player";
+
+  if (kind === "player" && !input.scorerId) {
+    throw new Error("Pick the player who scored.");
+  }
+
   if (input.assistId && input.assistId === input.scorerId) {
     throw new Error("A player cannot assist their own goal.");
   }
@@ -844,15 +879,24 @@ export async function addGameGoal(
   const goal: GameGoal = {
     id: createGoalId(),
     teamId: input.teamId,
-    scorerId: input.scorerId,
-    scorerName: input.scorerName,
+    kind,
     createdBy: input.createdBy,
     createdAtMs: Date.now(),
   };
 
-  if (input.assistId) {
-    goal.assistId = input.assistId;
-    goal.assistName = input.assistName?.trim() || "Player";
+  if (kind === "player" && input.scorerId) {
+    goal.scorerId = input.scorerId;
+    goal.scorerName = input.scorerName?.trim() || "Player";
+
+    if (input.assistId) {
+      goal.assistId = input.assistId;
+      goal.assistName = input.assistName?.trim() || "Player";
+    }
+  }
+
+  if (kind === "own" && input.ownGoalById) {
+    goal.ownGoalById = input.ownGoalById;
+    goal.ownGoalByName = input.ownGoalByName?.trim() || "Player";
   }
 
   const goals = [...(game.result?.goals ?? []), goal];
