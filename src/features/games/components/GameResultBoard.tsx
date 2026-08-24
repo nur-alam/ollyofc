@@ -9,6 +9,7 @@ import { useNow } from "@/features/games/game.hooks";
 import { GameResultStatus } from "@/features/games/components/GameResultStatus";
 import { GameTossCoin } from "@/features/games/components/GameTossCoin";
 import { ScoreFireworks } from "@/features/games/components/ScoreFireworks";
+import { useAuthStore } from "@/features/auth/auth.store";
 import { useUserMap } from "@/features/players/player.hooks";
 import {
   getGameScore,
@@ -21,6 +22,7 @@ import {
   type Game,
   type GameGoal,
 } from "@/types/game";
+import { isStaffRole } from "@/types/user";
 
 function TeamScore({
   name,
@@ -171,6 +173,9 @@ export function GameResultBoard({
   removingId?: string;
 }) {
   const usersById = useUserMap();
+  const isStaff = useAuthStore((state) =>
+    state.profile ? isStaffRole(state.profile.role) : false,
+  );
   const showToss = shouldShowLiveToss(game);
   const now = useNow(showToss ? 32 : 1000);
   const nowMs = now.getTime();
@@ -208,8 +213,8 @@ export function GameResultBoard({
 
       {tallies.length > 0 && (
         <div>
-          <h3 className="text-sm font-medium">Goals by player</h3>
-          <ul className="grid grid-cols-2 mt-2 rounded-lg border">
+          <h3 className="text-sm font-medium">Goals & assists</h3>
+          <ul className="grid grid-cols-1 mt-2 rounded-lg border sm:grid-cols-2">
             {tallies.map((tally, index) => (
               <li
                 key={tally.scorerId}
@@ -222,9 +227,18 @@ export function GameResultBoard({
                   name={tally.scorerName}
                   photoURL={usersById.get(tally.scorerId)?.photoURL}
                 />
-                <Badge variant="outline" className="tabular-nums">
-                  {tally.count}
-                </Badge>
+                <span className="flex shrink-0 items-center gap-1">
+                  {tally.count > 0 ? (
+                    <Badge variant="outline" className="tabular-nums" title="Goals">
+                      G-{tally.count}
+                    </Badge>
+                  ) : null}
+                  {tally.assists > 0 ? (
+                    <Badge variant="secondary" className="tabular-nums" title="Assists">
+                      A-{tally.assists}
+                    </Badge>
+                  ) : null}
+                </span>
               </li>
             ))}
           </ul>
@@ -269,7 +283,7 @@ export function GameResultBoard({
         </div>
       )}
 
-      {resultGoals.length > 0 && (
+      {isStaff && resultGoals.length > 0 && (
         <div className="grid gap-3 sm:grid-cols-2">
           {(["a", "b"] as const).map((teamId) => {
             const teamTallies = getTeamGoalTallies(resultGoals, teamId);

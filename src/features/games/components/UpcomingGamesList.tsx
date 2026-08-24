@@ -11,35 +11,9 @@ export function UpcomingGamesList() {
 
   return (
     <div className="flex flex-col gap-10">
-      {liveGames.length > 0 ? (
-        <section className="flex flex-col gap-6">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              {liveGames.length === 1 ? "Live game" : "Live games"}
-            </h1>
-            <p className="text-muted-foreground">
-              Score updates here as they happen. No sign-in needed.
-            </p>
-          </div>
-          <div className="grid gap-4">
-            {liveGames.map((game) => (
-              <LiveGameCard key={game.id} game={game} />
-            ))}
-          </div>
-        </section>
-      ) : lastFinishedGame ? (
-        <section className="flex flex-col gap-6">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Last result</h1>
-            <p className="text-muted-foreground">
-              Final score from the latest match.
-            </p>
-          </div>
-          <LiveGameCard game={lastFinishedGame} />
-        </section>
-      ) : null}
 
-      <section className="flex flex-col gap-6">
+      {/* Upcoming Games */}
+      { upcomingGames.length > 0 ? ( <section className="flex flex-col gap-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Upcoming games</h1>
@@ -72,7 +46,34 @@ export function UpcomingGamesList() {
             No upcoming game yet. Staff can create the next match from Games.
           </div>
         )}
-      </section>
+      </section>) : null}
+      
+      {/* Live Games */}
+      {liveGames.length > 0 ? (
+        <section className="flex flex-col gap-6">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">
+              {liveGames.length === 1 ? "Live game" : "Live games"}
+            </h1>
+            <p className="text-muted-foreground">
+              Score updates here as they happen. No sign-in needed.
+            </p>
+          </div>
+          <div className="grid gap-4">
+            {liveGames.map((game) => (
+              <LiveGameCard key={game.id} game={game} />
+            ))}
+          </div>
+        </section>
+      ) : lastFinishedGame ? (
+        <section className="flex flex-col gap-6">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Last Game Result</h1>
+            <p className="text-muted-foreground">Final score from the latest game.</p>
+          </div>
+          <LiveGameCard game={lastFinishedGame} />
+        </section>
+      ) : null}
     </div>
   );
 }
