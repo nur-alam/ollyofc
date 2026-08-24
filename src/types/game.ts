@@ -377,29 +377,58 @@ export function getWinnerLabel(game: Game) {
   return getTeamName(game, winner);
 }
 
-export function getPlayerGoalCounts(goals: GameGoal[]) {
-  const counts = new Map<string, { scorerId: string; scorerName: string; count: number }>();
+export type PlayerGoalTally = {
+  scorerId: string;
+  scorerName: string;
+  /** Player goals only; own goals and team goals are excluded. */
+  count: number;
+  assists: number;
+};
 
-  for (const goal of goals) {
-    if (getGoalKind(goal) !== "player" || !goal.scorerId) {
-      continue;
-    }
+function bumpPlayerTally(
+  counts: Map<string, PlayerGoalTally>,
+  playerId: string,
+  playerName: string,
+  field: "count" | "assists",
+) {
+  const current = counts.get(playerId);
 
-    const current = counts.get(goal.scorerId);
-
-    if (current) {
-      current.count += 1;
-      continue;
-    }
-
-    counts.set(goal.scorerId, {
-      scorerId: goal.scorerId,
-      scorerName: goal.scorerName || "Player",
-      count: 1,
-    });
+  if (current) {
+    current[field] += 1;
+    return;
   }
 
-  return [...counts.values()].sort((left, right) => right.count - left.count);
+  counts.set(playerId, {
+    scorerId: playerId,
+    scorerName: playerName || "Player",
+    count: field === "count" ? 1 : 0,
+    assists: field === "assists" ? 1 : 0,
+  });
+}
+
+export function getPlayerGoalCounts(goals: GameGoal[]) {
+  const counts = new Map<string, PlayerGoalTally>();
+
+  for (const goal of goals) {
+    if (getGoalKind(goal) !== "player") {
+      continue;
+    }
+
+    if (goal.scorerId) {
+      bumpPlayerTally(counts, goal.scorerId, goal.scorerName || "Player", "count");
+    }
+
+    if (goal.assistId) {
+      bumpPlayerTally(counts, goal.assistId, goal.assistName || "Player", "assists");
+    }
+  }
+
+  return [...counts.values()].sort(
+    (left, right) =>
+      right.count - left.count ||
+      right.assists - left.assists ||
+      left.scorerName.localeCompare(right.scorerName),
+  );
 }
 
 export type TeamGoalTally = {

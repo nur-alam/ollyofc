@@ -1,11 +1,15 @@
 import {
+  GoalIcon,
   LayoutDashboardIcon,
   Loader2Icon,
   LogInIcon,
   LogOutIcon,
+  MenuIcon,
+  TrophyIcon,
   UserIcon,
+  UsersIcon,
 } from "lucide-react";
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -35,14 +39,21 @@ const topbarButtonClassName = cn(
 
 const headerNavClassName = ({ isActive }: { isActive: boolean }) =>
   cn(
-    "inline-flex h-8 items-center rounded-lg px-2 text-sm font-medium no-underline transition-colors sm:px-3",
+    "inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-sm font-medium no-underline transition-colors sm:px-3 [&_svg]:size-4 [&_svg]:shrink-0",
     isActive
       ? "bg-white/20 text-white"
       : "text-white/80 hover:bg-white/15 hover:text-white",
   );
 
+const navItems = [
+  { to: "/squad", label: "Squad", icon: UsersIcon, end: false },
+  { to: "/games", label: "Games", icon: GoalIcon, end: true },
+  { to: "/leaderboard", label: "Leaderboard", icon: TrophyIcon, end: false },
+];
+
 export function Header() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const { firebaseUser, profile, loading, signInWithGoogle, logout } =
     useAuthStore();
   const isStaff = profile ? isStaffRole(profile.role) : false;
@@ -55,18 +66,60 @@ export function Header() {
 
   return (
     <header className="topbar">
-      <Link to="/" className="brand text-white no-underline">
-        Ollyo FC
-      </Link>
+      <div>
+        {/* Phones have no room for the full nav beside the auth button. */}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 shrink-0 cursor-pointer bg-white/15 text-white hover:bg-white/30 hover:text-white sm:hidden"
+                aria-label="Open menu"
+              >
+                <MenuIcon />
+              </Button>
+            }
+          />
+          <DropdownMenuContent
+            align="start"
+            className="min-w-44 [&_[data-slot=dropdown-menu-item]]:cursor-pointer"
+          >
+            {navItems.map((item) => (
+              <DropdownMenuItem
+                key={item.to}
+                className={cn(
+                  (pathname === item.to || pathname.startsWith(`${item.to}/`)) &&
+                    "bg-muted",
+                )}
+                onClick={() => navigate(item.to)}
+              >
+                <item.icon />
+                {item.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <Link to="/" className="ml-1 brand shrink-0 whitespace-nowrap text-white no-underline">
+          Ollyo FC
+        </Link>
+      </div>
 
       <div className="topbar-actions h-8">
-        <nav className="flex items-center gap-1">
-          <NavLink to="/squad" className={headerNavClassName}>
-            Squad
-          </NavLink>
-          <NavLink to="/games" end className={headerNavClassName}>
-            Games
-          </NavLink>
+
+        <nav className="hidden items-center gap-1 sm:flex">
+          {navItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              className={headerNavClassName}
+            >
+              <item.icon />
+              {item.label}
+            </NavLink>
+          ))}
         </nav>
 
         {firebaseUser ? (
