@@ -25,6 +25,10 @@
   ],
   "rewrites": [
     {
+      "source": "/__/auth/:path*",
+      "destination": "https://ollyofc-f97a1.firebaseapp.com/__/auth/:path*"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }

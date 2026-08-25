@@ -6,6 +6,7 @@ import {
   signOut,
   type User,
 } from "firebase/auth";
+import toast from "react-hot-toast";
 import { create } from "zustand";
 
 import { googleProvider, isFirebaseConfigured } from "@/lib/firebase";
@@ -18,6 +19,28 @@ import {
   getErrorMessage,
   getUserProfile,
 } from "./auth.service";
+
+function authErrorCode(error: unknown) {
+  if (error && typeof error === "object" && "code" in error) {
+    return String((error as { code: unknown }).code);
+  }
+
+  return "";
+}
+
+function isIgnorableAuthError(error: unknown) {
+  const code = authErrorCode(error);
+  return (
+    code === "auth/popup-closed-by-user" ||
+    code === "auth/cancelled-popup-request" ||
+    code === "auth/redirect-cancelled-by-user"
+  );
+}
+
+function isPopupBlockedError(error: unknown) {
+  const code = authErrorCode(error);
+  return code === "auth/popup-blocked" || code === "auth/cancelled-popup-request";
+}
 
 type AuthState = {
   firebaseUser: User | null;
@@ -44,6 +67,10 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     if (isFirebaseConfigured) {
       void getRedirectResult(auth).catch((error) => {
+        if (isIgnorableAuthError(error)) {
+          return;
+        }
+
         set({
           errorMessage: getErrorMessage(error, "Google sign-in failed."),
         });
@@ -83,20 +110,24 @@ export const useAuthStore = create<AuthState>((set) => ({
   signInWithGoogle: async () => {
     try {
       set({ errorMessage: "" });
-
-      if (isStandalonePwa()) {
-        set({ loading: true });
-        await signInWithRedirect(auth, googleProvider);
-        return;
-      }
-
       await signInWithPopup(auth, googleProvider);
     } catch (error) {
-      set({
-        loading: false,
-        errorMessage: getErrorMessage(error, "Google sign-in failed."),
-      });
-      throw error;
+      if (isStandalonePwa() && isPopupBlockedError(error)) {
+        try {
+          set({ loading: true });
+          await signInWithRedirect(auth, googleProvider);
+          return;
+        } catch (redirectError) {
+          const errorMessage = getErrorMessage(redirectError, "Google sign-in failed.");
+          set({ loading: false, errorMessage });
+          toast.error(errorMessage);
+          return;
+        }
+      }
+
+      const errorMessage = getErrorMessage(error, "Google sign-in failed.");
+      set({ loading: false, errorMessage });
+      toast.error(errorMessage);
     }
   },
 

@@ -1,5 +1,4 @@
 import { Loader2Icon, LogInIcon } from "lucide-react";
-import { useEffect } from "react";
 import { Link, Navigate, useLocation } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -10,15 +9,11 @@ import { cn } from "@/lib/utils";
 
 export function LoginPage() {
   const location = useLocation();
-  const { firebaseUser, loading, errorMessage, signInWithGoogle, clearError } =
+  const { firebaseUser, loading, errorMessage, signInWithGoogle } =
     useAuthStore();
 
   const redirectTo =
     (location.state as { from?: string } | null)?.from ?? "/dashboard";
-
-  useEffect(() => {
-    clearError();
-  }, [clearError]);
 
   if (!loading && firebaseUser) {
     return <Navigate to={redirectTo} replace />;

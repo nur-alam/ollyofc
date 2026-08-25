@@ -218,21 +218,20 @@ If we ever want “last known games when offline”, do it with Firestore `persi
 
 ## Auth in standalone mode
 
-`src/features/auth/auth.store.ts` calls `signInWithPopup(auth, googleProvider)`.
+Google sign-in must be **same-origin**. Installed PWAs and Safari block cookies on `*.firebaseapp.com`, and the service worker must not swallow `/__/auth/*`.
 
-| Environment | Popup |
-| --- | --- |
-| Chrome tab | Fine |
-| Installed Android PWA | Usually fine |
-| iOS Add to Home Screen | Often fails (popup blocked / returns to a blank standalone window) |
+What we ship:
 
-Plan:
+1. On `ollyofc.vercel.app`, `authDomain` is the site host (not `*.firebaseapp.com`).
+2. Vercel proxies `/__/auth/:path*` to `https://ollyofc-f97a1.firebaseapp.com/__/auth/:path*`.
+3. Workbox `navigateFallbackDenylist` includes `/__/` and those URLs are `NetworkOnly`.
+4. Popup is the default. Redirect is only a fallback when the installed app blocks the popup (typical on iOS).
 
-1. Keep popup as the default in a normal browser tab.
-2. Detect standalone: `window.matchMedia("(display-mode: standalone)").matches` or `navigator.standalone` on iOS.
-3. In standalone, use `signInWithRedirect` + `getRedirectResult` on boot.
+Google Cloud Console still needs this redirect URI on the OAuth web client:
 
-Firebase Console → Authentication → Settings → Authorized domains must include `ollyofc.vercel.app` (already required for the current site). `authDomain` is `{projectId}.firebaseapp.com` via `src/lib/firebase/index.ts`; do not point `authDomain` at Vercel unless you have set up a custom auth domain.
+`https://ollyofc.vercel.app/__/auth/handler`
+
+Firebase Authentication → Settings → Authorized domains must include `ollyofc.vercel.app`.
 
 Protected routes (`/profile`, `/dashboard`) already bounce to `/login`. `start_url` of `/` is public, so a signed-out install still lands on upcoming games. That is the right default for a club app.
 
@@ -240,11 +239,15 @@ Protected routes (`/profile`, `/dashboard`) already bounce to `/login`. `start_u
 
 ## Vercel and Firebase Hosting
 
-`vercel.json` today:
+`vercel.json` proxies Firebase auth before the SPA fallback:
 
 ```json
 {
   "rewrites": [
+    {
+      "source": "/__/auth/:path*",
+      "destination": "https://ollyofc-f97a1.firebaseapp.com/__/auth/:path*"
+    },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }
