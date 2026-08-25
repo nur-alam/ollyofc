@@ -1,10 +1,12 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { registerSW } from "virtual:pwa-register";
 import App from "./App";
 import { syncServerClock } from "@/lib/clock";
 import "./scss/styles.css";
 import "./scss/index.scss";
 
+registerSW({ immediate: true });
 void syncServerClock();
 
 const rootElement = document.getElementById("root");

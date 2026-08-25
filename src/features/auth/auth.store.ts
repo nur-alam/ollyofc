@@ -1,7 +1,15 @@
-import { onAuthStateChanged, signInWithPopup, signOut, type User } from "firebase/auth";
+import {
+  getRedirectResult,
+  onAuthStateChanged,
+  signInWithPopup,
+  signInWithRedirect,
+  signOut,
+  type User,
+} from "firebase/auth";
 import { create } from "zustand";
 
-import { googleProvider } from "@/lib/firebase";
+import { googleProvider, isFirebaseConfigured } from "@/lib/firebase";
+import { isStandalonePwa } from "@/lib/pwa";
 import type { UserProfile } from "@/types/user";
 
 import {
@@ -34,8 +42,16 @@ export const useAuthStore = create<AuthState>((set) => ({
   initialize: () => {
     set({ initialized: true, loading: true });
 
+    if (isFirebaseConfigured) {
+      void getRedirectResult(auth).catch((error) => {
+        set({
+          errorMessage: getErrorMessage(error, "Google sign-in failed."),
+        });
+      });
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      set({ firebaseUser, loading: true, errorMessage: "" });
+      set({ firebaseUser, loading: true });
 
       if (!firebaseUser) {
         set({ profile: null, loading: false });
@@ -51,7 +67,7 @@ export const useAuthStore = create<AuthState>((set) => ({
           ? await ensureUserProfile(firebaseUser)
           : await getUserProfile(firebaseUser.uid);
 
-        set({ profile, loading: false });
+        set({ profile, loading: false, errorMessage: "" });
       } catch (error) {
         set({
           profile: null,
@@ -67,9 +83,17 @@ export const useAuthStore = create<AuthState>((set) => ({
   signInWithGoogle: async () => {
     try {
       set({ errorMessage: "" });
+
+      if (isStandalonePwa()) {
+        set({ loading: true });
+        await signInWithRedirect(auth, googleProvider);
+        return;
+      }
+
       await signInWithPopup(auth, googleProvider);
     } catch (error) {
       set({
+        loading: false,
         errorMessage: getErrorMessage(error, "Google sign-in failed."),
       });
       throw error;
