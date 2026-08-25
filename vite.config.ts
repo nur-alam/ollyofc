@@ -141,9 +141,13 @@ export default defineConfig({
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
         navigateFallback: "index.html",
-        navigateFallbackDenylist: [/^\/api\//],
+        navigateFallbackDenylist: [/^\/api\//, /^\/__/],
         cleanupOutdatedCaches: true,
         runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith("/__/"),
+            handler: "NetworkOnly",
+          },
           {
             urlPattern: ({ url }) => url.pathname === "/api/time",
             handler: "NetworkOnly",

@@ -7,7 +7,7 @@ function envValue(value: string | undefined) {
   return value?.trim() ?? "";
 }
 
-function firebaseAuthDomain(value: string | undefined, projectId: string) {
+function firebaseHostedAuthDomain(value: string | undefined, projectId: string) {
   const host = envValue(value)
     .replace(/^https?:\/\//, "")
     .replace(/\/$/, "");
@@ -17,6 +17,19 @@ function firebaseAuthDomain(value: string | undefined, projectId: string) {
   }
 
   return projectId ? `${projectId}.firebaseapp.com` : host;
+}
+
+function firebaseAuthDomain(value: string | undefined, projectId: string) {
+  const hosted = firebaseHostedAuthDomain(value, projectId);
+
+  // Installed PWAs and Safari block third-party cookies on *.firebaseapp.com,
+  // which breaks Google sign-in. Production uses the site origin plus a
+  // Vercel proxy for /__/auth/* (see vercel.json).
+  if (typeof window !== "undefined" && window.location.hostname === "ollyofc.vercel.app") {
+    return window.location.host;
+  }
+
+  return hosted;
 }
 
 const projectId = envValue(import.meta.env.VITE_FIREBASE_PROJECT_ID);
