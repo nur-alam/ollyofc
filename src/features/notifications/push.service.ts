@@ -130,6 +130,12 @@ export async function disablePushNotifications(userId: string) {
   }
 }
 
+export const PUSH_ENABLED_EVENT = "ollyfc-push-enabled";
+
+export function emitPushEnabled(enabled: boolean) {
+  window.dispatchEvent(new CustomEvent(PUSH_ENABLED_EVENT, { detail: enabled }));
+}
+
 export function subscribeToForegroundPush(
   onPayload: (title: string, body: string, url: string) => void,
 ) {

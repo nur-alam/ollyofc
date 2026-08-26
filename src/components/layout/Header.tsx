@@ -22,6 +22,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { InstallAppButton } from "@/components/layout/InstallAppButton";
+import { NotifyBellButton } from "@/features/notifications/NotifyBellButton";
 import { useAuthStore } from "@/features/auth/auth.store";
 import { cn } from "@/lib/utils";
 import { isStaffRole } from "@/types/user";
@@ -124,6 +125,7 @@ export function Header() {
         </nav>
 
         <InstallAppButton />
+        {profile ? <NotifyBellButton userId={profile.id} /> : null}
 
         {firebaseUser ? (
           <DropdownMenu>
