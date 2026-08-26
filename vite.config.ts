@@ -1,5 +1,5 @@
 import path from "path";
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
@@ -96,12 +96,154 @@ function localImageApi(): Plugin {
   };
 }
 
-export default defineConfig({
+function localNotifyApi(): Plugin {
+  const middleware = (
+    req: { url?: string; method?: string },
+    res: {
+      statusCode: number;
+      setHeader: (name: string, value: string) => void;
+      end: (body: string) => void;
+    },
+    next: () => void,
+  ) => {
+    if (req.url?.split("?")[0] !== "/api/notify-game-created") {
+      next();
+      return;
+    }
+
+    res.statusCode = 200;
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    res.end(JSON.stringify({ ok: true, skipped: true }));
+  };
+
+  return {
+    name: "local-notify-api",
+    configureServer(server) {
+      server.middlewares.use(middleware);
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use(middleware);
+    },
+  };
+}
+
+function firebaseMessagingSw(env: Record<string, string>): Plugin {
+  const script = () => {
+    const config = {
+      apiKey: env.VITE_FIREBASE_API_KEY ?? "",
+      authDomain: env.VITE_FIREBASE_AUTH_DOMAIN ?? "",
+      projectId: env.VITE_FIREBASE_PROJECT_ID ?? "",
+      storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET ?? "",
+      messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID ?? "",
+      appId: env.VITE_FIREBASE_APP_ID ?? "",
+    };
+
+    return `/* firebase-messaging-sw.js */
+importScripts("https://www.gstatic.com/firebasejs/12.1.0/firebase-app-compat.js");
+importScripts("https://www.gstatic.com/firebasejs/12.1.0/firebase-messaging-compat.js");
+
+const hostedAuthDomain = ${JSON.stringify(config.authDomain)};
+const authDomain = self.location.hostname === "ollyofc.vercel.app" ? self.location.host : hostedAuthDomain;
+
+firebase.initializeApp({
+  apiKey: ${JSON.stringify(config.apiKey)},
+  authDomain: authDomain,
+  projectId: ${JSON.stringify(config.projectId)},
+  storageBucket: ${JSON.stringify(config.storageBucket)},
+  messagingSenderId: ${JSON.stringify(config.messagingSenderId)},
+  appId: ${JSON.stringify(config.appId)},
+});
+
+const messaging = firebase.messaging();
+
+messaging.onBackgroundMessage((payload) => {
+  const data = payload.data || {};
+  const title = data.title || (payload.notification && payload.notification.title) || "Ollyo FC";
+  const body = data.body || (payload.notification && payload.notification.body) || "A new game was created.";
+  const url = data.url || (data.gameId ? "/games/" + data.gameId : "/games");
+
+  return self.registration.showNotification(title, {
+    body: body,
+    icon: "/pwa-192x192.png",
+    badge: "/pwa-192x192.png",
+    data: { url: url, gameId: data.gameId || "" },
+  });
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const path = event.notification.data && event.notification.data.url ? event.notification.data.url : "/games";
+  const targetUrl = new URL(path, self.location.origin).href;
+
+  event.waitUntil((async () => {
+    const windowClients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+
+    for (const client of windowClients) {
+      if (new URL(client.url).origin === self.location.origin && "focus" in client) {
+        await client.focus();
+        if ("navigate" in client) {
+          await client.navigate(targetUrl);
+        }
+        return;
+      }
+    }
+
+    await self.clients.openWindow(targetUrl);
+  })());
+});
+`;
+  };
+
+  const serve = (
+    req: { url?: string },
+    res: {
+      statusCode: number;
+      setHeader: (name: string, value: string) => void;
+      end: (body: string) => void;
+    },
+    next: () => void,
+  ) => {
+    if (req.url?.split("?")[0] !== "/firebase-messaging-sw.js") {
+      next();
+      return;
+    }
+
+    res.statusCode = 200;
+    res.setHeader("Content-Type", "application/javascript; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    res.end(script());
+  };
+
+  return {
+    name: "firebase-messaging-sw",
+    configureServer(server) {
+      server.middlewares.use(serve);
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use(serve);
+    },
+    generateBundle() {
+      this.emitFile({
+        type: "asset",
+        fileName: "firebase-messaging-sw.js",
+        source: script(),
+      });
+    },
+  };
+}
+
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), "VITE_");
+
+  return {
   plugins: [
     react(),
     tailwindcss(),
     localTimeApi(),
     localImageApi(),
+    localNotifyApi(),
+    firebaseMessagingSw(env),
     VitePWA({
       registerType: "autoUpdate",
       includeManifestIcons: false,
@@ -140,6 +282,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
+        globIgnores: ["**/firebase-messaging-sw.js"],
         navigateFallback: "index.html",
         navigateFallbackDenylist: [/^\/api\//, /^\/__/],
         cleanupOutdatedCaches: true,
@@ -178,4 +321,5 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  };
 });

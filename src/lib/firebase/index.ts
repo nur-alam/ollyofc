@@ -52,6 +52,7 @@ export const isUsingDevFirebase = firestoreDatabaseId !== "(default)";
 
 const app = initializeApp(firebaseConfig);
 
+export const firebaseApp = app;
 export const auth = getAuth(app);
 export const db = import.meta.env.DEV
   ? initializeFirestore(

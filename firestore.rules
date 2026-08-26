@@ -69,11 +69,16 @@ service cloud.firestore {
       );
 
       allow delete: if isAdmin();
+
+      match /fcmTokens/{tokenId} {
+        allow read, write: if isSignedIn() && request.auth.uid == userId;
+      }
     }
 
     match /games/{gameId} {
       allow read: if true;
-      allow create, update: if isSignedIn();
+      allow create: if isStaff();
+      allow update: if isSignedIn();
       allow delete: if isAdmin();
 
       match /participants/{participantId} {

@@ -16,6 +16,7 @@ import {
   updateUserDisplayName,
   updateUserPosition,
 } from "@/features/auth/auth.service";
+import { GamePushToggle } from "@/features/notifications/GamePushToggle";
 import { PlayerStatsCard } from "@/features/players/components/PlayerStatsCard";
 import { ProfilePhotoUpload } from "@/features/players/components/ProfilePhotoUpload";
 import { usePlayerProfile } from "@/features/players/player.hooks";
@@ -163,6 +164,9 @@ export function ProfilePage() {
               </SelectContent>
             </Select>
           </div>
+          {profile && (
+            <GamePushToggle userId={profile.id} disabled={saving} />
+          )}
         </dl>
       </div>
 

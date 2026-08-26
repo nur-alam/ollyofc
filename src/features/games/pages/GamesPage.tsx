@@ -14,6 +14,7 @@ import {
   getErrorMessage,
   updateGame,
 } from "@/features/games/game.service";
+import { notifyGameCreated } from "@/features/games/notify-game-created";
 import { useAuthStore } from "@/features/auth/auth.store";
 import { cn } from "@/lib/utils";
 import { isStaffRole } from "@/types/user";
@@ -78,9 +79,20 @@ export function GamesPage() {
     setActionError("");
 
     try {
-      await createGame(input, firebaseUser.uid);
+      const game = await createGame(input, firebaseUser.uid);
       setDialogOpen(false);
-      toast.success("Game created");
+
+      try {
+        const notify = await notifyGameCreated(game.id);
+        toast.success(
+          notify.skipped || !notify.sent
+            ? "Game created"
+            : "Game created. Players were notified.",
+        );
+      } catch {
+        toast.success("Game created");
+        toast.error("Players were not notified.");
+      }
     } catch (error) {
       const message = getErrorMessage(error, "Could not create game.");
       setActionError(message);
