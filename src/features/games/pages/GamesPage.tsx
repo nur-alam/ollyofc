@@ -89,9 +89,11 @@ export function GamesPage() {
             ? "Game created"
             : "Game created. Players were notified.",
         );
-      } catch {
+      } catch (notifyError) {
         toast.success("Game created");
-        toast.error("Players were not notified.");
+        toast.error(
+          getErrorMessage(notifyError, "Players were not notified."),
+        );
       }
     } catch (error) {
       const message = getErrorMessage(error, "Could not create game.");

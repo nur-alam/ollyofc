@@ -1,8 +1,3 @@
-import { cert, getApps, initializeApp } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
-import { getFirestore } from "firebase-admin/firestore";
-import { getMessaging } from "firebase-admin/messaging";
-
 export const config = {
   runtime: "nodejs",
 };
@@ -11,17 +6,105 @@ const STAFF_ROLES = new Set(["admin", "moderator"]);
 const ORIGIN = "https://ollyofc.vercel.app";
 const BATCH_SIZE = 500;
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      "cache-control": "no-store",
-    },
-  });
+type NodeReq = {
+  method?: string;
+  headers: Record<string, string | string[] | undefined>;
+  body?: unknown;
+};
+
+type NodeRes = {
+  statusCode: number;
+  setHeader: (name: string, value: string) => void;
+  end: (body: string) => void;
+};
+
+function json(res: NodeRes, body: unknown, status = 200) {
+  res.statusCode = status;
+  res.setHeader("content-type", "application/json; charset=utf-8");
+  res.setHeader("cache-control", "no-store");
+  res.end(JSON.stringify(body));
 }
 
-function adminApp() {
+function headerValue(headers: NodeReq["headers"], name: string) {
+  const value = headers[name] ?? headers[name.toLowerCase()];
+
+  if (Array.isArray(value)) {
+    return value[0] ?? "";
+  }
+
+  return value ?? "";
+}
+
+function bearerToken(req: NodeReq) {
+  const header = headerValue(req.headers, "authorization");
+  const [scheme, token] = header.split(" ");
+
+  if (scheme?.toLowerCase() !== "bearer" || !token) {
+    return "";
+  }
+
+  return token;
+}
+
+function readGameId(body: unknown) {
+  if (typeof body === "string") {
+    try {
+      return readGameId(JSON.parse(body) as unknown);
+    } catch {
+      return "";
+    }
+  }
+
+  if (!body || typeof body !== "object") {
+    return "";
+  }
+
+  const gameId = (body as { gameId?: unknown }).gameId;
+
+  return typeof gameId === "string" ? gameId.trim() : "";
+}
+
+function parseServiceAccount(raw: string) {
+  let text = raw.trim();
+
+  if (
+    (text.startsWith("'") && text.endsWith("'")) ||
+    (text.startsWith('"') && text.endsWith('"'))
+  ) {
+    text = text.slice(1, -1);
+  }
+
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error("FIREBASE_SERVICE_ACCOUNT is not valid JSON");
+  }
+
+  if (typeof parsed === "string") {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch {
+      throw new Error("FIREBASE_SERVICE_ACCOUNT is not valid JSON");
+    }
+  }
+
+  if (!parsed || typeof parsed !== "object") {
+    throw new Error("FIREBASE_SERVICE_ACCOUNT is not valid JSON");
+  }
+
+  const account = parsed as Record<string, string>;
+
+  if (typeof account.private_key === "string") {
+    account.private_key = account.private_key.replace(/\\n/g, "\n");
+  }
+
+  return account;
+}
+
+async function adminApp() {
+  const { cert, getApps, initializeApp } = await import("firebase-admin/app");
   const existing = getApps()[0];
 
   if (existing) {
@@ -32,7 +115,7 @@ function adminApp() {
 
   if (jsonAccount) {
     return initializeApp({
-      credential: cert(JSON.parse(jsonAccount) as Record<string, string>),
+      credential: cert(parseServiceAccount(jsonAccount)),
     });
   }
 
@@ -46,18 +129,7 @@ function adminApp() {
     });
   }
 
-  throw new Error("Missing Firebase service account");
-}
-
-function bearerToken(request: Request) {
-  const header = request.headers.get("authorization") ?? "";
-  const [scheme, token] = header.split(" ");
-
-  if (scheme?.toLowerCase() !== "bearer" || !token) {
-    return "";
-  }
-
-  return token;
+  throw new Error("Missing FIREBASE_SERVICE_ACCOUNT");
 }
 
 function formatNotifyCopy(data: {
@@ -102,32 +174,33 @@ function isDeadTokenError(code: string | undefined) {
   );
 }
 
-export default async function handler(request: Request) {
-  if (request.method !== "POST") {
-    return json({ error: "Method not allowed" }, 405);
-  }
-
-  const idToken = bearerToken(request);
-
-  if (!idToken) {
-    return json({ error: "Unauthorized" }, 401);
-  }
-
-  let gameId = "";
-
+export default async function handler(req: NodeReq, res: NodeRes) {
   try {
-    const body = (await request.json()) as { gameId?: unknown };
-    gameId = typeof body.gameId === "string" ? body.gameId.trim() : "";
-  } catch {
-    return json({ error: "Invalid JSON" }, 400);
-  }
+    if (req.method !== "POST") {
+      json(res, { error: "Method not allowed" }, 405);
+      return;
+    }
 
-  if (!gameId) {
-    return json({ error: "Missing game id" }, 400);
-  }
+    const idToken = bearerToken(req);
 
-  try {
-    const app = adminApp();
+    if (!idToken) {
+      json(res, { error: "Unauthorized" }, 401);
+      return;
+    }
+
+    const gameId = readGameId(req.body);
+
+    if (!gameId) {
+      json(res, { error: "Missing game id" }, 400);
+      return;
+    }
+
+    const app = await adminApp();
+    const [{ getAuth }, { getFirestore }, { getMessaging }] = await Promise.all([
+      import("firebase-admin/auth"),
+      import("firebase-admin/firestore"),
+      import("firebase-admin/messaging"),
+    ]);
     const auth = getAuth(app);
     const db = getFirestore(app);
     const messaging = getMessaging(app);
@@ -136,13 +209,15 @@ export default async function handler(request: Request) {
     const role = staffSnap.data()?.role;
 
     if (!STAFF_ROLES.has(typeof role === "string" ? role : "")) {
-      return json({ error: "Forbidden" }, 403);
+      json(res, { error: "Forbidden" }, 403);
+      return;
     }
 
     const gameSnap = await db.doc(`games/${gameId}`).get();
 
     if (!gameSnap.exists) {
-      return json({ error: "Game not found" }, 404);
+      json(res, { error: "Game not found" }, 404);
+      return;
     }
 
     const copy = formatNotifyCopy(gameSnap.data() ?? {});
@@ -155,7 +230,8 @@ export default async function handler(request: Request) {
       .filter((entry) => entry.token);
 
     if (!entries.length) {
-      return json({ ok: true, sent: 0 });
+      json(res, { ok: true, sent: 0 });
+      return;
     }
 
     const url = `/games/${gameId}`;
@@ -192,9 +268,9 @@ export default async function handler(request: Request) {
       );
     }
 
-    return json({ ok: true, sent });
+    json(res, { ok: true, sent });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Notify failed";
-    return json({ error: message }, 500);
+    json(res, { error: message }, 500);
   }
 }
