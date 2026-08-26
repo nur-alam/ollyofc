@@ -6,10 +6,12 @@ import { Switch } from "@/components/ui/switch";
 import {
   canRequestPushPermission,
   disablePushNotifications,
+  emitPushEnabled,
   enablePushNotifications,
   getExistingPushToken,
   iosNeedsInstalledPwa,
   isPushConfigured,
+  PUSH_ENABLED_EVENT,
 } from "@/features/notifications/push.service";
 import { getErrorMessage } from "@/lib/errors";
 
@@ -33,8 +35,15 @@ export function GamePushToggle({ userId, disabled }: GamePushToggleProps) {
       }
     });
 
+    const onChange = (event: Event) => {
+      setEnabled(Boolean((event as CustomEvent<boolean>).detail));
+    };
+
+    window.addEventListener(PUSH_ENABLED_EVENT, onChange);
+
     return () => {
       cancelled = true;
+      window.removeEventListener(PUSH_ENABLED_EVENT, onChange);
     };
   }, [userId]);
 
@@ -52,11 +61,13 @@ export function GamePushToggle({ userId, disabled }: GamePushToggleProps) {
       if (next) {
         await enablePushNotifications(userId);
         setEnabled(true);
-        toast.success("You will get a notification when a game is created.");
+        emitPushEnabled(true);
+        toast.success("Ollyo FC Notification turned on.");
       } else {
         await disablePushNotifications(userId);
         setEnabled(false);
-        toast.success("Game notifications turned off.");
+        emitPushEnabled(false);
+        toast.success("Ollyo FC Notification turned off.");
       }
     } catch (error) {
       toast.error(getErrorMessage(error, "Could not update notifications."));
