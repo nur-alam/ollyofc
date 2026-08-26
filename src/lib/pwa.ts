@@ -51,8 +51,8 @@ export function getInstallHelp(): InstallHelp {
     return {
       title: "Add to Home Screen",
       steps: [
-        "Tap Share in Safari (the square with an arrow).",
-        "Scroll and tap Add to Home Screen.",
+        "Open this page in **Safari**, then tap Share in **Safari** (the square with an arrow).",
+        "Scroll and tap **Add to Home Screen**.",
         "Tap Add, then open Ollyo FC from your home screen.",
       ],
     };

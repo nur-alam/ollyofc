@@ -1,6 +1,6 @@
 # Push notifications when a game is created
 
-Analysis only. Nothing in this doc has been implemented yet.
+Phase 1 (opt-in + FCM worker) and Phase 2 (notify on create) are implemented. Staff create still succeeds if push fails. Players must enable **New game notifications** on Profile. Tapping a notification opens `/games/{gameId}`.
 
 Staff already create matches from the Games page (`createGame` → Firestore `games/{id}`). The product ask is: **when that happens, ping players who opted in**, even if Ollyo FC is closed.
 

@@ -11,6 +11,20 @@ import {
 const installButtonClassName =
   "inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-white/15 px-2.5 text-sm text-white hover:bg-white/30 hover:text-white sm:px-3";
 
+function renderInstallStep(step: string) {
+  return step.split(/(\*\*[^*]+\*\*)/g).map((part, index) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return (
+        <strong key={index} className="font-semibold text-foreground">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+
+    return part;
+  });
+}
+
 export function InstallAppButton() {
   const [installed, setInstalled] = useState(isStandalonePwa);
   const [nativePrompt, setNativePrompt] = useState<BeforeInstallPromptEvent | null>(null);
@@ -55,7 +69,7 @@ export function InstallAppButton() {
   const trigger = (
     <>
       <DownloadIcon className="size-3.5" />
-      <span>Install</span>
+      {/* <span>Install</span> */}
     </>
   );
 
@@ -89,7 +103,7 @@ export function InstallAppButton() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="install-app-title"
-            className="w-full max-w-sm rounded-xl border bg-background p-5 shadow-xl"
+            className="w-full max-w-sm rounded-xl border bg-background p-5 text-foreground shadow-xl"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-3 flex items-start justify-between gap-3">
@@ -108,7 +122,7 @@ export function InstallAppButton() {
             </div>
             <ol className="m-0 list-decimal space-y-2 pl-4 text-sm text-muted-foreground">
               {help.steps.map((step) => (
-                <li key={step}>{step}</li>
+                <li key={step}>{renderInstallStep(step)}</li>
               ))}
             </ol>
           </div>
