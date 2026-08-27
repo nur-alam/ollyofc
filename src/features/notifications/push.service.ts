@@ -21,6 +21,9 @@ export function iosNeedsInstalledPwa() {
   return isIosDevice() && !isStandalonePwa();
 }
 
+export const IOS_INSTALL_PUSH_MESSAGE =
+  "On iPhone, install Ollyo FC to the Home Screen first, then enable notifications.";
+
 export function canRequestPushPermission() {
   if (!isPushConfigured() || typeof Notification === "undefined") {
     return false;
@@ -79,7 +82,7 @@ export async function getExistingPushToken() {
 
 export async function enablePushNotifications(userId: string) {
   if (iosNeedsInstalledPwa()) {
-    throw new Error("On iPhone, install Ollyo FC to the Home Screen first, then enable notifications.");
+    throw new Error(IOS_INSTALL_PUSH_MESSAGE);
   }
 
   if (!canRequestPushPermission()) {

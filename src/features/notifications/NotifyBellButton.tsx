@@ -7,6 +7,8 @@ import {
   emitPushEnabled,
   enablePushNotifications,
   getExistingPushToken,
+  IOS_INSTALL_PUSH_MESSAGE,
+  iosNeedsInstalledPwa,
   isPushConfigured,
   PUSH_ENABLED_EVENT,
 } from "@/features/notifications/push.service";
@@ -72,6 +74,17 @@ export function NotifyBellButton({ userId }: NotifyBellButtonProps) {
       disabled={saving}
       onClick={async () => {
         if (enabled) {
+          return;
+        }
+
+        if (iosNeedsInstalledPwa()) {
+          toast.custom(() => (
+            <div className="bg-amber-400/90 text-slate-900 rounded-lg p-4">
+                {IOS_INSTALL_PUSH_MESSAGE}
+              </div>
+            ),
+            { duration: 8000 },
+          );
           return;
         }
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Loader2Icon } from "lucide-react";
 import toast from "react-hot-toast";
 
 import { Label } from "@/components/ui/label";
@@ -9,6 +10,7 @@ import {
   emitPushEnabled,
   enablePushNotifications,
   getExistingPushToken,
+  IOS_INSTALL_PUSH_MESSAGE,
   iosNeedsInstalledPwa,
   isPushConfigured,
   PUSH_ENABLED_EVENT,
@@ -52,9 +54,14 @@ export function GamePushToggle({ userId, disabled }: GamePushToggleProps) {
   }
 
   const lockedToInstall = iosNeedsInstalledPwa();
-  const unavailable = !canRequestPushPermission();
+  const unavailable = !canRequestPushPermission() && !lockedToInstall;
 
   const handleToggle = async (next: boolean) => {
+    if (lockedToInstall && next) {
+      toast(IOS_INSTALL_PUSH_MESSAGE);
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -82,18 +89,27 @@ export function GamePushToggle({ userId, disabled }: GamePushToggleProps) {
         <Label htmlFor="game-push">New game notifications</Label>
         <p className="text-xs text-muted-foreground">
           {lockedToInstall
-            ? "On iPhone, install Ollyo FC to the Home Screen first, then turn this on."
+            ? "iPhone cannot get push in Chrome or Safari as a tab. Open this site in Safari, tap Share → Add to Home Screen, then open Ollyo FC from the Home Screen and turn this on."
             : "Get a push when staff create a match. Tap the notification to open the game."}
         </p>
       </div>
-      <Switch
-        id="game-push"
-        checked={enabled}
-        disabled={disabled || saving || !ready || unavailable}
-        onCheckedChange={(checked) => {
-          void handleToggle(checked);
-        }}
-      />
+      <div className="flex shrink-0 items-center gap-2 pt-0.5">
+        {saving ? (
+          <Loader2Icon
+            className="size-4 animate-spin text-muted-foreground"
+            aria-hidden
+          />
+        ) : null}
+        <Switch
+          id="game-push"
+          checked={enabled}
+          disabled={disabled || saving || !ready || unavailable}
+          aria-busy={saving}
+          onCheckedChange={(checked) => {
+            void handleToggle(checked);
+          }}
+        />
+      </div>
     </div>
   );
 }
