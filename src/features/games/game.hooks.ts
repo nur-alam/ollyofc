@@ -9,6 +9,7 @@ import {
   isGameInPlay,
   isUpcomingGame,
   sortGames,
+  withoutNewestUpcomingGame,
 } from "@/types/game";
 
 export function useGames() {
@@ -41,6 +42,11 @@ export function useGames() {
     [now, sortedGames],
   );
 
+  const publicUpcomingGames = useMemo(
+    () => withoutNewestUpcomingGame(upcomingGames),
+    [upcomingGames],
+  );
+
   const liveGames = useMemo(
     () => sortedGames.filter((game) => isGameInPlay(game, now)),
     [now, sortedGames],
@@ -51,9 +57,18 @@ export function useGames() {
     [now, sortedGames],
   );
 
-  const nextUpcomingGame = upcomingGames[0] ?? null;
+  const nextUpcomingGame = publicUpcomingGames[0] ?? null;
 
-  return { games: sortedGames, upcomingGames, liveGames, lastFinishedGame, nextUpcomingGame, loading, errorMessage };
+  return {
+    games: sortedGames,
+    upcomingGames,
+    publicUpcomingGames,
+    liveGames,
+    lastFinishedGame,
+    nextUpcomingGame,
+    loading,
+    errorMessage,
+  };
 }
 
 export function useGame(gameId: string | undefined) {

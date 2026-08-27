@@ -327,6 +327,27 @@ export function isUpcomingGame(game: Game, now = getServerNow()) {
   return !hasGameHappened(game, now) && game.status !== "cancelled";
 }
 
+function gameCreatedAtMs(game: Game) {
+  if (game.createdAt && typeof game.createdAt.toMillis === "function") {
+    return game.createdAt.toMillis();
+  }
+
+  return 0;
+}
+
+/** When more than one upcoming game exists, hide the most recently created one from public lists. */
+export function withoutNewestUpcomingGame(games: Game[]) {
+  if (games.length <= 1) {
+    return games;
+  }
+
+  const newest = games.reduce((latest, game) =>
+    gameCreatedAtMs(game) >= gameCreatedAtMs(latest) ? game : latest,
+  );
+
+  return games.filter((game) => game.id !== newest.id);
+}
+
 export function getLastFinishedGame(games: Game[], now = getServerNow()) {
   const finished = games.filter(
     (game) => hasMatchEnded(game, now) && game.status !== "cancelled",

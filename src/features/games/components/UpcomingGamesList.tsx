@@ -7,13 +7,13 @@ import { useGames } from "@/features/games/game.hooks";
 import { cn } from "@/lib/utils";
 
 export function UpcomingGamesList() {
-  const { upcomingGames, liveGames, lastFinishedGame, loading, errorMessage } = useGames();
+  const { publicUpcomingGames, liveGames, lastFinishedGame, loading, errorMessage } = useGames();
 
   return (
     <div className="flex flex-col gap-10">
 
       {/* Upcoming Games */}
-      { upcomingGames.length > 0 ? ( <section className="flex flex-col gap-6">
+      { publicUpcomingGames.length > 0 ? ( <section className="flex flex-col gap-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Upcoming games</h1>
@@ -35,9 +35,9 @@ export function UpcomingGamesList() {
           <div className="rounded-xl border bg-background p-8 text-center text-sm text-muted-foreground shadow-sm">
             Loading games...
           </div>
-        ) : upcomingGames.length ? (
+        ) : publicUpcomingGames.length ? (
           <div className="grid gap-4">
-            {upcomingGames.map((game) => (
+            {publicUpcomingGames.map((game) => (
               <UpcomingGameCard key={game.id} game={game} />
             ))}
           </div>
