@@ -1,4 +1,4 @@
-import { adminApp, bearerToken, json, sendPushToAllTokens, type NodeReq, type NodeRes } from "./lib/fcm";
+import { adminApp, bearerToken, json, sendPushToAllTokens } from "./lib/fcm";
 
 export const config = {
   runtime: "nodejs",
@@ -6,22 +6,13 @@ export const config = {
 
 const STAFF_ROLES = new Set(["admin", "moderator"]);
 
-function readGameId(body: unknown) {
-  if (typeof body === "string") {
-    try {
-      return readGameId(JSON.parse(body) as unknown);
-    } catch {
-      return "";
-    }
-  }
-
-  if (!body || typeof body !== "object") {
+async function readGameId(request: Request) {
+  try {
+    const body = (await request.json()) as { gameId?: unknown };
+    return typeof body.gameId === "string" ? body.gameId.trim() : "";
+  } catch {
     return "";
   }
-
-  const gameId = (body as { gameId?: unknown }).gameId;
-
-  return typeof gameId === "string" ? gameId.trim() : "";
 }
 
 function formatNotifyCopy(data: {
@@ -58,25 +49,22 @@ function formatNotifyCopy(data: {
   return { title, body: body || "A new game was created." };
 }
 
-export default async function handler(req: NodeReq, res: NodeRes) {
+export default async function handler(request: Request) {
   try {
-    if (req.method !== "POST") {
-      json(res, { error: "Method not allowed" }, 405);
-      return;
+    if (request.method !== "POST") {
+      return json({ error: "Method not allowed" }, 405);
     }
 
-    const idToken = bearerToken(req);
+    const idToken = bearerToken(request);
 
     if (!idToken) {
-      json(res, { error: "Unauthorized" }, 401);
-      return;
+      return json({ error: "Unauthorized" }, 401);
     }
 
-    const gameId = readGameId(req.body);
+    const gameId = await readGameId(request);
 
     if (!gameId) {
-      json(res, { error: "Missing game id" }, 400);
-      return;
+      return json({ error: "Missing game id" }, 400);
     }
 
     const app = await adminApp();
@@ -91,15 +79,13 @@ export default async function handler(req: NodeReq, res: NodeRes) {
     const role = staffSnap.data()?.role;
 
     if (!STAFF_ROLES.has(typeof role === "string" ? role : "")) {
-      json(res, { error: "Forbidden" }, 403);
-      return;
+      return json({ error: "Forbidden" }, 403);
     }
 
     const gameSnap = await db.doc(`games/${gameId}`).get();
 
     if (!gameSnap.exists) {
-      json(res, { error: "Game not found" }, 404);
-      return;
+      return json({ error: "Game not found" }, 404);
     }
 
     const copy = formatNotifyCopy(gameSnap.data() ?? {});
@@ -111,9 +97,9 @@ export default async function handler(req: NodeReq, res: NodeRes) {
       extraData: { gameId },
     });
 
-    json(res, { ok: true, sent });
+    return json({ ok: true, sent });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Notify failed";
-    json(res, { error: message }, 500);
+    return json({ error: message }, 500);
   }
 }

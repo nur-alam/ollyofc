@@ -1,4 +1,4 @@
-import { adminApp, bearerToken, json, sendPushToAllTokens, type NodeReq, type NodeRes } from "./lib/fcm";
+import { adminApp, bearerToken, json, sendPushToAllTokens } from "./lib/fcm";
 
 export const config = {
   runtime: "nodejs",
@@ -6,48 +6,35 @@ export const config = {
 
 const MAX_MESSAGE_LENGTH = 240;
 
-function readMessage(body: unknown) {
-  if (typeof body === "string") {
-    try {
-      return readMessage(JSON.parse(body) as unknown);
-    } catch {
-      return "";
-    }
-  }
-
-  if (!body || typeof body !== "object") {
+async function readMessage(request: Request) {
+  try {
+    const body = (await request.json()) as { message?: unknown };
+    return typeof body.message === "string" ? body.message.trim() : "";
+  } catch {
     return "";
   }
-
-  const message = (body as { message?: unknown }).message;
-
-  return typeof message === "string" ? message.trim() : "";
 }
 
-export default async function handler(req: NodeReq, res: NodeRes) {
+export default async function handler(request: Request) {
   try {
-    if (req.method !== "POST") {
-      json(res, { error: "Method not allowed" }, 405);
-      return;
+    if (request.method !== "POST") {
+      return json({ error: "Method not allowed" }, 405);
     }
 
-    const idToken = bearerToken(req);
+    const idToken = bearerToken(request);
 
     if (!idToken) {
-      json(res, { error: "Unauthorized" }, 401);
-      return;
+      return json({ error: "Unauthorized" }, 401);
     }
 
-    const message = readMessage(req.body);
+    const message = await readMessage(request);
 
     if (!message) {
-      json(res, { error: "Write a notification message." }, 400);
-      return;
+      return json({ error: "Write a notification message." }, 400);
     }
 
     if (message.length > MAX_MESSAGE_LENGTH) {
-      json(res, { error: `Message must be ${MAX_MESSAGE_LENGTH} characters or fewer.` }, 400);
-      return;
+      return json({ error: `Message must be ${MAX_MESSAGE_LENGTH} characters or fewer.` }, 400);
     }
 
     const app = await adminApp();
@@ -62,8 +49,7 @@ export default async function handler(req: NodeReq, res: NodeRes) {
     const role = staffSnap.data()?.role;
 
     if (role !== "admin") {
-      json(res, { error: "Forbidden" }, 403);
-      return;
+      return json({ error: "Forbidden" }, 403);
     }
 
     const sent = await sendPushToAllTokens({
@@ -72,9 +58,9 @@ export default async function handler(req: NodeReq, res: NodeRes) {
       url: "/games",
     });
 
-    json(res, { ok: true, sent });
+    return json({ ok: true, sent });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Notify failed";
-    json(res, { error: message }, 500);
+    return json({ error: message }, 500);
   }
 }

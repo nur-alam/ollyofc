@@ -1,37 +1,18 @@
 export const ORIGIN = "https://ollyofc.vercel.app";
 export const BATCH_SIZE = 500;
 
-export type NodeReq = {
-  method?: string;
-  headers: Record<string, string | string[] | undefined>;
-  body?: unknown;
-};
-
-export type NodeRes = {
-  statusCode: number;
-  setHeader: (name: string, value: string) => void;
-  end: (body: string) => void;
-};
-
-export function json(res: NodeRes, body: unknown, status = 200) {
-  res.statusCode = status;
-  res.setHeader("content-type", "application/json; charset=utf-8");
-  res.setHeader("cache-control", "no-store");
-  res.end(JSON.stringify(body));
+export function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store",
+    },
+  });
 }
 
-export function headerValue(headers: NodeReq["headers"], name: string) {
-  const value = headers[name] ?? headers[name.toLowerCase()];
-
-  if (Array.isArray(value)) {
-    return value[0] ?? "";
-  }
-
-  return value ?? "";
-}
-
-export function bearerToken(req: NodeReq) {
-  const header = headerValue(req.headers, "authorization");
+export function bearerToken(request: Request) {
+  const header = request.headers.get("authorization") ?? "";
   const [scheme, token] = header.split(" ");
 
   if (scheme?.toLowerCase() !== "bearer" || !token) {
