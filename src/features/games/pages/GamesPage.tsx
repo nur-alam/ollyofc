@@ -27,7 +27,6 @@ import {
   getGameListBadge,
   getGameScore,
   getTeamName,
-  withoutNewestUpcomingGame,
 } from "@/types/game";
 
 function GameRowContent({ game }: { game: Game }) {
@@ -62,16 +61,7 @@ export function GamesPage() {
   const { firebaseUser, profile } = useAuthStore();
   const isStaff = profile ? isStaffRole(profile.role) : false;
   const isAdmin = profile?.role === "admin";
-  const { games, upcomingGames, loading, errorMessage } = useGames();
-  const publicUpcomingIds = new Set(
-    withoutNewestUpcomingGame(upcomingGames).map((game) => game.id),
-  );
-  const listedGames = isStaff
-    ? games
-    : games.filter((game) => {
-        const isUpcoming = upcomingGames.some((upcoming) => upcoming.id === game.id);
-        return !isUpcoming || publicUpcomingIds.has(game.id);
-      });
+  const { games, loading, errorMessage } = useGames();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [gameToEdit, setGameToEdit] = useState<Game | null>(null);
@@ -184,9 +174,9 @@ export function GamesPage() {
           <p className="p-8 text-center text-sm text-muted-foreground">
             Loading games...
           </p>
-        ) : listedGames.length ? (
+        ) : games.length ? (
           <ul className="divide-y">
-            {listedGames.map((game) => {
+            {games.map((game) => {
               const canOpen = game.status !== "cancelled";
 
               return (
