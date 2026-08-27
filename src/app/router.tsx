@@ -10,6 +10,7 @@ import { NotFoundPage } from "@/pages/NotFoundPage";
 import { ProfilePage } from "@/pages/ProfilePage";
 import { GamesPage } from "@/features/games/pages/GamesPage";
 import { GameDetailPage } from "@/features/games/pages/GameDetailPage";
+import { NotificationPage } from "@/features/notifications/pages/NotificationPage";
 import { LeaderboardPage } from "@/features/players/pages/LeaderboardPage";
 import { PlayerPage } from "@/features/players/pages/PlayerPage";
 import { PlayersPage } from "@/features/players/pages/PlayersPage";
@@ -34,6 +35,14 @@ export function AppRouter() {
             element={
               <RoleGuard allowedRoles={STAFF_ROLES}>
                 <DashboardPage />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/notification"
+            element={
+              <RoleGuard allowedRoles={["admin"]}>
+                <NotificationPage />
               </RoleGuard>
             }
           />

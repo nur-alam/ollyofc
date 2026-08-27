@@ -1,4 +1,5 @@
 import {
+  BellIcon,
   LayoutDashboardIcon,
   UserCircleIcon,
 } from "lucide-react";
@@ -19,6 +20,7 @@ const navLinkClassName = ({ isActive }: { isActive: boolean }) =>
 export function Sidebar() {
   const profile = useAuthStore((state) => state.profile);
   const isStaff = profile ? isStaffRole(profile.role) : false;
+  const isAdmin = profile?.role === "admin";
 
   if (!isStaff) {
     return null;
@@ -31,6 +33,12 @@ export function Sidebar() {
           <LayoutDashboardIcon className="size-4" />
           Dashboard
         </NavLink>
+        {isAdmin ? (
+          <NavLink to="/notification" className={navLinkClassName}>
+            <BellIcon className="size-4" />
+            Notifications
+          </NavLink>
+        ) : null}
         <NavLink to="/profile" className={navLinkClassName}>
           <UserCircleIcon className="size-4" />
           Profile
