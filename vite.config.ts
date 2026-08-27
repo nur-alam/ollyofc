@@ -106,7 +106,10 @@ function localNotifyApi(): Plugin {
     },
     next: () => void,
   ) => {
-    if (req.url?.split("?")[0] !== "/api/notify-game-created") {
+    if (
+      req.url?.split("?")[0] !== "/api/notify-game-created" &&
+      req.url?.split("?")[0] !== "/api/notify-broadcast"
+    ) {
       next();
       return;
     }

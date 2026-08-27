@@ -1,4 +1,5 @@
 import {
+  BellIcon,
   GoalIcon,
   LayoutDashboardIcon,
   Loader2Icon,
@@ -59,6 +60,7 @@ export function Header() {
   const { firebaseUser, profile, loading, signInWithGoogle, logout } =
     useAuthStore();
   const isStaff = profile ? isStaffRole(profile.role) : false;
+  const isAdmin = profile?.role === "admin";
 
   const displayName =
     profile?.displayName ||
@@ -156,6 +158,12 @@ export function Header() {
                   <DropdownMenuItem onClick={() => navigate("/dashboard")}>
                     <LayoutDashboardIcon />
                     Dashboard
+                  </DropdownMenuItem>
+                )}
+                {isAdmin && (
+                  <DropdownMenuItem onClick={() => navigate("/notification")}>
+                    <BellIcon />
+                    Notifications
                   </DropdownMenuItem>
                 )}
               </DropdownMenuGroup>

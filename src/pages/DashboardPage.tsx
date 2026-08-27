@@ -2,11 +2,12 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { useAuthStore } from "@/features/auth/auth.store";
 import { useGames } from "@/features/games/game.hooks";
 import { getErrorMessage, syncAllGameStats } from "@/features/games/game.service";
 import { useSquad } from "@/features/players/player.hooks";
+import { cn } from "@/lib/utils";
 import { formatGameDate, hasGameHappened } from "@/types/game";
 import { isStaffRole } from "@/types/user";
 
@@ -106,6 +107,14 @@ export function DashboardPage() {
               </Link>
               .
             </li>
+            {isAdmin ? (
+              <li>
+                <Link to="/notification" className="text-primary hover:underline">
+                  Notify players
+                </Link>{" "}
+                with a push message.
+              </li>
+            ) : null}
           </ul>
         </section>
 
@@ -124,6 +133,24 @@ export function DashboardPage() {
           </p>
         </section>
       </div>
+
+      {isAdmin && (
+        <section className="rounded-xl border bg-background p-5 shadow-sm">
+          <h2 className="text-lg font-semibold">Notifications</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Send a one-off push to everyone who enabled notifications.
+          </p>
+          <Link
+            to="/notification"
+            className={cn(
+              buttonVariants({ variant: "outline", size: "sm" }),
+              "mt-4 no-underline",
+            )}
+          >
+            Notify users
+          </Link>
+        </section>
+      )}
 
       {isAdmin && (
         <section className="rounded-xl border bg-background p-5 shadow-sm">
