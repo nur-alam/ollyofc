@@ -155,7 +155,11 @@ async function accessToken() {
   return cachedAccess;
 }
 
-async function googleJson<T>(url: string, init: RequestInit = {}) {
+export async function googleProjectId() {
+  return (await accessToken()).projectId;
+}
+
+export async function googleJson<T>(url: string, init: RequestInit = {}) {
   const auth = await accessToken();
   const response = await fetch(url, {
     ...init,
@@ -182,8 +186,18 @@ function googleMessage(data: GoogleError, fallback: string) {
   return data.error?.message || fallback;
 }
 
-function stringField(fields: Record<string, { stringValue?: string } | undefined> | undefined, key: string) {
+export function stringField(fields: Record<string, { stringValue?: string } | undefined> | undefined, key: string) {
   return fields?.[key]?.stringValue?.trim() ?? "";
+}
+
+export function numberField(
+  fields: Record<string, { integerValue?: string; doubleValue?: number } | undefined> | undefined,
+  key: string,
+) {
+  const value = fields?.[key];
+  const parsed = Number(value?.integerValue ?? value?.doubleValue);
+
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 export async function verifyStaff(idToken: string, allowedRoles: Set<string>) {

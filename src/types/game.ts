@@ -111,6 +111,7 @@ export type Game = {
   result?: GameResult;
   startedAt?: Timestamp;
   startedAtMs?: number;
+  kickoffReminderSentForMs?: number;
   createdBy: string;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
