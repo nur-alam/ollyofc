@@ -1,5 +1,11 @@
+import { cert, getApps, initializeApp, type App } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+import { getFirestore, initializeFirestore } from "firebase-admin/firestore";
+import { getMessaging } from "firebase-admin/messaging";
+
 export const config = {
   runtime: "nodejs",
+  maxDuration: 30,
 };
 
 const ORIGIN = "https://ollyofc.vercel.app";
@@ -16,35 +22,7 @@ function json(body: unknown, status = 200) {
   });
 }
 
-function readHeader(request: Request, name: string) {
-  try {
-    return request.headers.get(name) ?? "";
-  } catch {
-    return "";
-  }
-}
-
-function bearerToken(request: Request) {
-  const header = readHeader(request, "authorization");
-  const [scheme, token] = header.split(" ");
-
-  if (scheme?.toLowerCase() !== "bearer" || !token) {
-    return "";
-  }
-
-  return token;
-}
-
-function isDeadTokenError(code: string | undefined) {
-  return (
-    code === "messaging/registration-token-not-registered" ||
-    code === "messaging/invalid-registration-token" ||
-    code === "messaging/invalid-argument"
-  );
-}
-
-async function adminApp() {
-  const { cert, getApps, initializeApp } = await import("firebase-admin/app");
+function adminApp() {
   const existing = getApps()[0];
 
   if (existing) {
@@ -72,6 +50,33 @@ async function adminApp() {
   throw new Error("Missing Firebase service account");
 }
 
+function adminDb(app: App) {
+  try {
+    return initializeFirestore(app, { preferRest: true });
+  } catch {
+    return getFirestore(app);
+  }
+}
+
+function bearerToken(request: Request) {
+  const header = request.headers.get("authorization") ?? "";
+  const [scheme, token] = header.split(" ");
+
+  if (scheme?.toLowerCase() !== "bearer" || !token) {
+    return "";
+  }
+
+  return token;
+}
+
+function isDeadTokenError(code: string | undefined) {
+  return (
+    code === "messaging/registration-token-not-registered" ||
+    code === "messaging/invalid-registration-token" ||
+    code === "messaging/invalid-argument"
+  );
+}
+
 export async function POST(request: Request) {
   try {
     const idToken = bearerToken(request);
@@ -97,14 +102,9 @@ export async function POST(request: Request) {
       return json({ error: `Message must be ${MAX_MESSAGE_LENGTH} characters or fewer.` }, 400);
     }
 
-    const app = await adminApp();
-    const [{ getAuth }, { getFirestore }, { getMessaging }] = await Promise.all([
-      import("firebase-admin/auth"),
-      import("firebase-admin/firestore"),
-      import("firebase-admin/messaging"),
-    ]);
+    const app = adminApp();
     const auth = getAuth(app);
-    const db = getFirestore(app);
+    const db = adminDb(app);
     const messaging = getMessaging(app);
     const decoded = await auth.verifyIdToken(idToken);
     const staffSnap = await db.doc(`users/${decoded.uid}`).get();

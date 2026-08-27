@@ -1,5 +1,11 @@
+import { cert, getApps, initializeApp, type App } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+import { getFirestore, initializeFirestore } from "firebase-admin/firestore";
+import { getMessaging } from "firebase-admin/messaging";
+
 export const config = {
   runtime: "nodejs",
+  maxDuration: 30,
 };
 
 const STAFF_ROLES = new Set(["admin", "moderator"]);
@@ -16,16 +22,44 @@ function json(body: unknown, status = 200) {
   });
 }
 
-function readHeader(request: Request, name: string) {
+function adminApp() {
+  const existing = getApps()[0];
+
+  if (existing) {
+    return existing;
+  }
+
+  const jsonAccount = process.env.FIREBASE_SERVICE_ACCOUNT?.trim();
+
+  if (jsonAccount) {
+    return initializeApp({
+      credential: cert(JSON.parse(jsonAccount) as Record<string, string>),
+    });
+  }
+
+  const projectId = process.env.FIREBASE_PROJECT_ID?.trim();
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL?.trim();
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n").trim();
+
+  if (projectId && clientEmail && privateKey) {
+    return initializeApp({
+      credential: cert({ projectId, clientEmail, privateKey }),
+    });
+  }
+
+  throw new Error("Missing Firebase service account");
+}
+
+function adminDb(app: App) {
   try {
-    return request.headers.get(name) ?? "";
+    return initializeFirestore(app, { preferRest: true });
   } catch {
-    return "";
+    return getFirestore(app);
   }
 }
 
 function bearerToken(request: Request) {
-  const header = readHeader(request, "authorization");
+  const header = request.headers.get("authorization") ?? "";
   const [scheme, token] = header.split(" ");
 
   if (scheme?.toLowerCase() !== "bearer" || !token) {
@@ -77,35 +111,6 @@ function isDeadTokenError(code: string | undefined) {
   );
 }
 
-async function adminApp() {
-  const { cert, getApps, initializeApp } = await import("firebase-admin/app");
-  const existing = getApps()[0];
-
-  if (existing) {
-    return existing;
-  }
-
-  const jsonAccount = process.env.FIREBASE_SERVICE_ACCOUNT?.trim();
-
-  if (jsonAccount) {
-    return initializeApp({
-      credential: cert(JSON.parse(jsonAccount) as Record<string, string>),
-    });
-  }
-
-  const projectId = process.env.FIREBASE_PROJECT_ID?.trim();
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL?.trim();
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n").trim();
-
-  if (projectId && clientEmail && privateKey) {
-    return initializeApp({
-      credential: cert({ projectId, clientEmail, privateKey }),
-    });
-  }
-
-  throw new Error("Missing Firebase service account");
-}
-
 export async function POST(request: Request) {
   try {
     const idToken = bearerToken(request);
@@ -127,14 +132,9 @@ export async function POST(request: Request) {
       return json({ error: "Missing game id" }, 400);
     }
 
-    const app = await adminApp();
-    const [{ getAuth }, { getFirestore }, { getMessaging }] = await Promise.all([
-      import("firebase-admin/auth"),
-      import("firebase-admin/firestore"),
-      import("firebase-admin/messaging"),
-    ]);
+    const app = adminApp();
     const auth = getAuth(app);
-    const db = getFirestore(app);
+    const db = adminDb(app);
     const messaging = getMessaging(app);
     const decoded = await auth.verifyIdToken(idToken);
     const staffSnap = await db.doc(`users/${decoded.uid}`).get();
