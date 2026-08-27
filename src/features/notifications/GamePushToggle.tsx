@@ -58,7 +58,7 @@ export function GamePushToggle({ userId, disabled }: GamePushToggleProps) {
 
   const handleToggle = async (next: boolean) => {
     if (lockedToInstall && next) {
-      toast(IOS_INSTALL_PUSH_MESSAGE);
+      toast(IOS_INSTALL_PUSH_MESSAGE, { duration: 6000 });
       return;
     }
 

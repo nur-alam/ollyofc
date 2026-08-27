@@ -78,13 +78,14 @@ export function NotifyBellButton({ userId }: NotifyBellButtonProps) {
         }
 
         if (iosNeedsInstalledPwa()) {
-          toast.custom(() => (
-            <div className="bg-amber-400/90 text-slate-900 rounded-lg p-4">
-                {IOS_INSTALL_PUSH_MESSAGE}
-              </div>
-            ),
-            { duration: 8000 },
-          );
+          // toast.custom(() => (
+          //   <div className="bg-amber-400/90 text-slate-900 rounded-lg p-4">
+          //       {IOS_INSTALL_PUSH_MESSAGE}
+          //     </div>
+          //   ),
+          //   { duration: 8000 },
+          // );
+          toast(IOS_INSTALL_PUSH_MESSAGE, { duration: 6000 });
           return;
         }
 
@@ -97,7 +98,9 @@ export function NotifyBellButton({ userId }: NotifyBellButtonProps) {
           ring();
           toast.success("Ollyo FC Notification turned on.");
         } catch (error) {
-          toast.error(getErrorMessage(error, "Could not enable notifications."));
+          toast.error(getErrorMessage(error, "Could not enable notifications."), {
+            duration: 5000,
+          });
         } finally {
           setSaving(false);
         }

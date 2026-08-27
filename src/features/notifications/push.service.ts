@@ -24,6 +24,9 @@ export function iosNeedsInstalledPwa() {
 export const IOS_INSTALL_PUSH_MESSAGE =
   "On iPhone, install Ollyo FC to the Home Screen first, then enable notifications.";
 
+export const NOTIFICATION_BLOCKED_MESSAGE =
+  "Notifications are blocked for this site. iPhone will not show Allow again. Open Settings → Ollyo FC (the Home Screen app) → Notifications → Allow, then tap the bell again.";
+
 export function canRequestPushPermission() {
   if (!isPushConfigured() || typeof Notification === "undefined") {
     return false;
@@ -89,10 +92,14 @@ export async function enablePushNotifications(userId: string) {
     throw new Error("Push notifications are not available in this browser.");
   }
 
+  if (typeof Notification !== "undefined" && Notification.permission === "denied") {
+    throw new Error(NOTIFICATION_BLOCKED_MESSAGE);
+  }
+
   const permission = await Notification.requestPermission();
 
   if (permission !== "granted") {
-    throw new Error("Notifications were not allowed.");
+    throw new Error(NOTIFICATION_BLOCKED_MESSAGE);
   }
 
   const messaging = await getMessagingIfSupported();
