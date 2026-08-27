@@ -1,8 +1,3 @@
-import { cert, getApps, initializeApp } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
-import { getFirestore } from "firebase-admin/firestore";
-import { getMessaging } from "firebase-admin/messaging";
-
 export const config = {
   runtime: "nodejs",
 };
@@ -21,36 +16,16 @@ function json(body: unknown, status = 200) {
   });
 }
 
-function adminApp() {
-  const existing = getApps()[0];
-
-  if (existing) {
-    return existing;
+function readHeader(request: Request, name: string) {
+  try {
+    return request.headers.get(name) ?? "";
+  } catch {
+    return "";
   }
-
-  const jsonAccount = process.env.FIREBASE_SERVICE_ACCOUNT?.trim();
-
-  if (jsonAccount) {
-    return initializeApp({
-      credential: cert(JSON.parse(jsonAccount) as Record<string, string>),
-    });
-  }
-
-  const projectId = process.env.FIREBASE_PROJECT_ID?.trim();
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL?.trim();
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n").trim();
-
-  if (projectId && clientEmail && privateKey) {
-    return initializeApp({
-      credential: cert({ projectId, clientEmail, privateKey }),
-    });
-  }
-
-  throw new Error("Missing Firebase service account");
 }
 
 function bearerToken(request: Request) {
-  const header = request.headers.get("authorization") ?? "";
+  const header = readHeader(request, "authorization");
   const [scheme, token] = header.split(" ");
 
   if (scheme?.toLowerCase() !== "bearer" || !token) {
@@ -102,32 +77,62 @@ function isDeadTokenError(code: string | undefined) {
   );
 }
 
-export default async function handler(request: Request) {
-  if (request.method !== "POST") {
-    return json({ error: "Method not allowed" }, 405);
+async function adminApp() {
+  const { cert, getApps, initializeApp } = await import("firebase-admin/app");
+  const existing = getApps()[0];
+
+  if (existing) {
+    return existing;
   }
 
-  const idToken = bearerToken(request);
+  const jsonAccount = process.env.FIREBASE_SERVICE_ACCOUNT?.trim();
 
-  if (!idToken) {
-    return json({ error: "Unauthorized" }, 401);
+  if (jsonAccount) {
+    return initializeApp({
+      credential: cert(JSON.parse(jsonAccount) as Record<string, string>),
+    });
   }
 
-  let gameId = "";
+  const projectId = process.env.FIREBASE_PROJECT_ID?.trim();
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL?.trim();
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n").trim();
 
+  if (projectId && clientEmail && privateKey) {
+    return initializeApp({
+      credential: cert({ projectId, clientEmail, privateKey }),
+    });
+  }
+
+  throw new Error("Missing Firebase service account");
+}
+
+export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as { gameId?: unknown };
-    gameId = typeof body.gameId === "string" ? body.gameId.trim() : "";
-  } catch {
-    return json({ error: "Invalid JSON" }, 400);
-  }
+    const idToken = bearerToken(request);
 
-  if (!gameId) {
-    return json({ error: "Missing game id" }, 400);
-  }
+    if (!idToken) {
+      return json({ error: "Unauthorized" }, 401);
+    }
 
-  try {
-    const app = adminApp();
+    let gameId = "";
+
+    try {
+      const body = (await request.json()) as { gameId?: unknown };
+      gameId = typeof body.gameId === "string" ? body.gameId.trim() : "";
+    } catch {
+      return json({ error: "Invalid JSON" }, 400);
+    }
+
+    if (!gameId) {
+      return json({ error: "Missing game id" }, 400);
+    }
+
+    const app = await adminApp();
+    const [{ getAuth }, { getFirestore }, { getMessaging }] = await Promise.all([
+      import("firebase-admin/auth"),
+      import("firebase-admin/firestore"),
+      import("firebase-admin/messaging"),
+    ]);
     const auth = getAuth(app);
     const db = getFirestore(app);
     const messaging = getMessaging(app);
@@ -198,3 +203,5 @@ export default async function handler(request: Request) {
     return json({ error: message }, 500);
   }
 }
+
+export default POST;

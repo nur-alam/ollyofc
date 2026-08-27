@@ -1,8 +1,3 @@
-import { cert, getApps, initializeApp } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
-import { getFirestore } from "firebase-admin/firestore";
-import { getMessaging } from "firebase-admin/messaging";
-
 export const config = {
   runtime: "nodejs",
 };
@@ -21,7 +16,35 @@ function json(body: unknown, status = 200) {
   });
 }
 
-function adminApp() {
+function readHeader(request: Request, name: string) {
+  try {
+    return request.headers.get(name) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function bearerToken(request: Request) {
+  const header = readHeader(request, "authorization");
+  const [scheme, token] = header.split(" ");
+
+  if (scheme?.toLowerCase() !== "bearer" || !token) {
+    return "";
+  }
+
+  return token;
+}
+
+function isDeadTokenError(code: string | undefined) {
+  return (
+    code === "messaging/registration-token-not-registered" ||
+    code === "messaging/invalid-registration-token" ||
+    code === "messaging/invalid-argument"
+  );
+}
+
+async function adminApp() {
+  const { cert, getApps, initializeApp } = await import("firebase-admin/app");
   const existing = getApps()[0];
 
   if (existing) {
@@ -49,55 +72,37 @@ function adminApp() {
   throw new Error("Missing Firebase service account");
 }
 
-function bearerToken(request: Request) {
-  const header = request.headers.get("authorization") ?? "";
-  const [scheme, token] = header.split(" ");
-
-  if (scheme?.toLowerCase() !== "bearer" || !token) {
-    return "";
-  }
-
-  return token;
-}
-
-function isDeadTokenError(code: string | undefined) {
-  return (
-    code === "messaging/registration-token-not-registered" ||
-    code === "messaging/invalid-registration-token" ||
-    code === "messaging/invalid-argument"
-  );
-}
-
-export default async function handler(request: Request) {
-  if (request.method !== "POST") {
-    return json({ error: "Method not allowed" }, 405);
-  }
-
-  const idToken = bearerToken(request);
-
-  if (!idToken) {
-    return json({ error: "Unauthorized" }, 401);
-  }
-
-  let message = "";
-
+export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as { message?: unknown };
-    message = typeof body.message === "string" ? body.message.trim() : "";
-  } catch {
-    return json({ error: "Invalid JSON" }, 400);
-  }
+    const idToken = bearerToken(request);
 
-  if (!message) {
-    return json({ error: "Write a notification message." }, 400);
-  }
+    if (!idToken) {
+      return json({ error: "Unauthorized" }, 401);
+    }
 
-  if (message.length > MAX_MESSAGE_LENGTH) {
-    return json({ error: `Message must be ${MAX_MESSAGE_LENGTH} characters or fewer.` }, 400);
-  }
+    let message = "";
 
-  try {
-    const app = adminApp();
+    try {
+      const body = (await request.json()) as { message?: unknown };
+      message = typeof body.message === "string" ? body.message.trim() : "";
+    } catch {
+      return json({ error: "Invalid JSON" }, 400);
+    }
+
+    if (!message) {
+      return json({ error: "Write a notification message." }, 400);
+    }
+
+    if (message.length > MAX_MESSAGE_LENGTH) {
+      return json({ error: `Message must be ${MAX_MESSAGE_LENGTH} characters or fewer.` }, 400);
+    }
+
+    const app = await adminApp();
+    const [{ getAuth }, { getFirestore }, { getMessaging }] = await Promise.all([
+      import("firebase-admin/auth"),
+      import("firebase-admin/firestore"),
+      import("firebase-admin/messaging"),
+    ]);
     const auth = getAuth(app);
     const db = getFirestore(app);
     const messaging = getMessaging(app);
@@ -160,3 +165,5 @@ export default async function handler(request: Request) {
     return json({ error: errorMessage }, 500);
   }
 }
+
+export default POST;
