@@ -1,8 +1,26 @@
 import { googleJson, googleProjectId, numberField, sendPushToAllTokens, stringField } from "./fcm-http";
 
-const REMINDER_BODY = "Exciting match ahead, get ready, game starts in 1 hour";
 const HOUR_MS = 60 * 60 * 1000;
 const WINDOW_MS = 15 * 60 * 1000;
+
+function formatKickoffTime(startTime: string) {
+  return new Intl.DateTimeFormat("en-GB", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "UTC",
+  }).format(new Date(`1970-01-01T${startTime}:00Z`));
+}
+
+function reminderBody(startTime: string) {
+  const timeLabel = startTime ? formatKickoffTime(startTime) : "";
+
+  if (!timeLabel) {
+    return "Exciting match ahead, get ready, game starts in 1 hour";
+  }
+
+  return `Exciting match ahead, get ready, game starts in 1 hour at ${timeLabel}`;
+}
 
 type GameFields = Record<
   string,
@@ -145,7 +163,7 @@ export async function runKickoffReminders() {
 
     const count = await sendPushToAllTokens({
       title: stringField(fields, "title") || "Ollyo FC",
-      body: REMINDER_BODY,
+      body: reminderBody(stringField(fields, "startTime")),
       url: `/games/${gameId}`,
       extraData: { gameId },
     });
