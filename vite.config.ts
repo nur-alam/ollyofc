@@ -162,7 +162,7 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
-  // Chrome/Android already displays FCM `notification` payloads. Showing
+  // Chrome/Android already displays FCM notification payloads. Showing
   // another one here would duplicate on some browsers.
   if (payload.notification && payload.notification.title) {
     return;
