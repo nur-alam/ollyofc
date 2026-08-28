@@ -162,9 +162,15 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
+  // Chrome/Android already displays FCM `notification` payloads. Showing
+  // another one here would duplicate on some browsers.
+  if (payload.notification && payload.notification.title) {
+    return;
+  }
+
   const data = payload.data || {};
-  const title = data.title || (payload.notification && payload.notification.title) || "Ollyo FC";
-  const body = data.body || (payload.notification && payload.notification.body) || "A new game was created.";
+  const title = data.title || "Ollyo FC";
+  const body = data.body || "A new game was created.";
   const url = data.url || (data.gameId ? "/games/" + data.gameId : "/games");
 
   return self.registration.showNotification(title, {

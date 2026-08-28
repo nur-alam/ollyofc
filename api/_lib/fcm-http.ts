@@ -325,6 +325,10 @@ async function sendOne(
       body: JSON.stringify({
         message: {
           token: entry.token,
+          notification: {
+            title: payload.title,
+            body: payload.body,
+          },
           data: {
             title: payload.title,
             body: payload.body,
@@ -332,6 +336,16 @@ async function sendOne(
             ...payload.extraData,
           },
           webpush: {
+            headers: {
+              Urgency: "high",
+              TTL: "86400",
+            },
+            notification: {
+              title: payload.title,
+              body: payload.body,
+              icon: `${ORIGIN}/pwa-192x192.png`,
+              badge: `${ORIGIN}/pwa-192x192.png`,
+            },
             fcm_options: {
               link: `${ORIGIN}${payload.url}`,
             },
