@@ -302,7 +302,8 @@ async function listFcmTokens(projectId: string) {
       name: row.document?.name ?? "",
       token: stringField(row.document?.fields, "token"),
     }))
-    .filter((entry): entry is TokenEntry => Boolean(entry.name && entry.token));
+    .filter((entry): entry is TokenEntry => Boolean(entry.name && entry.token))
+    .filter((entry, index, all) => all.findIndex((other) => other.token === entry.token) === index);
 }
 
 function isDeadTokenStatus(status: string | undefined) {
@@ -325,10 +326,6 @@ async function sendOne(
       body: JSON.stringify({
         message: {
           token: entry.token,
-          notification: {
-            title: payload.title,
-            body: payload.body,
-          },
           data: {
             title: payload.title,
             body: payload.body,
@@ -345,6 +342,11 @@ async function sendOne(
               body: payload.body,
               icon: `${ORIGIN}/pwa-192x192.png`,
               badge: `${ORIGIN}/pwa-192x192.png`,
+              tag: payload.extraData?.gameId || payload.url,
+              data: {
+                url: payload.url,
+                gameId: payload.extraData?.gameId || "",
+              },
             },
             fcm_options: {
               link: `${ORIGIN}${payload.url}`,

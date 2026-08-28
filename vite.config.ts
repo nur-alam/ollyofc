@@ -161,24 +161,9 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-messaging.onBackgroundMessage((payload) => {
-  // Chrome/Android already displays FCM notification payloads. Showing
-  // another one here would duplicate on some browsers.
-  if (payload.notification && payload.notification.title) {
-    return;
-  }
-
-  const data = payload.data || {};
-  const title = data.title || "Ollyo FC";
-  const body = data.body || "A new game was created.";
-  const url = data.url || (data.gameId ? "/games/" + data.gameId : "/games");
-
-  return self.registration.showNotification(title, {
-    body: body,
-    icon: "/pwa-192x192.png",
-    badge: "/pwa-192x192.png",
-    data: { url: url, gameId: data.gameId || "" },
-  });
+messaging.onBackgroundMessage(() => {
+  // FCM webpush.notification already displays the alert. Calling
+  // showNotification here would post a second copy on iOS and Android.
 });
 
 self.addEventListener("notificationclick", (event) => {
