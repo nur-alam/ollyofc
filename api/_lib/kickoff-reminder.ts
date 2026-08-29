@@ -1,7 +1,7 @@
 import { googleJson, googleProjectId, numberField, sendPushToAllTokens, stringField } from "./fcm-http";
 
 const HOUR_MS = 60 * 60 * 1000;
-const WINDOW_MS = 15 * 60 * 1000;
+const MINUTE_MS = 60 * 1000;
 
 function formatKickoffTime(startTime: string) {
   return new Intl.DateTimeFormat("en-GB", {
@@ -12,14 +12,34 @@ function formatKickoffTime(startTime: string) {
   }).format(new Date(`1970-01-01T${startTime}:00Z`));
 }
 
-function reminderBody(startTime: string) {
+function formatRemaining(remainingMs: number) {
+  const totalMinutes = Math.max(1, Math.round(remainingMs / MINUTE_MS));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (hours === 0) {
+    return totalMinutes === 1 ? "1 minute" : `${totalMinutes} minutes`;
+  }
+
+  const hourPart = hours === 1 ? "1 hour" : `${hours} hours`;
+
+  if (minutes === 0) {
+    return hourPart;
+  }
+
+  const minutePart = minutes === 1 ? "1 minute" : `${minutes} minutes`;
+  return `${hourPart} ${minutePart}`;
+}
+
+function reminderBody(startTime: string, remainingMs: number) {
+  const remainingLabel = formatRemaining(remainingMs);
   const timeLabel = startTime ? formatKickoffTime(startTime) : "";
 
   if (!timeLabel) {
-    return "Exciting match ahead, get ready, game starts in 1 hour";
+    return `Exciting match ahead, get ready, game starts in ${remainingLabel}`;
   }
 
-  return `Exciting match ahead, get ready, game starts in 1 hour at ${timeLabel}`;
+  return `Exciting match ahead, get ready, game starts in ${remainingLabel} at ${timeLabel}`;
 }
 
 type GameFields = Record<
@@ -137,8 +157,6 @@ export async function runKickoffReminders() {
   const projectId = await googleProjectId();
   const rows = await loadUpcomingGames(projectId);
   const now = Date.now();
-  const earliest = now + HOUR_MS - WINDOW_MS;
-  const latest = now + HOUR_MS + WINDOW_MS;
   let notified = 0;
   let sent = 0;
 
@@ -148,12 +166,14 @@ export async function runKickoffReminders() {
     const gameId = documentId(name);
     const status = stringField(fields, "status");
     const startMs = gameStartMs(fields);
+    const remainingMs = startMs - now;
 
     if (!name || !gameId || status !== "upcoming" || !startMs) {
       continue;
     }
 
-    if (startMs < earliest || startMs > latest) {
+    // First cron tick at or under 1 hour, or a later catch-up tick before kickoff.
+    if (remainingMs < MINUTE_MS || remainingMs > HOUR_MS) {
       continue;
     }
 
@@ -163,7 +183,7 @@ export async function runKickoffReminders() {
 
     const count = await sendPushToAllTokens({
       title: stringField(fields, "title") || "Ollyo FC",
-      body: reminderBody(stringField(fields, "startTime")),
+      body: reminderBody(stringField(fields, "startTime"), remainingMs),
       url: `/games/${gameId}`,
       extraData: { gameId },
     });
