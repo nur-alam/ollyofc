@@ -6,7 +6,15 @@ export type NotifyBroadcastResult = {
   sent?: number;
 };
 
-export async function notifyBroadcast(message: string): Promise<NotifyBroadcastResult> {
+export type NotifyBroadcastInput = {
+  message: string;
+  url?: string;
+  userIds?: string[];
+};
+
+export async function notifyBroadcast(
+  input: NotifyBroadcastInput,
+): Promise<NotifyBroadcastResult> {
   if (import.meta.env.DEV) {
     return { ok: true, skipped: true };
   }
@@ -23,7 +31,7 @@ export async function notifyBroadcast(message: string): Promise<NotifyBroadcastR
       "Content-Type": "application/json",
       Authorization: `Bearer ${idToken}`,
     },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify(input),
   });
 
   const payload = (await response.json().catch(() => ({}))) as NotifyBroadcastResult & {
@@ -35,4 +43,16 @@ export async function notifyBroadcast(message: string): Promise<NotifyBroadcastR
   }
 
   return payload;
+}
+
+export function notifySendSuccessMessage(result: NotifyBroadcastResult) {
+  if (result.skipped) {
+    return "Push is skipped in local preview.";
+  }
+
+  if (!result.sent) {
+    return "No opted-in devices to notify.";
+  }
+
+  return `Notification sent to ${result.sent} device${result.sent === 1 ? "" : "s"}.`;
 }

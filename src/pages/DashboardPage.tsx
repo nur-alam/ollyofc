@@ -138,7 +138,8 @@ export function DashboardPage() {
         <section className="rounded-xl border bg-background p-5 shadow-sm">
           <h2 className="text-lg font-semibold">Notifications</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Send a one-off push to everyone who enabled notifications.
+            Send a push to everyone, share a leaderboard update, or message
+            specific players.
           </p>
           <Link
             to="/notification"
