@@ -22,6 +22,7 @@ import {
 } from "@/features/games/game.service";
 import { useNow } from "@/features/games/game.hooks";
 import { useAuthStore } from "@/features/auth/auth.store";
+import { isStaffRole } from "@/types/user";
 import {
   GAME_GOAL_KIND_LABELS,
   GAME_GOAL_KINDS,
@@ -65,14 +66,16 @@ export function GameResultUpdate({
   const [posterOpen, setPosterOpen] = useState(false);
   const [removingId, setRemovingId] = useState("");
   const now = useNow(game.toss && game.status === "upcoming" ? 32 : 1000);
-  const isAdmin = useAuthStore((state) => state.profile?.role === "admin");
+  const isStaff = useAuthStore((state) =>
+    state.profile ? isStaffRole(state.profile.role) : false,
+  );
   const canRecordGoals = canRecordGameGoals(game);
   const canStart = game.status === "upcoming" && isGameInPlay(game, now);
   const tossing = isTossFlipping(game.toss, now);
   const tossed = isTossLanded(game.toss, now);
   const score = getGameScore(game);
   const winner = game.result?.winner ?? getResultWinner(score.a, score.b);
-  const canShareResult = isAdmin && hasMatchEnded(game, now) && winner !== "draw";
+  const canShareResult = isStaff && hasMatchEnded(game, now) && winner !== "draw";
 
   const needsScorer = goalKind === "player";
   // Own goals name the player who conceded it, but leaving it unknown is fine.

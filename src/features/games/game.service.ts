@@ -779,7 +779,7 @@ export async function startGame(gameId: string, updatedBy: string): Promise<void
   }
 
   if (!isTossLanded(game.toss)) {
-    throw new Error("Finish the coin toss before kick-off.");
+    throw new Error("Finish the coin toss before starting the game.");
   }
 
   const result = game.result ?? buildResult([], updatedBy);

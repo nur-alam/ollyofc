@@ -19,6 +19,7 @@ import {
   getGameDisplayTitle,
   type Game,
 } from "@/types/game";
+import { ClockIcon, MapPinIcon } from "lucide-react";
 
 export function UpcomingGameCard({ game }: { game: Game }) {
   const { profile } = useAuthStore();
@@ -133,15 +134,21 @@ export function UpcomingGameCard({ game }: { game: Game }) {
 
       <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div>
-          <dt className="text-sm text-muted-foreground">Location</dt>
+          <dt className="flex items-center gap-1 text-sm text-muted-foreground">
+            Location <MapPinIcon className="h-4 w-4" />
+          </dt>
           <dd className="mt-1 font-medium">{game.location}</dd>
         </div>
         <div>
-          <dt className="text-sm text-muted-foreground">Kick-off</dt>
+          <dt className="flex items-center gap-1 text-sm text-muted-foreground">
+            Starting at <ClockIcon className="h-4 w-4" />
+          </dt>
           <dd className="mt-1 font-medium">{formatGameTime(game.startTime)}</dd>
         </div>
         <div>
-          <dt className="text-sm text-muted-foreground">Duration</dt>
+          <dt className="flex items-center gap-1 text-sm text-muted-foreground">
+            Duration <ClockIcon className="h-4 w-4" />
+          </dt>
           <dd className="mt-1 font-medium">{game.matchDurationMinutes} minutes</dd>
         </div>
         <GameCountDown game={game} />

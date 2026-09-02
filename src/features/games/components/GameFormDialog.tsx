@@ -156,7 +156,7 @@ export function GameFormDialog({
             </div>
           </div>
           <p className="-mt-2 text-xs text-muted-foreground">
-            Date and kick-off are Bangladesh time. Everyone sees the same clock.
+            Date and start time are Bangladesh time. Everyone sees the same clock.
           </p>
 
           <div className="grid gap-2">

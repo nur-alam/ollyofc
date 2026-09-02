@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
+import { ClockIcon, MapPinIcon } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { GameCountDown } from "@/features/games/components/GameCountDown";
@@ -41,10 +42,16 @@ import {
   isUpcomingGame,
 } from "@/types/game";
 
-function DetailItem({ label, value }: { label: string; value: string }) {
+function DetailItem({
+  label,
+  value,
+}: {
+  label: ReactNode;
+  value: string;
+}) {
   return (
     <div>
-      <dt className="text-sm text-muted-foreground">{label}</dt>
+      <dt className="flex items-center gap-1 text-sm text-muted-foreground">{label}</dt>
       <dd className="mt-1 font-medium">{value}</dd>
     </div>
   );
@@ -194,10 +201,31 @@ export function GameDetailPage() {
       </div>
 
       <dl className="grid gap-4 rounded-xl border bg-background p-5 shadow-sm sm:grid-cols-2 lg:grid-cols-3">
-        <DetailItem label="Location" value={game.location} />
-        <DetailItem label="Kick-off" value={formatGameTime(game.startTime)} />
         <DetailItem
-          label="Duration"
+          label={
+            <>
+              Location
+              <MapPinIcon className="h-4 w-4" />
+            </>
+          }
+          value={game.location}
+        />
+        <DetailItem
+          label={
+            <>
+              Starting at
+              <ClockIcon className="h-4 w-4" />
+            </>
+          }
+          value={formatGameTime(game.startTime)}
+        />
+        <DetailItem
+          label={
+            <>
+              Duration
+              <ClockIcon className="h-4 w-4" />
+            </>
+          }
           value={`${game.matchDurationMinutes} minutes`}
         />
         {upcoming ? <GameCountDown game={game} /> : null}
