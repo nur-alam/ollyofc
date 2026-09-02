@@ -35,6 +35,7 @@ import type { UserProfile } from "@/types/user";
 import {
   canChangeGamePlayStatus,
   canRemoveGamePlayers,
+  canEditGameGuests,
   canShowGameResult,
   canUpdateGameResult,
   formatGameDate,
@@ -363,8 +364,10 @@ export function GameDetailPage() {
         </div>
         {participants.length ? (
           <JoinedPlayersList
+            game={game}
             participants={participants}
             canRemove={isStaff && canRemoveGamePlayers(game)}
+            canEditGuest={isStaff && canEditGameGuests(game)}
             savingId={savingId}
             onRemove={handleStaffRemove}
           />

@@ -172,8 +172,10 @@ export function LiveGameCard({
             <p className="mt-2 text-sm text-muted-foreground">Loading players...</p>
           ) : participants.length ? (
             <JoinedPlayersList
+              game={game}
               participants={participants}
               canRemove={canManage}
+              canEditGuest={canManage}
               savingId={savingId}
               onRemove={handleStaffRemove}
             />

@@ -342,6 +342,11 @@ export function canRemoveGamePlayers(game: Game) {
   return game.status !== "completed" && game.status !== "cancelled";
 }
 
+/** Staff can correct a guest's name or position until the match is cancelled. */
+export function canEditGameGuests(game: Pick<Game, "status">) {
+  return game.status !== "cancelled";
+}
+
 export function hasGameHappened(game: Game, now = getServerNow()) {
   if (game.status === "cancelled") {
     return false;
@@ -580,6 +585,10 @@ export function canPlayerLeaveGame(game: Game, now = getServerNow()) {
 export function getGameListBadge(game: Game, now = getServerNow()): GameStatus {
   if (game.status === "cancelled") {
     return "cancelled";
+  }
+
+  if (game.status === "completed") {
+    return "completed";
   }
 
   const time = now.getTime();

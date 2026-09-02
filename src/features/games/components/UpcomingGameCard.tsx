@@ -202,8 +202,10 @@ export function UpcomingGameCard({ game }: { game: Game }) {
           <p className="mt-2 text-sm text-muted-foreground">Loading players...</p>
         ) : participants.length ? (
           <JoinedPlayersList
+            game={game}
             participants={participants}
             canRemove={isStaff}
+            canEditGuest={isStaff}
             savingId={savingId}
             onRemove={handleStaffRemove}
           />

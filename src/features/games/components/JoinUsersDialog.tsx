@@ -26,7 +26,7 @@ export const GUEST_JOIN_SAVING_ID = "guest";
 export type GuestJoinInput = {
   displayName: string;
   position?: string;
-  teamId?: GameTeamId;
+  teamId?: GameTeamId | null;
 };
 
 type JoinMode = "squad" | "guest";

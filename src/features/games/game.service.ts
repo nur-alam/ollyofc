@@ -43,6 +43,8 @@ import {
   DEFAULT_TEAM_NAMES,
   GAME_LOCATIONS,
   getResultWinner,
+  isGuestParticipant,
+  isGuestParticipantId,
   isTossLanded,
 } from "@/types/game";
 import {
@@ -654,7 +656,7 @@ export async function addGuestToGame(
   input: {
     displayName: string;
     position?: string;
-    teamId?: GameTeamId;
+    teamId?: GameTeamId | null;
     joinedBy: string;
   },
 ): Promise<string> {
@@ -683,6 +685,98 @@ export async function addGuestToGame(
   await setDoc(doc(db, "games", gameId, "participants", guestId), payload);
   await syncGameStats(gameId);
   return guestId;
+}
+
+export async function updateGuestInGame(
+  gameId: string,
+  guestId: string,
+  input: {
+    displayName: string;
+    position?: string;
+    teamId?: GameTeamId | null;
+  },
+): Promise<void> {
+  const displayName = input.displayName.trim();
+
+  if (!displayName) {
+    throw new Error("Enter the guest's name.");
+  }
+
+  if (!isGuestParticipantId(guestId)) {
+    throw new Error("This player is not a guest.");
+  }
+
+  const participantRef = doc(db, "games", gameId, "participants", guestId);
+  const snapshot = await getDoc(participantRef);
+
+  if (!snapshot.exists()) {
+    throw new Error("This guest could not be found.");
+  }
+
+  const current = mapParticipant(snapshot.id, snapshot.data());
+
+  if (!isGuestParticipant(current)) {
+    throw new Error("This player is not a guest.");
+  }
+
+  const position = parsePosition(input.position) || "";
+  const nameChanged = displayName !== current.displayName;
+  const updates: Record<string, unknown> = {
+    displayName,
+    position,
+  };
+  let teamChanged = false;
+
+  if (input.teamId === "a" || input.teamId === "b") {
+    updates.teamId = input.teamId;
+    teamChanged = input.teamId !== current.teamId;
+  } else if (input.teamId === null && current.teamId) {
+    updates.teamId = deleteField();
+    teamChanged = true;
+  }
+
+  const game = nameChanged ? await getGameById(gameId) : null;
+  const goals = game?.result?.goals ?? [];
+  const nextGoals = nameChanged
+    ? goals.map((goal) => {
+        const next = { ...goal };
+
+        if (goal.scorerId === guestId) {
+          next.scorerName = displayName;
+        }
+
+        if (goal.assistId === guestId) {
+          next.assistName = displayName;
+        }
+
+        if (goal.ownGoalById === guestId) {
+          next.ownGoalByName = displayName;
+        }
+
+        return next;
+      })
+    : goals;
+
+  const batch = writeBatch(db);
+  batch.update(participantRef, updates);
+
+  if (game?.result && nameChanged) {
+    const result = buildResult(nextGoals, game.result.updatedBy);
+
+    batch.update(doc(db, "games", gameId), {
+      result: {
+        ...result,
+        updatedAt: serverTimestamp(),
+      },
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  await batch.commit();
+
+  if (teamChanged) {
+    await syncGameStats(gameId);
+  }
 }
 
 export async function leaveGame(
