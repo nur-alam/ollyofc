@@ -18,6 +18,7 @@ type GoogleError = {
 type TokenEntry = {
   name: string;
   token: string;
+  userId: string;
 };
 
 let cachedAccess:
@@ -277,6 +278,17 @@ export async function readGame(projectId: string, gameId: string) {
   return { title, body: body || "A new game was created." };
 }
 
+function userIdFromTokenDoc(name: string) {
+  const marker = "/documents/users/";
+  const start = name.indexOf(marker);
+
+  if (start === -1) {
+    return "";
+  }
+
+  return name.slice(start + marker.length).split("/")[0] ?? "";
+}
+
 async function listFcmTokens(projectId: string) {
   const result = await googleJson<{ document?: { name?: string; fields?: Record<string, { stringValue?: string }> } }[]>(
     `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:runQuery`,
@@ -298,10 +310,15 @@ async function listFcmTokens(projectId: string) {
   const rows = Array.isArray(result.data) ? result.data : [];
 
   return rows
-    .map((row) => ({
-      name: row.document?.name ?? "",
-      token: stringField(row.document?.fields, "token"),
-    }))
+    .map((row) => {
+      const name = row.document?.name ?? "";
+
+      return {
+        name,
+        token: stringField(row.document?.fields, "token"),
+        userId: userIdFromTokenDoc(name),
+      };
+    })
     .filter((entry): entry is TokenEntry => Boolean(entry.name && entry.token))
     .filter((entry, index, all) => all.findIndex((other) => other.token === entry.token) === index);
 }
@@ -373,9 +390,15 @@ export async function sendPushToAllTokens(options: {
   body: string;
   url: string;
   extraData?: Record<string, string>;
+  userIds?: string[];
 }) {
   const auth = await accessToken();
-  const entries = await listFcmTokens(auth.projectId);
+  let entries = await listFcmTokens(auth.projectId);
+
+  if (options.userIds) {
+    const allowed = new Set(options.userIds);
+    entries = entries.filter((entry) => allowed.has(entry.userId));
+  }
 
   if (!entries.length) {
     return 0;
