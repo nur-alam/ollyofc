@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { XIcon } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useUserMap } from "@/features/players/player.hooks";
 import { cn } from "@/lib/utils";
-import type { GameParticipant } from "@/types/game";
+import { isGuestParticipant, type GameParticipant } from "@/types/game";
 import { formatPosition } from "@/types/player";
 
 type JoinedPlayersListProps = {
@@ -70,12 +71,21 @@ export function JoinedPlayersList({
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate font-medium">{participant.displayName}</p>
+            <p className="flex min-w-0 items-center gap-1.5">
+              <span className="truncate font-medium">{participant.displayName}</span>
+              {isGuestParticipant(participant) ? (
+                <Badge variant="secondary" className="h-4 shrink-0 px-1.5 text-[10px]">
+                  Guest
+                </Badge>
+              ) : null}
+            </p>
             <p className="text-xs text-muted-foreground">
-              {formatPosition(
-                usersById.get(participant.userId)?.position ||
-                  participant.position,
-              )}
+              {isGuestParticipant(participant) && !participant.position
+                ? "Guest"
+                : formatPosition(
+                    usersById.get(participant.userId)?.position ||
+                      participant.position,
+                  )}
             </p>
           </div>
           {canRemove && onRemove && (

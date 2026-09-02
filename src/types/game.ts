@@ -117,8 +117,11 @@ export type Game = {
   updatedAt?: Timestamp;
 };
 
+export type GameParticipantKind = "user" | "guest";
+
 export type GameParticipant = {
   userId: string;
+  kind: GameParticipantKind;
   displayName: string;
   photoURL?: string;
   position: string;
@@ -126,6 +129,23 @@ export type GameParticipant = {
   joinedBy: string;
   joinedAt?: Timestamp;
 };
+
+export function isGuestParticipant(
+  participant: Pick<GameParticipant, "kind" | "userId">,
+) {
+  return participant.kind === "guest" || isGuestParticipantId(participant.userId);
+}
+
+export function isGuestParticipantId(id: string | undefined) {
+  return Boolean(id?.startsWith("guest_"));
+}
+
+export function formatParticipantName(
+  participant: Pick<GameParticipant, "displayName" | "kind" | "userId">,
+) {
+  const name = participant.displayName.trim() || "Player";
+  return isGuestParticipant(participant) ? `${name} (guest)` : name;
+}
 
 export type GameInput = {
   title?: string;
@@ -173,6 +193,17 @@ export function getOwnGoalConcededBy(goal: GameGoal) {
 export function getTeamName(game: Game, teamId: GameTeamId) {
   const name = game.teams?.[teamId]?.name?.trim();
   return name || DEFAULT_TEAM_NAMES[teamId];
+}
+
+export function getGameTeamNames(game: Game): Record<GameTeamId, string> | undefined {
+  if (!hasGameTeams(game)) {
+    return undefined;
+  }
+
+  return {
+    a: getTeamName(game, "a"),
+    b: getTeamName(game, "b"),
+  };
 }
 
 export function isTossFlipping(toss: GameToss | undefined, now = getServerNow()) {

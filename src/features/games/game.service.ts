@@ -29,6 +29,7 @@ import type {
   GameGoalKind,
   GameInput,
   GameParticipant,
+  GameParticipantKind,
   GamePlayStatus,
   GameResult,
   GameStatus,
@@ -285,6 +286,21 @@ function createGoalId() {
   return globalThis.crypto?.randomUUID?.() ?? `goal-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function createGuestParticipantId() {
+  const id =
+    globalThis.crypto?.randomUUID?.() ??
+    `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  return `guest_${id}`;
+}
+
+function mapParticipantKind(value: unknown, userId: string): GameParticipantKind {
+  if (value === "guest" || value === "user") {
+    return value;
+  }
+
+  return userId.startsWith("guest_") ? "guest" : "user";
+}
+
 function buildResult(goals: GameGoal[], updatedBy: string): Omit<GameResult, "updatedAt"> {
   const a = goals.filter((goal) => goal.teamId === "a").length;
   const b = goals.filter((goal) => goal.teamId === "b").length;
@@ -413,8 +429,11 @@ export async function updateGame(gameId: string, input: GameInput): Promise<void
 }
 
 export function mapParticipant(id: string, data: DocumentData): GameParticipant {
+  const userId = typeof data.userId === "string" ? data.userId : id;
+
   return {
-    userId: typeof data.userId === "string" ? data.userId : id,
+    userId,
+    kind: mapParticipantKind(data.kind, userId),
     displayName: typeof data.displayName === "string" ? data.displayName : "Player",
     photoURL: typeof data.photoURL === "string" ? data.photoURL : undefined,
     position: typeof data.position === "string" ? data.position : "",
@@ -628,6 +647,42 @@ export async function joinGame(
   });
 
   await syncGameStats(gameId);
+}
+
+export async function addGuestToGame(
+  gameId: string,
+  input: {
+    displayName: string;
+    position?: string;
+    teamId?: GameTeamId;
+    joinedBy: string;
+  },
+): Promise<string> {
+  const displayName = input.displayName.trim();
+
+  if (!displayName) {
+    throw new Error("Enter the guest's name.");
+  }
+
+  const guestId = createGuestParticipantId();
+  const position = parsePosition(input.position) || "";
+  const payload: Record<string, unknown> = {
+    userId: guestId,
+    kind: "guest",
+    displayName,
+    photoURL: "",
+    position,
+    joinedBy: input.joinedBy,
+    joinedAt: serverTimestamp(),
+  };
+
+  if (input.teamId) {
+    payload.teamId = input.teamId;
+  }
+
+  await setDoc(doc(db, "games", gameId, "participants", guestId), payload);
+  await syncGameStats(gameId);
+  return guestId;
 }
 
 export async function leaveGame(

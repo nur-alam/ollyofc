@@ -36,6 +36,7 @@ import {
   isGameInPlay,
   isTossFlipping,
   isTossLanded,
+  formatParticipantName,
   type Game,
   type GameGoalKind,
   type GameParticipant,
@@ -320,14 +321,14 @@ export function GameResultUpdate({
           >
             <SelectTrigger className="w-full" disabled={!allowsPlayer}>
               <SelectValue placeholder={allowsPlayer ? playerPlaceholder : "Not needed"}>
-                {selectedScorer?.displayName}
+                {selectedScorer ? formatParticipantName(selectedScorer) : undefined}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="unset">{playerPlaceholder}</SelectItem>
               {scorers.map((participant) => (
                 <SelectItem key={participant.userId} value={participant.userId}>
-                  {participant.displayName}
+                  {formatParticipantName(participant)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -343,14 +344,14 @@ export function GameResultUpdate({
           >
             <SelectTrigger className="w-full" disabled={!needsScorer || !selectedScorer}>
               <SelectValue placeholder="No assist">
-                {selectedAssister?.displayName}
+                {selectedAssister ? formatParticipantName(selectedAssister) : undefined}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="unset">No assist</SelectItem>
               {assisters.map((participant) => (
                 <SelectItem key={participant.userId} value={participant.userId}>
-                  {participant.displayName}
+                  {formatParticipantName(participant)}
                 </SelectItem>
               ))}
             </SelectContent>

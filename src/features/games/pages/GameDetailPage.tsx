@@ -11,7 +11,11 @@ import { GameResultUpdate } from "@/features/games/components/GameResultUpdate";
 import { GameStatusBadge } from "@/features/games/components/GameStatusBadge";
 import { GameTeamsPanel } from "@/features/games/components/GameTeamsPanel";
 import { JoinedPlayersList } from "@/features/games/components/JoinedPlayersList";
-import { JoinUsersDialog } from "@/features/games/components/JoinUsersDialog";
+import {
+  JoinUsersDialog,
+  GUEST_JOIN_SAVING_ID,
+  type GuestJoinInput,
+} from "@/features/games/components/JoinUsersDialog";
 import {
   useGame,
   useParticipants,
@@ -19,6 +23,7 @@ import {
   useNow,
 } from "@/features/games/game.hooks";
 import {
+  addGuestToGame,
   getErrorMessage,
   joinGame,
   leaveGame,
@@ -36,6 +41,7 @@ import {
   formatGameTime,
   getGameDisplayTitle,
   getGameListBadge,
+  getGameTeamNames,
   hasGameTeams,
   isGameInPlay,
   isMatchClockRunning,
@@ -130,6 +136,23 @@ export function GameDetailPage() {
       await joinGame(gameId, user, profile.id);
     } catch (error) {
       setActionError(getErrorMessage(error, "Could not add this player."));
+    } finally {
+      setSavingId("");
+    }
+  };
+
+  const handleStaffAddGuest = async (input: GuestJoinInput) => {
+    if (!gameId || !profile) {
+      return;
+    }
+
+    setSavingId(GUEST_JOIN_SAVING_ID);
+    setActionError("");
+
+    try {
+      await addGuestToGame(gameId, { ...input, joinedBy: profile.id });
+    } catch (error) {
+      setActionError(getErrorMessage(error, "Could not add this guest."));
     } finally {
       setSavingId("");
     }
@@ -356,8 +379,10 @@ export function GameDetailPage() {
         open={addOpen}
         savingId={savingId}
         participants={participants}
+        teamNames={getGameTeamNames(game)}
         onClose={() => setAddOpen(false)}
         onJoin={handleStaffJoin}
+        onAddGuest={handleStaffAddGuest}
       />
     </div>
   );

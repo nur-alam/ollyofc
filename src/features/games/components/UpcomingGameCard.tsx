@@ -6,9 +6,13 @@ import { GameCountDown } from "@/features/games/components/GameCountDown";
 import { GameStatusBadge } from "@/features/games/components/GameStatusBadge";
 import { GameTeamsPanel } from "@/features/games/components/GameTeamsPanel";
 import { JoinedPlayersList } from "@/features/games/components/JoinedPlayersList";
-import { JoinUsersDialog } from "@/features/games/components/JoinUsersDialog";
+import {
+  JoinUsersDialog,
+  GUEST_JOIN_SAVING_ID,
+  type GuestJoinInput,
+} from "@/features/games/components/JoinUsersDialog";
 import { useParticipants, useCanPlayerLeave } from "@/features/games/game.hooks";
-import { getErrorMessage, joinGame, leaveGame } from "@/features/games/game.service";
+import { addGuestToGame, getErrorMessage, joinGame, leaveGame } from "@/features/games/game.service";
 import { useAuthStore } from "@/features/auth/auth.store";
 import { cn } from "@/lib/utils";
 import { isStaffRole } from "@/types/user";
@@ -17,6 +21,7 @@ import {
   formatGameDate,
   formatGameTime,
   getGameDisplayTitle,
+  getGameTeamNames,
   type Game,
 } from "@/types/game";
 import { ClockIcon, MapPinIcon } from "lucide-react";
@@ -82,6 +87,23 @@ export function UpcomingGameCard({ game }: { game: Game }) {
       await joinGame(game.id, user, profile.id);
     } catch (error) {
       setActionError(getErrorMessage(error, "Could not add this player."));
+    } finally {
+      setSavingId("");
+    }
+  };
+
+  const handleStaffAddGuest = async (input: GuestJoinInput) => {
+    if (!profile) {
+      return;
+    }
+
+    setSavingId(GUEST_JOIN_SAVING_ID);
+    setActionError("");
+
+    try {
+      await addGuestToGame(game.id, { ...input, joinedBy: profile.id });
+    } catch (error) {
+      setActionError(getErrorMessage(error, "Could not add this guest."));
     } finally {
       setSavingId("");
     }
@@ -195,8 +217,10 @@ export function UpcomingGameCard({ game }: { game: Game }) {
           open={addOpen}
           savingId={savingId}
           participants={participants}
+          teamNames={getGameTeamNames(game)}
           onClose={() => setAddOpen(false)}
           onJoin={handleStaffJoin}
+          onAddGuest={handleStaffAddGuest}
         />
       )}
     </article>

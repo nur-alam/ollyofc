@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeftIcon, ArrowRightIcon, PencilIcon } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -31,6 +32,7 @@ import {
   canSwapGameTeams,
   getTeamName,
   hasGameTeams,
+  isGuestParticipant,
   type Game,
   type GameParticipant,
   type GameTeamId,
@@ -76,9 +78,18 @@ function PlayerLine({
     <div className={cn("flex min-w-0 items-center gap-2", className)}>
       <PlayerAvatar name={participant.displayName} photoURL={participant.photoURL} />
       <div className="min-w-0">
-        <p className="truncate text-sm font-medium">{participant.displayName}</p>
+        <p className="flex min-w-0 items-center gap-1.5">
+          <span className="truncate text-sm font-medium">{participant.displayName}</span>
+          {isGuestParticipant(participant) ? (
+            <Badge variant="secondary" className="h-4 shrink-0 px-1.5 text-[10px]">
+              Guest
+            </Badge>
+          ) : null}
+        </p>
         <p className="text-xs text-muted-foreground">
-          {formatPosition(participant.position)}
+          {isGuestParticipant(participant) && !participant.position
+            ? "Guest"
+            : formatPosition(participant.position)}
         </p>
       </div>
     </div>
