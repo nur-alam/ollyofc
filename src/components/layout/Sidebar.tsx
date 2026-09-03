@@ -1,5 +1,6 @@
 import {
   BellIcon,
+  EyeIcon,
   LayoutDashboardIcon,
   UserCircleIcon,
 } from "lucide-react";
@@ -34,10 +35,16 @@ export function Sidebar() {
           Dashboard
         </NavLink>
         {isAdmin ? (
-          <NavLink to="/notification" className={navLinkClassName}>
-            <BellIcon className="size-4" />
-            Notifications
-          </NavLink>
+          <>
+            <NavLink to="/visitors" className={navLinkClassName}>
+              <EyeIcon className="size-4" />
+              Visitors
+            </NavLink>
+            <NavLink to="/notification" className={navLinkClassName}>
+              <BellIcon className="size-4" />
+              Notifications
+            </NavLink>
+          </>
         ) : null}
         <NavLink to="/profile" className={navLinkClassName}>
           <UserCircleIcon className="size-4" />

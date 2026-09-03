@@ -1,5 +1,6 @@
 import {
   BellIcon,
+  EyeIcon,
   GoalIcon,
   LayoutDashboardIcon,
   Loader2Icon,
@@ -158,6 +159,12 @@ export function Header() {
                   <DropdownMenuItem onClick={() => navigate("/dashboard")}>
                     <LayoutDashboardIcon />
                     Dashboard
+                  </DropdownMenuItem>
+                )}
+                {isAdmin && (
+                  <DropdownMenuItem onClick={() => navigate("/visitors")}>
+                    <EyeIcon />
+                    Visitors
                   </DropdownMenuItem>
                 )}
                 {isAdmin && (
