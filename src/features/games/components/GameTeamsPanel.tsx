@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeftIcon, ArrowRightIcon, PencilIcon } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -10,6 +11,9 @@ import {
   getTeamPositionBreakdown,
   sortTeamPlayers,
 } from "@/features/games/buildTeams";
+import { EditGuestDialog } from "@/features/games/components/EditGuestDialog";
+import { TeamFireworks } from "@/features/games/components/TeamFireworks";
+import type { GuestJoinInput } from "@/features/games/components/JoinUsersDialog";
 import {
   cancelTeamBuild,
   clearGameTeams,
@@ -18,8 +22,8 @@ import {
   renameGameTeam,
   saveGeneratedTeams,
   startTeamBuild,
+  updateGuestInGame,
 } from "@/features/games/game.service";
-import { TeamFireworks } from "@/features/games/components/TeamFireworks";
 import { useUserMap } from "@/features/players/player.hooks";
 import { useAuthStore } from "@/features/auth/auth.store";
 import { getServerNowMs, syncServerClock } from "@/lib/clock";
@@ -28,9 +32,12 @@ import {
   DEFAULT_TEAM_NAMES,
   GAME_TEAM_IDS,
   getGameScore,
+  canEditGameGuests,
   canSwapGameTeams,
+  getGameTeamNames,
   getTeamName,
   hasGameTeams,
+  isGuestParticipant,
   type Game,
   type GameParticipant,
   type GameTeamId,
@@ -76,9 +83,18 @@ function PlayerLine({
     <div className={cn("flex min-w-0 items-center gap-2", className)}>
       <PlayerAvatar name={participant.displayName} photoURL={participant.photoURL} />
       <div className="min-w-0">
-        <p className="truncate text-sm font-medium">{participant.displayName}</p>
+        <p className="flex min-w-0 items-center gap-1.5">
+          <span className="truncate text-sm font-medium">{participant.displayName}</span>
+          {isGuestParticipant(participant) ? (
+            <Badge variant="secondary" className="h-4 shrink-0 px-1.5 text-[10px]">
+              Guest
+            </Badge>
+          ) : null}
+        </p>
         <p className="text-xs text-muted-foreground">
-          {formatPosition(participant.position)}
+          {isGuestParticipant(participant) && !participant.position
+            ? "Guest"
+            : formatPosition(participant.position)}
         </p>
       </div>
     </div>
@@ -177,6 +193,8 @@ export function GameTeamsPanel({
   const [canceling, setCanceling] = useState(false);
   const [movingId, setMovingId] = useState("");
   const [actionError, setActionError] = useState("");
+  const [editingGuest, setEditingGuest] = useState<GameParticipant | null>(null);
+  const [savingGuest, setSavingGuest] = useState(false);
   const [confirmAction, setConfirmAction] = useState<
     "build" | "rebuild" | "cancel" | null
   >(null);
@@ -194,6 +212,7 @@ export function GameTeamsPanel({
 
   const teamsReady = hasGameTeams(game);
   const canSwap = isStaff && teamsReady && canSwapGameTeams(game);
+  const canEditGuest = isStaff && canEditGameGuests(game);
   const score = getGameScore(game);
   const winningTeam: GameTeamId | null =
     score.a === score.b ? null : score.a > score.b ? "a" : "b";
@@ -369,6 +388,24 @@ export function GameTeamsPanel({
       setActionError(getErrorMessage(error, "Could not move this player."));
     } finally {
       setMovingId("");
+    }
+  };
+
+  const handleSaveGuest = async (input: GuestJoinInput) => {
+    if (!editingGuest) {
+      return;
+    }
+
+    setSavingGuest(true);
+    setActionError("");
+
+    try {
+      await updateGuestInGame(game.id, editingGuest.userId, input);
+      setEditingGuest(null);
+    } catch (error) {
+      setActionError(getErrorMessage(error, "Could not update this guest."));
+    } finally {
+      setSavingGuest(false);
     }
   };
 
@@ -586,6 +623,18 @@ export function GameTeamsPanel({
                           </Button>
                         )}
                         <PlayerLine participant={participant} className="flex-1" />
+                        {canEditGuest && isGuestParticipant(participant) ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            disabled={savingGuest}
+                            onClick={() => setEditingGuest(participant)}
+                            aria-label={`Edit ${participant.displayName}`}
+                          >
+                            <PencilIcon />
+                          </Button>
+                        ) : null}
                         {canSwap && teamId === "a" && (
                           <Button
                             type="button"
@@ -620,6 +669,19 @@ export function GameTeamsPanel({
                     className="flex items-center justify-between gap-2"
                   >
                     <PlayerLine participant={participant} />
+                    <div className="flex shrink-0 items-center gap-1">
+                    {canEditGuest && isGuestParticipant(participant) ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        disabled={savingGuest}
+                        onClick={() => setEditingGuest(participant)}
+                        aria-label={`Edit ${participant.displayName}`}
+                      >
+                        <PencilIcon />
+                      </Button>
+                    ) : null}
                     {canSwap && (
                       <div className="flex gap-1">
                         {GAME_TEAM_IDS.map((teamId) => (
@@ -636,6 +698,7 @@ export function GameTeamsPanel({
                         ))}
                       </div>
                     )}
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -643,6 +706,19 @@ export function GameTeamsPanel({
           )}
         </>
       )}
+
+      <EditGuestDialog
+        open={Boolean(editingGuest)}
+        participant={editingGuest}
+        teamNames={canSwapGameTeams(game) ? getGameTeamNames(game) : undefined}
+        saving={savingGuest}
+        onClose={() => {
+          if (!savingGuest) {
+            setEditingGuest(null);
+          }
+        }}
+        onSave={handleSaveGuest}
+      />
 
       {confirmCopy && (
         <div

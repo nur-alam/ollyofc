@@ -1,6 +1,7 @@
 import {
   getGameScore,
   getResultWinner,
+  isGuestParticipant,
   type Game,
   type GameParticipant,
 } from "@/types/game";
@@ -60,6 +61,10 @@ export function buildGameStatContributions(
   const contributions: Record<string, PlayerGameStat> = {};
 
   for (const participant of participants) {
+    if (isGuestParticipant(participant)) {
+      continue;
+    }
+
     const stat: PlayerGameStat = {
       goals: goals.filter((goal) => goal.scorerId === participant.userId).length,
       assists: goals.filter((goal) => goal.assistId === participant.userId).length,

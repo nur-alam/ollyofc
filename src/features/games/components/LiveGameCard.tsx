@@ -9,9 +9,13 @@ import { GameResultUpdate } from "@/features/games/components/GameResultUpdate";
 import { GameStatusBadge } from "@/features/games/components/GameStatusBadge";
 import { GameTeamsPanel } from "@/features/games/components/GameTeamsPanel";
 import { JoinedPlayersList } from "@/features/games/components/JoinedPlayersList";
-import { JoinUsersDialog } from "@/features/games/components/JoinUsersDialog";
+import {
+  JoinUsersDialog,
+  GUEST_JOIN_SAVING_ID,
+  type GuestJoinInput,
+} from "@/features/games/components/JoinUsersDialog";
 import { useParticipants, useNow } from "@/features/games/game.hooks";
-import { getErrorMessage, joinGame, leaveGame } from "@/features/games/game.service";
+import { addGuestToGame, getErrorMessage, joinGame, leaveGame } from "@/features/games/game.service";
 import { useAuthStore } from "@/features/auth/auth.store";
 import { cn } from "@/lib/utils";
 import { isStaffRole } from "@/types/user";
@@ -21,6 +25,7 @@ import {
   formatGameTime,
   getGameDisplayTitle,
   getGameListBadge,
+  getGameTeamNames,
   hasGameTeams,
   isMatchClockRunning,
   type Game,
@@ -65,6 +70,23 @@ export function LiveGameCard({
       toast.success(`${user.displayName} added`);
     } catch (error) {
       toast.error(getErrorMessage(error, "Could not add this player."));
+    } finally {
+      setSavingId("");
+    }
+  };
+
+  const handleStaffAddGuest = async (input: GuestJoinInput) => {
+    if (!profile) {
+      return;
+    }
+
+    setSavingId(GUEST_JOIN_SAVING_ID);
+
+    try {
+      await addGuestToGame(game.id, { ...input, joinedBy: profile.id });
+      toast.success(`${input.displayName} added as guest`);
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Could not add this guest."));
     } finally {
       setSavingId("");
     }
@@ -118,6 +140,13 @@ export function LiveGameCard({
 
       {showTeams ? (
         <div className="mt-5 border-t pt-4">
+          {canManage && !showJoinedList ? (
+            <div className="mb-3 flex justify-end">
+              <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
+                Add player
+              </Button>
+            </div>
+          ) : null}
           <GameTeamsPanel
             game={game}
             participants={participants}
@@ -143,8 +172,10 @@ export function LiveGameCard({
             <p className="mt-2 text-sm text-muted-foreground">Loading players...</p>
           ) : participants.length ? (
             <JoinedPlayersList
+              game={game}
               participants={participants}
               canRemove={canManage}
+              canEditGuest={canManage}
               savingId={savingId}
               onRemove={handleStaffRemove}
             />
@@ -159,8 +190,10 @@ export function LiveGameCard({
           open={addOpen}
           savingId={savingId}
           participants={participants}
+          teamNames={getGameTeamNames(game)}
           onClose={() => setAddOpen(false)}
           onJoin={handleStaffJoin}
+          onAddGuest={handleStaffAddGuest}
         />
       ) : null}
     </article>

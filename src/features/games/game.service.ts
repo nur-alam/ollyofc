@@ -29,6 +29,7 @@ import type {
   GameGoalKind,
   GameInput,
   GameParticipant,
+  GameParticipantKind,
   GamePlayStatus,
   GameResult,
   GameStatus,
@@ -42,6 +43,8 @@ import {
   DEFAULT_TEAM_NAMES,
   GAME_LOCATIONS,
   getResultWinner,
+  isGuestParticipant,
+  isGuestParticipantId,
   isTossLanded,
 } from "@/types/game";
 import {
@@ -285,6 +288,21 @@ function createGoalId() {
   return globalThis.crypto?.randomUUID?.() ?? `goal-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function createGuestParticipantId() {
+  const id =
+    globalThis.crypto?.randomUUID?.() ??
+    `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  return `guest_${id}`;
+}
+
+function mapParticipantKind(value: unknown, userId: string): GameParticipantKind {
+  if (value === "guest" || value === "user") {
+    return value;
+  }
+
+  return userId.startsWith("guest_") ? "guest" : "user";
+}
+
 function buildResult(goals: GameGoal[], updatedBy: string): Omit<GameResult, "updatedAt"> {
   const a = goals.filter((goal) => goal.teamId === "a").length;
   const b = goals.filter((goal) => goal.teamId === "b").length;
@@ -413,8 +431,11 @@ export async function updateGame(gameId: string, input: GameInput): Promise<void
 }
 
 export function mapParticipant(id: string, data: DocumentData): GameParticipant {
+  const userId = typeof data.userId === "string" ? data.userId : id;
+
   return {
-    userId: typeof data.userId === "string" ? data.userId : id,
+    userId,
+    kind: mapParticipantKind(data.kind, userId),
     displayName: typeof data.displayName === "string" ? data.displayName : "Player",
     photoURL: typeof data.photoURL === "string" ? data.photoURL : undefined,
     position: typeof data.position === "string" ? data.position : "",
@@ -628,6 +649,134 @@ export async function joinGame(
   });
 
   await syncGameStats(gameId);
+}
+
+export async function addGuestToGame(
+  gameId: string,
+  input: {
+    displayName: string;
+    position?: string;
+    teamId?: GameTeamId | null;
+    joinedBy: string;
+  },
+): Promise<string> {
+  const displayName = input.displayName.trim();
+
+  if (!displayName) {
+    throw new Error("Enter the guest's name.");
+  }
+
+  const guestId = createGuestParticipantId();
+  const position = parsePosition(input.position) || "";
+  const payload: Record<string, unknown> = {
+    userId: guestId,
+    kind: "guest",
+    displayName,
+    photoURL: "",
+    position,
+    joinedBy: input.joinedBy,
+    joinedAt: serverTimestamp(),
+  };
+
+  if (input.teamId) {
+    payload.teamId = input.teamId;
+  }
+
+  await setDoc(doc(db, "games", gameId, "participants", guestId), payload);
+  await syncGameStats(gameId);
+  return guestId;
+}
+
+export async function updateGuestInGame(
+  gameId: string,
+  guestId: string,
+  input: {
+    displayName: string;
+    position?: string;
+    teamId?: GameTeamId | null;
+  },
+): Promise<void> {
+  const displayName = input.displayName.trim();
+
+  if (!displayName) {
+    throw new Error("Enter the guest's name.");
+  }
+
+  if (!isGuestParticipantId(guestId)) {
+    throw new Error("This player is not a guest.");
+  }
+
+  const participantRef = doc(db, "games", gameId, "participants", guestId);
+  const snapshot = await getDoc(participantRef);
+
+  if (!snapshot.exists()) {
+    throw new Error("This guest could not be found.");
+  }
+
+  const current = mapParticipant(snapshot.id, snapshot.data());
+
+  if (!isGuestParticipant(current)) {
+    throw new Error("This player is not a guest.");
+  }
+
+  const position = parsePosition(input.position) || "";
+  const nameChanged = displayName !== current.displayName;
+  const updates: Record<string, unknown> = {
+    displayName,
+    position,
+  };
+  let teamChanged = false;
+
+  if (input.teamId === "a" || input.teamId === "b") {
+    updates.teamId = input.teamId;
+    teamChanged = input.teamId !== current.teamId;
+  } else if (input.teamId === null && current.teamId) {
+    updates.teamId = deleteField();
+    teamChanged = true;
+  }
+
+  const game = nameChanged ? await getGameById(gameId) : null;
+  const goals = game?.result?.goals ?? [];
+  const nextGoals = nameChanged
+    ? goals.map((goal) => {
+        const next = { ...goal };
+
+        if (goal.scorerId === guestId) {
+          next.scorerName = displayName;
+        }
+
+        if (goal.assistId === guestId) {
+          next.assistName = displayName;
+        }
+
+        if (goal.ownGoalById === guestId) {
+          next.ownGoalByName = displayName;
+        }
+
+        return next;
+      })
+    : goals;
+
+  const batch = writeBatch(db);
+  batch.update(participantRef, updates);
+
+  if (game?.result && nameChanged) {
+    const result = buildResult(nextGoals, game.result.updatedBy);
+
+    batch.update(doc(db, "games", gameId), {
+      result: {
+        ...result,
+        updatedAt: serverTimestamp(),
+      },
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  await batch.commit();
+
+  if (teamChanged) {
+    await syncGameStats(gameId);
+  }
 }
 
 export async function leaveGame(

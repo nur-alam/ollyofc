@@ -90,7 +90,10 @@ service cloud.firestore {
         allow read: if true;
 
         allow create: if isSignedIn() && (
-          isStaff() || request.auth.uid == participantId
+          isStaff() || (
+            request.auth.uid == participantId
+            && request.resource.data.get('kind', 'user') != 'guest'
+          )
         );
 
         allow update: if isStaff();
