@@ -96,6 +96,38 @@ function localImageApi(): Plugin {
   };
 }
 
+function localTrackVisitorApi(): Plugin {
+  const middleware = (
+    req: { url?: string },
+    res: {
+      statusCode: number;
+      setHeader: (name: string, value: string) => void;
+      end: (body: string) => void;
+    },
+    next: () => void,
+  ) => {
+    if (req.url?.split("?")[0] !== "/api/track-visitor") {
+      next();
+      return;
+    }
+
+    res.statusCode = 200;
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    res.end(JSON.stringify({ ip: "127.0.0.1", city: "", region: "", country: "" }));
+  };
+
+  return {
+    name: "local-track-visitor-api",
+    configureServer(server) {
+      server.middlewares.use(middleware);
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use(middleware);
+    },
+  };
+}
+
 function localNotifyApi(): Plugin {
   const middleware = (
     req: { url?: string; method?: string },
@@ -237,6 +269,7 @@ export default defineConfig(({ mode }) => {
     tailwindcss(),
     localTimeApi(),
     localImageApi(),
+    localTrackVisitorApi(),
     localNotifyApi(),
     firebaseMessagingSw(env),
     VitePWA({
@@ -288,6 +321,10 @@ export default defineConfig(({ mode }) => {
           },
           {
             urlPattern: ({ url }) => url.pathname === "/api/time",
+            handler: "NetworkOnly",
+          },
+          {
+            urlPattern: ({ url }) => url.pathname === "/api/track-visitor",
             handler: "NetworkOnly",
           },
           {

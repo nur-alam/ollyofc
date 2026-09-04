@@ -80,6 +80,31 @@ service cloud.firestore {
       allow read: if isAdmin();
     }
 
+    function isVisitorId(value) {
+      return value.matches('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+    }
+
+    function isDayKey(value) {
+      return value.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
+
+    match /visitorSessions/{visitorId} {
+      allow create, update: if isVisitorId(visitorId)
+        && request.resource.data.visitorId == visitorId;
+      allow read, delete: if isAdmin();
+    }
+
+    match /visitorDays/{day} {
+      allow create, update: if isDayKey(day);
+      allow read, delete: if isAdmin();
+
+      match /visitors/{visitorId} {
+        allow create, update: if isVisitorId(visitorId)
+          && request.resource.data.visitorId == visitorId;
+        allow read, delete: if isAdmin();
+      }
+    }
+
     match /games/{gameId} {
       allow read: if true;
       allow create: if isStaff();

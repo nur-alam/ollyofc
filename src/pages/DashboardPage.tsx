@@ -109,6 +109,14 @@ export function DashboardPage() {
             </li>
             {isAdmin ? (
               <li>
+                <Link to="/visitors" className="text-primary hover:underline">
+                  See who is visiting
+                </Link>{" "}
+                in real time or by day.
+              </li>
+            ) : null}
+            {isAdmin ? (
+              <li>
                 <Link to="/notification" className="text-primary hover:underline">
                   Notify players
                 </Link>{" "}
@@ -133,6 +141,25 @@ export function DashboardPage() {
           </p>
         </section>
       </div>
+
+      {isAdmin && (
+        <section className="rounded-xl border bg-background p-5 shadow-sm">
+          <h2 className="text-lg font-semibold">Visitors</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Live visitors, yesterday&apos;s list, and a calendar of who opened
+            the site — device, location, and profile when they are signed in.
+          </p>
+          <Link
+            to="/visitors"
+            className={cn(
+              buttonVariants({ variant: "outline", size: "sm" }),
+              "mt-4 no-underline",
+            )}
+          >
+            Open visitors
+          </Link>
+        </section>
+      )}
 
       {isAdmin && (
         <section className="rounded-xl border bg-background p-5 shadow-sm">

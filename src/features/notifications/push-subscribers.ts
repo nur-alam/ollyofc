@@ -1,5 +1,6 @@
 import { collectionGroup, onSnapshot, type Unsubscribe } from "firebase/firestore";
 
+import { deviceKind } from "@/lib/device";
 import { db } from "@/lib/firebase";
 
 export type PushDevice = {
@@ -8,29 +9,7 @@ export type PushDevice = {
   userAgent: string;
 };
 
-export function deviceKind(userAgent: string) {
-  if (/iPhone|iPad|iPod/i.test(userAgent)) {
-    return "iPhone";
-  }
-
-  if (/Android/i.test(userAgent)) {
-    return "Android";
-  }
-
-  if (/Macintosh|Mac OS/i.test(userAgent)) {
-    return "Mac";
-  }
-
-  if (/Windows/i.test(userAgent)) {
-    return "Windows";
-  }
-
-  if (/Linux/i.test(userAgent)) {
-    return "Linux";
-  }
-
-  return "Browser";
-}
+export { deviceKind };
 
 export function subscribeToPushDevices(
   onData: (devices: PushDevice[]) => void,

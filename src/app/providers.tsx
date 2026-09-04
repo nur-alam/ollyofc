@@ -3,6 +3,7 @@ import toast, { Toaster } from "react-hot-toast";
 
 import { useAuthStore } from "@/features/auth/auth.store";
 import { subscribeToForegroundPush } from "@/features/notifications/push.service";
+import { VisitorTracker } from "@/features/visitors/VisitorTracker";
 import { isUsingDevFirebase } from "@/lib/firebase";
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
@@ -41,6 +42,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
         </div>
       )}
       {children}
+      <VisitorTracker />
       <Toaster position="top-right" />
     </>
   );
