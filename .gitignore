@@ -5,3 +5,4 @@ dist
 .firebase
 .wrangler
 .dev.vars
+.DS_Store

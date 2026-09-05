@@ -86,11 +86,11 @@ export function GamePushToggle({ userId, disabled }: GamePushToggleProps) {
   return (
     <div className="flex items-start justify-between gap-4">
       <div className="min-w-0">
-        <Label htmlFor="game-push">New game notifications</Label>
+        <Label htmlFor="game-push">Push notifications</Label>
         <p className="text-xs text-muted-foreground">
           {lockedToInstall
             ? "iPhone cannot get push in Chrome or Safari as a tab. Open this site in Safari, tap Share → Add to Home Screen, then open Ollyo FC from the Home Screen and turn this on."
-            : "Get a push when staff create a match. Tap the notification to open the game."}
+            : "Get an update when a new game is added & live matches are updated etc.. in real-time."}
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-2 pt-0.5">
