@@ -11,6 +11,7 @@ import { ProfilePage } from "@/pages/ProfilePage";
 import { GamesPage } from "@/features/games/pages/GamesPage";
 import { GameDetailPage } from "@/features/games/pages/GameDetailPage";
 import { NotificationPage } from "@/features/notifications/pages/NotificationPage";
+import { VisitorsPage } from "@/features/visitors/pages/VisitorsPage";
 import { LeaderboardPage } from "@/features/players/pages/LeaderboardPage";
 import { PlayerPage } from "@/features/players/pages/PlayerPage";
 import { PlayersPage } from "@/features/players/pages/PlayersPage";
@@ -43,6 +44,14 @@ export function AppRouter() {
             element={
               <RoleGuard allowedRoles={["admin"]}>
                 <NotificationPage />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/visitors"
+            element={
+              <RoleGuard allowedRoles={["admin"]}>
+                <VisitorsPage />
               </RoleGuard>
             }
           />
