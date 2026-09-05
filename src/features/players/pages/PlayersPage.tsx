@@ -49,7 +49,7 @@ import { PlayerRowMenu } from "@/features/players/components/PlayerRowMenu";
 const defaultFilters: PlayerFilterState = {
   search: "",
   position: "all",
-  status: "all",
+  status: "active",
 };
 
 export function PlayersPage() {
@@ -59,7 +59,9 @@ export function PlayersPage() {
   const isAdmin = profile?.role === "admin";
 
   const [filters, setFilters] = useState<PlayerFilterState>(defaultFilters);
-  const { users, allUsers, loading, stats, errorMessage } = useSquad(filters);
+  const listFilters = isStaff ? filters : { ...filters, status: "active" as const };
+  const { users, allUsers, loading, stats, errorMessage } = useSquad(listFilters);
+  const columnCount = isStaff ? 4 : 2;
 
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -189,7 +191,7 @@ export function PlayersPage() {
         <div className="min-w-0">
           <h1 className="text-2xl font-bold tracking-tight">Ollyo Squad</h1>
           <p className="text-muted-foreground">
-            Everyone who signs in is a player
+            Active players in the club
           </p>
         </div>
         {/* <SeedTestPlayers /> */}
@@ -201,18 +203,20 @@ export function PlayersPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-xl border bg-background p-4 shadow-sm">
-          <p className="text-sm text-muted-foreground">Total players</p>
-          <p className="mt-1 text-2xl font-semibold">{stats.total}</p>
-        </div>
+      <div className={isStaff ? "grid grid-cols-2 gap-3" : "grid gap-3"}>
+        {isStaff ? (
+          <div className="rounded-xl border bg-background p-4 shadow-sm">
+            <p className="text-sm text-muted-foreground">Total players</p>
+            <p className="mt-1 text-2xl font-semibold">{stats.total}</p>
+          </div>
+        ) : null}
         <div className="rounded-xl border bg-background p-4 shadow-sm">
           <p className="text-sm text-muted-foreground">Active players</p>
           <p className="mt-1 text-2xl font-semibold">{stats.active}</p>
         </div>
       </div>
 
-      <div className="grid gap-3 rounded-xl border bg-background p-4 shadow-sm sm:grid-cols-3">
+      <div className={`grid gap-3 rounded-xl border bg-background p-4 shadow-sm ${isStaff ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
         <Input
           placeholder="Search players..."
           value={filters.search}
@@ -247,28 +251,30 @@ export function PlayersPage() {
           </SelectContent>
         </Select>
 
-        <Select
-          value={filters.status}
-          onValueChange={(value) => {
-            if (!value) {
-              return;
-            }
+        {isStaff ? (
+          <Select
+            value={filters.status}
+            onValueChange={(value) => {
+              if (!value) {
+                return;
+              }
 
-            setFilters((current) => ({
-              ...current,
-              status: value as PlayerFilterState["status"],
-            }));
-          }}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="inactive">Inactive</SelectItem>
-          </SelectContent>
-        </Select>
+              setFilters((current) => ({
+                ...current,
+                status: value as PlayerFilterState["status"],
+              }));
+            }}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
+        ) : null}
       </div>
 
       {(actionError || errorMessage) && (
@@ -281,14 +287,14 @@ export function PlayersPage() {
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Position</TableHead>
-              <TableHead>Status</TableHead>
+              {isStaff && <TableHead>Status</TableHead>}
               {isStaff && <TableHead className="text-right">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={isStaff ? 4 : 3} className="py-8 text-center text-muted-foreground">
+                <TableCell colSpan={columnCount} className="py-8 text-center text-muted-foreground">
                   Loading squad...
                 </TableCell>
               </TableRow>
@@ -337,11 +343,13 @@ export function PlayersPage() {
                     </div>
                   </TableCell>
                   <TableCell>{formatPosition(user.position)}</TableCell>
-                  <TableCell>
-                    <Badge variant={user.isActive ? "secondary" : "outline"}>
-                      {user.isActive ? "Active" : "Inactive"}
-                    </Badge>
-                  </TableCell>
+                  {isStaff ? (
+                    <TableCell>
+                      <Badge variant={user.isActive ? "secondary" : "outline"}>
+                        {user.isActive ? "Active" : "Inactive"}
+                      </Badge>
+                    </TableCell>
+                  ) : null}
                   {isStaff && (
                     <TableCell
                       className="text-right"
@@ -364,7 +372,7 @@ export function PlayersPage() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={isStaff ? 4 : 3} className="py-8 text-center text-muted-foreground">
+                <TableCell colSpan={columnCount} className="py-8 text-center text-muted-foreground">
                   No players match your filters.
                 </TableCell>
               </TableRow>
