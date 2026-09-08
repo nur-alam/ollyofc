@@ -1,10 +1,11 @@
 import { useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ClockIcon, MapPinIcon } from "lucide-react";
+import { ClockIcon, ExternalLinkIcon, MapPinIcon } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { GameCountDown } from "@/features/games/components/GameCountDown";
 import { GameElapsedTimer } from "@/features/games/components/GameElapsedTimer";
+import { GameLocationText, GameMapLink } from "@/features/games/components/GameLocationText";
 import { GamePlayStatusControl } from "@/features/games/components/GamePlayStatusControl";
 import { GameResultBoard } from "@/features/games/components/GameResultBoard";
 import { GameResultUpdate } from "@/features/games/components/GameResultUpdate";
@@ -54,7 +55,7 @@ function DetailItem({
   value,
 }: {
   label: ReactNode;
-  value: string;
+  value: ReactNode;
 }) {
   return (
     <div>
@@ -232,7 +233,14 @@ export function GameDetailPage() {
               <MapPinIcon className="h-4 w-4" />
             </>
           }
-          value={game.location}
+          value={
+            <>
+              <GameLocationText game={game} />
+              <GameMapLink game={game} className="flex items-center gap-1">
+                (view in map) <ExternalLinkIcon className="h-4 w-4" />
+              </GameMapLink>
+            </>
+          }
         />
         <DetailItem
           label={

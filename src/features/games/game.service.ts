@@ -47,6 +47,7 @@ import {
   isGuestParticipant,
   isGuestParticipantId,
   isTossLanded,
+  normalizeGameMapUrl,
 } from "@/types/game";
 import {
   buildGameStatContributions,
@@ -330,6 +331,8 @@ export function mapGame(id: string, data: DocumentData): Game {
     date: parseDate(data.date),
     startTime: typeof data.startTime === "string" ? data.startTime : "18:00",
     location: typeof data.location === "string" ? data.location : GAME_LOCATIONS[0],
+    mapUrl:
+      typeof data.mapUrl === "string" ? normalizeGameMapUrl(data.mapUrl) : undefined,
     status: parseStatus(data.status),
     maxPlayers,
     matchDurationMinutes:
@@ -403,6 +406,7 @@ export async function createGame(
     date: Timestamp.fromDate(date),
     startTime: input.startTime,
     location: input.location.trim(),
+    mapUrl: normalizeGameMapUrl(input.mapUrl) || "",
     status: "upcoming",
     maxPlayers: input.maxPlayers ? Math.round(input.maxPlayers) : 0,
     matchDurationMinutes: Math.round(input.matchDurationMinutes),
@@ -424,6 +428,7 @@ export async function updateGame(gameId: string, input: GameInput): Promise<void
     date: Timestamp.fromDate(date),
     startTime: input.startTime,
     location: input.location.trim(),
+    mapUrl: normalizeGameMapUrl(input.mapUrl) || "",
     maxPlayers: input.maxPlayers ? Math.round(input.maxPlayers) : 0,
     matchDurationMinutes: Math.round(input.matchDurationMinutes),
     notes: input.notes?.trim() || "",

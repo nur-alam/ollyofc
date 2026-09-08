@@ -100,6 +100,7 @@ export type Game = {
   date: Timestamp;
   startTime: string;
   location: string;
+  mapUrl?: string;
   status: GameStatus;
   maxPlayers?: number;
   matchDurationMinutes: number;
@@ -174,6 +175,7 @@ export type GameInput = {
   date: string;
   startTime: string;
   location: string;
+  mapUrl?: string;
   maxPlayers?: number;
   matchDurationMinutes: number;
   notes?: string;
@@ -268,6 +270,46 @@ export function isGameLocation(
   location: string,
 ): location is (typeof GAME_LOCATIONS)[number] {
   return (GAME_LOCATIONS as readonly string[]).includes(location);
+}
+
+function isGoogleMapsHost(host: string, path: string) {
+  if (host === "maps.app.goo.gl" || host === "maps.google.com") {
+    return true;
+  }
+
+  if (host === "goo.gl") {
+    return path.startsWith("/maps");
+  }
+
+  return (
+    (host === "google.com" || host.endsWith(".google.com")) &&
+    path.includes("/maps")
+  );
+}
+
+/** Accepts Google Maps share links such as https://maps.app.goo.gl/… */
+export function normalizeGameMapUrl(value: string | undefined) {
+  const trimmed = value?.trim();
+
+  if (!trimmed) {
+    return undefined;
+  }
+
+  try {
+    const url = new URL(trimmed);
+
+    if (url.protocol !== "https:" && url.protocol !== "http:") {
+      return undefined;
+    }
+
+    if (!isGoogleMapsHost(url.hostname.toLowerCase(), url.pathname.toLowerCase())) {
+      return undefined;
+    }
+
+    return url.href;
+  } catch {
+    return undefined;
+  }
 }
 
 export const GAME_STATUSES: GameStatus[] = [
@@ -704,6 +746,7 @@ export function gameToInput(game: Game): GameInput {
     date: formatYmd(getBangladeshParts(game.date.toDate())),
     startTime: game.startTime,
     location: game.location,
+    mapUrl: game.mapUrl ?? "",
     maxPlayers: game.maxPlayers,
     matchDurationMinutes: game.matchDurationMinutes,
     notes: game.notes ?? "",

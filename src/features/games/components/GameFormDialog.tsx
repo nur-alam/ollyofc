@@ -17,6 +17,7 @@ import {
   GAME_LOCATIONS,
   gameToInput,
   isGameLocation,
+  normalizeGameMapUrl,
   type Game,
   type GameInput,
 } from "@/types/game";
@@ -37,6 +38,7 @@ const emptyForm: GameInput = {
   date: bangladeshTomorrowYmd(),
   startTime: "18:00",
   location: "",
+  mapUrl: "",
   matchDurationMinutes: 90,
   notes: "Keep yourself present in the game",
 };
@@ -52,6 +54,7 @@ export function GameFormDialog({
   const [form, setForm] = useState<GameInput>(emptyForm);
   const [customLocation, setCustomLocation] = useState(false);
   const isEditing = Boolean(game);
+  const mapUrlError = Boolean(form.mapUrl?.trim()) && !normalizeGameMapUrl(form.mapUrl);
 
   useEffect(() => {
     if (!open) {
@@ -73,7 +76,7 @@ export function GameFormDialog({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (!form.date || !form.startTime || !form.location.trim()) {
+    if (!form.date || !form.startTime || !form.location.trim() || mapUrlError) {
       return;
     }
 
@@ -81,6 +84,7 @@ export function GameFormDialog({
       ...form,
       title: form.title?.trim() || undefined,
       location: form.location.trim(),
+      mapUrl: normalizeGameMapUrl(form.mapUrl),
       notes: form.notes?.trim() || undefined,
       maxPlayers: form.maxPlayers || undefined,
     });
@@ -91,7 +95,7 @@ export function GameFormDialog({
       <div
         role="dialog"
         aria-modal="true"
-        className="w-full max-w-lg rounded-xl border bg-background p-6 shadow-xl"
+        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border bg-background p-6 shadow-xl"
       >
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
@@ -216,6 +220,31 @@ export function GameFormDialog({
             )}
           </div>
 
+          <div className="grid gap-2">
+            <Label htmlFor="game-map-url">Google Maps link (optional)</Label>
+            <Input
+              id="game-map-url"
+              type="url"
+              inputMode="url"
+              autoComplete="off"
+              value={form.mapUrl ?? ""}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, mapUrl: event.target.value }))
+              }
+              placeholder="https://maps.app.goo.gl/6e3GRxxV3scJ8jvN8"
+              aria-invalid={mapUrlError}
+            />
+            {mapUrlError ? (
+              <p className="error-text">
+                Paste a Google Maps share link so players can open the ground.
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Open the ground in Google Maps, tap Share, then paste the link here.
+              </p>
+            )}
+          </div>
+
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label htmlFor="game-duration">Duration (minutes)</Label>
@@ -272,7 +301,13 @@ export function GameFormDialog({
             </Button>
             <Button
               type="submit"
-              disabled={saving || !form.date || !form.startTime || !form.location.trim()}
+              disabled={
+                saving ||
+                !form.date ||
+                !form.startTime ||
+                !form.location.trim() ||
+                mapUrlError
+              }
             >
               {saving ? "Saving..." : isEditing ? "Save changes" : "Create game"}
             </Button>

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { GameCountDown } from "@/features/games/components/GameCountDown";
+import { GameLocationText, GameMapLink } from "@/features/games/components/GameLocationText";
 import { GameStatusBadge } from "@/features/games/components/GameStatusBadge";
 import { GameTeamsPanel } from "@/features/games/components/GameTeamsPanel";
 import { JoinedPlayersList } from "@/features/games/components/JoinedPlayersList";
@@ -24,7 +25,7 @@ import {
   getGameTeamNames,
   type Game,
 } from "@/types/game";
-import { ClockIcon, MapPinIcon } from "lucide-react";
+import { ClockIcon, ExternalLinkIcon, MapPinIcon } from "lucide-react";
 
 export function UpcomingGameCard({ game }: { game: Game }) {
   const { profile } = useAuthStore();
@@ -159,7 +160,12 @@ export function UpcomingGameCard({ game }: { game: Game }) {
           <dt className="flex items-center gap-1 text-sm text-muted-foreground">
             Location <MapPinIcon className="h-4 w-4" />
           </dt>
-          <dd className="mt-1 font-medium">{game.location}</dd>
+          <dd className="mt-1 font-medium">
+            <GameLocationText game={game} />
+            <GameMapLink game={game} className="inline-flex items-center gap-1">
+              (view in map) <ExternalLinkIcon className="h-4 w-4" />
+            </GameMapLink>
+          </dd>
         </div>
         <div>
           <dt className="flex items-center gap-1 text-sm text-muted-foreground">

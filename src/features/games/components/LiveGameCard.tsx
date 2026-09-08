@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { GameElapsedTimer } from "@/features/games/components/GameElapsedTimer";
+import { GameLocationText, GameMapLink } from "@/features/games/components/GameLocationText";
 import { GameResultBoard } from "@/features/games/components/GameResultBoard";
 import { GameResultUpdate } from "@/features/games/components/GameResultUpdate";
 import { GameStatusBadge } from "@/features/games/components/GameStatusBadge";
@@ -30,6 +31,7 @@ import {
   isMatchClockRunning,
   type Game,
 } from "@/types/game";
+import { ExternalLinkIcon } from "lucide-react";
 
 export function LiveGameCard({
   game,
@@ -115,7 +117,11 @@ export function LiveGameCard({
             {clockRunning ? <GameElapsedTimer game={game} now={now} /> : null}
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            {formatGameDate(game)} · {formatGameTime(game.startTime)} · {game.location}
+            {formatGameDate(game)} · {formatGameTime(game.startTime)} ·{" "}
+            <GameLocationText game={game} />
+            <GameMapLink game={game} className="inline-flex items-center gap-1">
+              (view in map) <ExternalLinkIcon className="h-4 w-4" />
+            </GameMapLink>
           </p>
         </div>
         <Link
