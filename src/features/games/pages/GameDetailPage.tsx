@@ -236,9 +236,11 @@ export function GameDetailPage() {
           value={
             <>
               <GameLocationText game={game} />
-              <GameMapLink game={game} className="flex items-center gap-1">
-                (view in map) <ExternalLinkIcon className="h-4 w-4" />
-              </GameMapLink>
+              {game.mapUrl ? (
+                <GameMapLink game={game} className="flex items-center gap-1 underline underline-offset-2 text-sm text-muted-foreground">
+                  <ExternalLinkIcon className="h-3 w-3" /> Map
+                </GameMapLink>
+              ) : null}
             </>
           }
         />

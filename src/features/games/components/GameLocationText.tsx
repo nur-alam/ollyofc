@@ -21,7 +21,7 @@ export function GameMapLink({
       href={game.mapUrl}
       target="_blank"
       rel="noopener noreferrer"
-      className={cn("text-inherit underline-offset-4 hover:underline", className)}
+      className={cn("mt-1 underline-offset-4 hover:underline", className)}
     >
       {children}
     </a>

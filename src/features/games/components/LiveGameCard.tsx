@@ -119,9 +119,15 @@ export function LiveGameCard({
           <p className="mt-1 text-sm text-muted-foreground">
             {formatGameDate(game)} · {formatGameTime(game.startTime)} ·{" "}
             <GameLocationText game={game} />
-            <GameMapLink game={game} className="inline-flex items-center gap-1">
-              (view in map) <ExternalLinkIcon className="h-4 w-4" />
-            </GameMapLink>
+            &nbsp;&nbsp; &nbsp;
+            {game.mapUrl ? (
+              <GameMapLink
+                game={game}
+                className="inline-flex items-center gap-1 underline underline-offset-2"
+              >
+                <ExternalLinkIcon className="h-3 w-3" /> Map
+              </GameMapLink>
+            ) : null}
           </p>
         </div>
         <Link
