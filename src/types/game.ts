@@ -147,6 +147,28 @@ export function formatParticipantName(
   return isGuestParticipant(participant) ? `${name} (guest)` : name;
 }
 
+function participantJoinedAtMs(participant: Pick<GameParticipant, "joinedAt">) {
+  const joinedAt = participant.joinedAt;
+
+  return joinedAt && typeof joinedAt.toMillis === "function"
+    ? joinedAt.toMillis()
+    : Number.POSITIVE_INFINITY;
+}
+
+export function compareParticipantsByJoinOrder(
+  left: GameParticipant,
+  right: GameParticipant,
+) {
+  const leftMs = participantJoinedAtMs(left);
+  const rightMs = participantJoinedAtMs(right);
+
+  if (leftMs !== rightMs) {
+    return leftMs - rightMs;
+  }
+
+  return left.userId.localeCompare(right.userId);
+}
+
 export type GameInput = {
   title?: string;
   date: string;
@@ -239,6 +261,7 @@ export const GAME_LOCATIONS = [
   "Metroplex Sporting Complex",
   "Kickoff Football Ground",
   "Bashundhara Kings Arena",
+  "POHS Sportsplex"
 ] as const;
 
 export function isGameLocation(

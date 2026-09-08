@@ -40,6 +40,7 @@ import type {
 } from "@/types/game";
 import {
   canPlayerLeaveGame,
+  compareParticipantsByJoinOrder,
   DEFAULT_TEAM_NAMES,
   GAME_LOCATIONS,
   getResultWinner,
@@ -441,7 +442,7 @@ export function mapParticipant(id: string, data: DocumentData): GameParticipant 
     position: typeof data.position === "string" ? data.position : "",
     teamId: mapTeamId(data.teamId),
     joinedBy: typeof data.joinedBy === "string" ? data.joinedBy : "",
-    joinedAt: data.joinedAt,
+    joinedAt: data.joinedAt instanceof Timestamp ? data.joinedAt : undefined,
   };
 }
 
@@ -612,7 +613,7 @@ export function subscribeToParticipants(
     (snapshot) => {
       const participants = snapshot.docs
         .map((item) => mapParticipant(item.id, item.data()))
-        .sort((left, right) => left.displayName.localeCompare(right.displayName));
+        .sort(compareParticipantsByJoinOrder);
       onData(participants);
     },
     (error) => {
