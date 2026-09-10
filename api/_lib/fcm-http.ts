@@ -201,7 +201,7 @@ export function numberField(
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-export async function verifyStaff(idToken: string, allowedRoles: Set<string>) {
+export async function verifySignedIn(idToken: string) {
   const lookup = await googleJson<{ users?: { localId?: string }[] }>(
     "https://identitytoolkit.googleapis.com/v1/accounts:lookup",
     { method: "POST", body: JSON.stringify({ idToken }) },
@@ -217,10 +217,15 @@ export async function verifyStaff(idToken: string, allowedRoles: Set<string>) {
     throw new Error("Unauthorized");
   }
 
+  return { uid, projectId: lookup.projectId };
+}
+
+export async function verifyStaff(idToken: string, allowedRoles: Set<string>) {
+  const signedIn = await verifySignedIn(idToken);
   const user = await googleJson<{
     fields?: Record<string, { stringValue?: string }>;
   }>(
-    `https://firestore.googleapis.com/v1/projects/${lookup.projectId}/databases/(default)/documents/users/${uid}`,
+    `https://firestore.googleapis.com/v1/projects/${signedIn.projectId}/databases/(default)/documents/users/${signedIn.uid}`,
   );
 
   if (!user.ok) {
@@ -233,7 +238,85 @@ export async function verifyStaff(idToken: string, allowedRoles: Set<string>) {
     throw new Error("Forbidden");
   }
 
-  return { uid, projectId: lookup.projectId };
+  return { uid: signedIn.uid, projectId: signedIn.projectId };
+}
+
+function userIdFromUsersPath(name: string) {
+  const marker = "/documents/users/";
+  const start = name.indexOf(marker);
+
+  if (start === -1) {
+    return "";
+  }
+
+  return name.slice(start + marker.length).split("/")[0] ?? "";
+}
+
+async function listUserIdsByRole(projectId: string, role: string) {
+  const result = await googleJson<{ document?: { name?: string } }[]>(
+    `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:runQuery`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        structuredQuery: {
+          from: [{ collectionId: "users" }],
+          where: {
+            fieldFilter: {
+              field: { fieldPath: "role" },
+              op: "EQUAL",
+              value: { stringValue: role },
+            },
+          },
+          limit: 100,
+        },
+      }),
+    },
+  );
+
+  if (!result.ok) {
+    throw new Error(googleMessage(result.data as GoogleError, "Could not load staff"));
+  }
+
+  const rows = Array.isArray(result.data) ? result.data : [];
+
+  return rows
+    .map((row) => userIdFromUsersPath(row.document?.name ?? ""))
+    .filter(Boolean);
+}
+
+export async function listStaffUserIds(projectId: string) {
+  const [admins, moderators] = await Promise.all([
+    listUserIdsByRole(projectId, "admin"),
+    listUserIdsByRole(projectId, "moderator"),
+  ]);
+
+  return [...new Set([...admins, ...moderators])];
+}
+
+export async function readParticipant(projectId: string, gameId: string, participantId: string) {
+  const participant = await googleJson<{
+    fields?: Record<string, { stringValue?: string; timestampValue?: string }>;
+  }>(
+    `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/games/${encodeURIComponent(gameId)}/participants/${encodeURIComponent(participantId)}`,
+  );
+
+  if (participant.status === 404) {
+    return null;
+  }
+
+  if (!participant.ok) {
+    throw new Error(googleMessage(participant.data, "Player not found"));
+  }
+
+  const fields = participant.data.fields;
+  const joinedAtValue = fields?.joinedAt?.timestampValue;
+
+  return {
+    userId: stringField(fields, "userId") || participantId,
+    displayName: stringField(fields, "displayName") || "A player",
+    joinedBy: stringField(fields, "joinedBy"),
+    joinedAtMs: joinedAtValue ? Date.parse(joinedAtValue) : 0,
+  };
 }
 
 export async function readGame(projectId: string, gameId: string) {
@@ -252,7 +335,6 @@ export async function readGame(projectId: string, gameId: string) {
   }
 
   const fields = game.data.fields;
-  const title = stringField(fields, "title") || "New Ollyo FC game";
   const location = stringField(fields, "location");
   const startTime = stringField(fields, "startTime");
   const dateValue = fields?.date?.timestampValue;
@@ -273,20 +355,15 @@ export async function readGame(projectId: string, gameId: string) {
         timeZone: "UTC",
       }).format(new Date(`1970-01-01T${startTime}:00Z`))
     : "";
-  const body = [dateLabel, timeLabel, location].filter(Boolean).join(" · ");
+  const schedule = [dateLabel, timeLabel, location].filter(Boolean).join(" · ");
+  const title = stringField(fields, "title") || "New Ollyo FC game";
+  const displayTitle = stringField(fields, "title") || [location, dateLabel].filter(Boolean).join(" · ") || title;
 
-  return { title, body: body || "A new game was created." };
+  return { title, displayTitle, schedule, body: schedule || "A new game was created." };
 }
 
 function userIdFromTokenDoc(name: string) {
-  const marker = "/documents/users/";
-  const start = name.indexOf(marker);
-
-  if (start === -1) {
-    return "";
-  }
-
-  return name.slice(start + marker.length).split("/")[0] ?? "";
+  return userIdFromUsersPath(name);
 }
 
 async function listFcmTokens(projectId: string) {
@@ -334,7 +411,7 @@ async function deleteTokenDoc(name: string) {
 async function sendOne(
   projectId: string,
   entry: TokenEntry,
-  payload: { title: string; body: string; url: string; extraData?: Record<string, string> },
+  payload: { title: string; body: string; url: string; extraData?: Record<string, string>; tag?: string },
 ) {
   const result = await googleJson<GoogleError>(
     `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
@@ -359,7 +436,7 @@ async function sendOne(
               body: payload.body,
               icon: `${ORIGIN}/pwa-192x192.png`,
               badge: `${ORIGIN}/pwa-192x192.png`,
-              tag: payload.extraData?.gameId || payload.url,
+              tag: payload.tag || payload.extraData?.gameId || payload.url,
               data: {
                 url: payload.url,
                 gameId: payload.extraData?.gameId || "",
@@ -391,6 +468,7 @@ export async function sendPushToAllTokens(options: {
   url: string;
   extraData?: Record<string, string>;
   userIds?: string[];
+  tag?: string;
 }) {
   const auth = await accessToken();
   let entries = await listFcmTokens(auth.projectId);

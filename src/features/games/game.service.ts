@@ -18,9 +18,10 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 
-import { db } from "@/lib/firebase";
-import { getErrorMessage } from "@/lib/errors";
+import { notifyGameJoined } from "@/features/games/notify-game-joined";
 import { getServerNowMs, syncServerClock } from "@/lib/clock";
+import { getErrorMessage } from "@/lib/errors";
+import { db } from "@/lib/firebase";
 import { bangladeshDateTimeToUtc } from "@/lib/timezone";
 import { parsePosition } from "@/types/player";
 import type {
@@ -655,6 +656,7 @@ export async function joinGame(
   });
 
   await syncGameStats(gameId);
+  void notifyGameJoined(gameId, user.id);
 }
 
 export async function addGuestToGame(
@@ -690,6 +692,7 @@ export async function addGuestToGame(
 
   await setDoc(doc(db, "games", gameId, "participants", guestId), payload);
   await syncGameStats(gameId);
+  void notifyGameJoined(gameId, guestId);
   return guestId;
 }
 
