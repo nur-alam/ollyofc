@@ -1,30 +1,41 @@
-import type { ReactNode } from "react";
+import { useState } from "react";
+import { MapIcon } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
+import { GameMapDialog } from "@/features/games/components/GameMapDialog";
 import { cn } from "@/lib/utils";
-import type { Game } from "@/types/game";
+import { getGameMapEmbedUrl, type Game } from "@/types/game";
 
-export function GameMapLink({
+export function GameMapButton({
   game,
   className,
-  children,
 }: {
-  game: Pick<Game, "mapUrl">;
+  game: Pick<Game, "location" | "mapUrl">;
   className?: string;
-  children: ReactNode;
 }) {
-  if (!game.mapUrl) {
-    return children;
+  const [open, setOpen] = useState(false);
+  const canOpenMap = Boolean(game.mapUrl && getGameMapEmbedUrl(game));
+
+  if (!canOpenMap) {
+    return null;
   }
 
   return (
-    <a
-      href={game.mapUrl}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={cn("mt-1 underline-offset-4 hover:underline", className)}
-    >
-      {children}
-    </a>
+    <>
+      <Button
+        type="button"
+        size="sm"
+        onClick={() => setOpen(true)}
+        className={cn(
+          "mt-2 bg-black text-white hover:bg-black/80 focus-visible:border-black focus-visible:ring-black/30",
+          className,
+        )}
+      >
+        Map
+        <MapIcon data-icon="inline-end" className="h-3.5 w-3.5" />
+      </Button>
+      <GameMapDialog open={open} game={game} onClose={() => setOpen(false)} />
+    </>
   );
 }
 
@@ -35,9 +46,5 @@ export function GameLocationText({
   game: Pick<Game, "location" | "mapUrl">;
   className?: string;
 }) {
-  return (
-    <GameMapLink game={game} className={className}>
-      {game.location}
-    </GameMapLink>
-  );
+  return <span className={className}>{game.location}</span>;
 }
