@@ -5,7 +5,7 @@ import { ClockIcon, MapPinIcon } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { GameCountDown } from "@/features/games/components/GameCountDown";
 import { GameElapsedTimer } from "@/features/games/components/GameElapsedTimer";
-import { GameLocationText, GameMapPreview } from "@/features/games/components/GameLocationText";
+import { GameLocationText, GameMapButton } from "@/features/games/components/GameLocationText";
 import { GamePlayStatusControl } from "@/features/games/components/GamePlayStatusControl";
 import { GameResultBoard } from "@/features/games/components/GameResultBoard";
 import { GameResultUpdate } from "@/features/games/components/GameResultUpdate";
@@ -236,7 +236,7 @@ export function GameDetailPage() {
           value={
             <>
               <GameLocationText game={game} />
-              <GameMapPreview game={game} />
+              <GameMapButton game={game} />
             </>
           }
         />

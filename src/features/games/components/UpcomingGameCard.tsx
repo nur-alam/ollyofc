@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { GameCountDown } from "@/features/games/components/GameCountDown";
-import { GameLocationText, GameMapPreview } from "@/features/games/components/GameLocationText";
+import { GameLocationText, GameMapButton } from "@/features/games/components/GameLocationText";
 import { GameStatusBadge } from "@/features/games/components/GameStatusBadge";
 import { GameTeamsPanel } from "@/features/games/components/GameTeamsPanel";
 import { JoinedPlayersList } from "@/features/games/components/JoinedPlayersList";
@@ -162,7 +162,7 @@ export function UpcomingGameCard({ game }: { game: Game }) {
           </dt>
           <dd className="mt-1 font-medium">
             <GameLocationText game={game} />
-            <GameMapPreview game={game} />
+            <GameMapButton game={game} />
           </dd>
         </div>
         <div>
