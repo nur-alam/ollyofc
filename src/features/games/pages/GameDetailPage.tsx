@@ -1,11 +1,11 @@
 import { useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ClockIcon, ExternalLinkIcon, MapPinIcon } from "lucide-react";
+import { ClockIcon, MapPinIcon } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { GameCountDown } from "@/features/games/components/GameCountDown";
 import { GameElapsedTimer } from "@/features/games/components/GameElapsedTimer";
-import { GameLocationText, GameMapLink } from "@/features/games/components/GameLocationText";
+import { GameLocationText, GameMapPreview } from "@/features/games/components/GameLocationText";
 import { GamePlayStatusControl } from "@/features/games/components/GamePlayStatusControl";
 import { GameResultBoard } from "@/features/games/components/GameResultBoard";
 import { GameResultUpdate } from "@/features/games/components/GameResultUpdate";
@@ -236,11 +236,7 @@ export function GameDetailPage() {
           value={
             <>
               <GameLocationText game={game} />
-              {game.mapUrl ? (
-                <GameMapLink game={game} className="flex items-center gap-1 underline underline-offset-2 text-sm text-muted-foreground">
-                  <ExternalLinkIcon className="h-3 w-3" /> Map
-                </GameMapLink>
-              ) : null}
+              <GameMapPreview game={game} />
             </>
           }
         />

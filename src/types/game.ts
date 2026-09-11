@@ -312,6 +312,39 @@ export function normalizeGameMapUrl(value: string | undefined) {
   }
 }
 
+/** Build a Google Maps embed URL for in-app map previews and modals. */
+export function getGameMapEmbedUrl(
+  game: Pick<Game, "location" | "mapUrl">,
+): string | undefined {
+  if (!game.mapUrl) {
+    return undefined;
+  }
+
+  const location = game.location?.trim();
+
+  if (location) {
+    return `https://www.google.com/maps?q=${encodeURIComponent(location)}&output=embed`;
+  }
+
+  try {
+    const url = new URL(game.mapUrl);
+
+    if (url.pathname.toLowerCase().includes("/embed")) {
+      return url.href;
+    }
+
+    const query = url.searchParams.get("q");
+
+    if (query) {
+      return `https://www.google.com/maps?q=${encodeURIComponent(query)}&output=embed`;
+    }
+
+    return `https://www.google.com/maps?q=${encodeURIComponent(game.mapUrl)}&output=embed`;
+  } catch {
+    return undefined;
+  }
+}
+
 export const GAME_STATUSES: GameStatus[] = [
   "draft",
   "upcoming",
