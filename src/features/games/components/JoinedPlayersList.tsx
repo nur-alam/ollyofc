@@ -73,6 +73,9 @@ export function JoinedPlayersList({
     <ul className="mt-3 grid grid-cols-2 overflow-hidden rounded-lg border sm:grid-cols-4">
       {participants.map((participant) => {
         const guest = isGuestParticipant(participant);
+        const user = usersById.get(participant.userId);
+        const photoURL =
+          user?.photoURL?.trim() || participant.photoURL?.trim() || "";
         const canAct = canRemove || (canEditGuest && guest);
         const isActionVisible =
           activeRemoveId === participant.userId ||
@@ -98,9 +101,9 @@ export function JoinedPlayersList({
           }}
         >
           <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-xs font-semibold">
-            {participant.photoURL ? (
+            {photoURL ? (
               <img
-                src={participant.photoURL}
+                src={photoURL}
                 alt={participant.displayName}
                 className="size-full object-cover"
               />
@@ -120,10 +123,7 @@ export function JoinedPlayersList({
             <p className="text-xs text-muted-foreground">
               {guest && !participant.position
                 ? "Guest"
-                : formatPosition(
-                    usersById.get(participant.userId)?.position ||
-                      participant.position,
-                  )}
+                : formatPosition(user?.position || participant.position)}
             </p>
           </div>
           {canAct ? (

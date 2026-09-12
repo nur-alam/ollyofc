@@ -202,11 +202,15 @@ export function GameTeamsPanel({
 
   const resolvedParticipants = useMemo(
     () =>
-      participants.map((participant) => ({
-        ...participant,
-        position:
-          usersById.get(participant.userId)?.position || participant.position,
-      })),
+      participants.map((participant) => {
+        const user = usersById.get(participant.userId);
+        return {
+          ...participant,
+          position: user?.position || participant.position,
+          photoURL:
+            user?.photoURL?.trim() || participant.photoURL?.trim() || "",
+        };
+      }),
     [participants, usersById],
   );
 
