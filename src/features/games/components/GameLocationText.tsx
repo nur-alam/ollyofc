@@ -27,7 +27,7 @@ export function GameMapButton({
         size="sm"
         onClick={() => setOpen(true)}
         className={cn(
-          "mt-2 bg-black text-white hover:bg-black/80 focus-visible:border-black focus-visible:ring-black/30",
+          "mt-0 align-middle bg-black text-white hover:bg-black/80 focus-visible:border-black focus-visible:ring-black/30",
           className,
         )}
       >

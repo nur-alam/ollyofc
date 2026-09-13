@@ -234,10 +234,10 @@ export function GameDetailPage() {
             </>
           }
           value={
-            <>
+            <div className="flex gap-1 items-center">
               <GameLocationText game={game} />
               <GameMapButton game={game} />
-            </>
+            </div>
           }
         />
         <DetailItem
