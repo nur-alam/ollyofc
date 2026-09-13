@@ -22,8 +22,12 @@
 }
 
 .brand {
-  font-size: 1.1rem;
-  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  img {
+    max-width: 90px;
+    height: auto;
+  }
 }
 
 .topbar-actions {

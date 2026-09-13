@@ -71,7 +71,7 @@ export function Header() {
 
   return (
     <header className="topbar">
-      <div>
+      <div className="flex items-center">
         {/* Phones have no room for the full nav beside the auth button. */}
         <DropdownMenu>
           <DropdownMenuTrigger
@@ -106,8 +106,16 @@ export function Header() {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <Link to="/" className="ml-1 brand shrink-0 whitespace-nowrap text-white no-underline">
-          Ollyo FC
+        <Link
+          to="/"
+          className="ml-1 brand shrink-0 no-underline"
+          aria-label="Ollyo FC home"
+        >
+          <img
+            src="/ollyo-fc-logo-white.png"
+            alt="Ollyo FC"
+            className="h-7 w-auto sm:h-8"
+          />
         </Link>
       </div>
 
