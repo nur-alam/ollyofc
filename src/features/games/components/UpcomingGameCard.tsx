@@ -160,7 +160,7 @@ export function UpcomingGameCard({ game }: { game: Game }) {
           <dt className="flex items-center gap-1 text-sm text-muted-foreground">
             Location <MapPinIcon className="h-4 w-4" />
           </dt>
-          <dd className="flex gap-1 items-center mt-1 font-medium">
+          <dd className="flex flex-wrap gap-1 items-center mt-1 font-medium">
             <GameLocationText game={game} />
             <GameMapButton game={game} />
           </dd>
