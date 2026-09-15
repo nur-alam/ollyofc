@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useNow } from "@/features/games/game.hooks";
 import { GameResultStatus } from "@/features/games/components/GameResultStatus";
+import { GameAwardsCard } from "@/features/games/components/GameAwardsCard";
 import { GameTossCoin } from "@/features/games/components/GameTossCoin";
 import { ScoreFireworks } from "@/features/games/components/ScoreFireworks";
 import { useAuthStore } from "@/features/auth/auth.store";
@@ -21,6 +22,7 @@ import {
   shouldShowLiveToss,
   type Game,
   type GameGoal,
+  type GameParticipant,
 } from "@/types/game";
 import { isStaffRole } from "@/types/user";
 
@@ -166,11 +168,17 @@ export function GameResultBoard({
   goals,
   onRemoveGoal,
   removingId,
+  participants,
+  canEditAwards,
+  awardsUpdatedBy,
 }: {
   game: Game;
   goals?: GameGoal[];
   onRemoveGoal?: (goalId: string) => void;
   removingId?: string;
+  participants?: GameParticipant[];
+  canEditAwards?: boolean;
+  awardsUpdatedBy?: string;
 }) {
   const usersById = useUserMap();
   const isStaff = useAuthStore((state) =>
@@ -210,6 +218,13 @@ export function GameResultBoard({
       </div>
 
       <GameResultStatus game={game} now={now} />
+
+      <GameAwardsCard
+        game={game}
+        participants={participants}
+        canEdit={canEditAwards}
+        updatedBy={awardsUpdatedBy}
+      />
 
       {tallies.length > 0 && (
         <div>

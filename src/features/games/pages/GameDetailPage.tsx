@@ -342,7 +342,7 @@ export function GameDetailPage() {
                 updatedBy={profile.id}
               />
             ) : (
-              <GameResultBoard game={game} />
+              <GameResultBoard game={game} participants={participants} />
             )}
           </div>
         </section>

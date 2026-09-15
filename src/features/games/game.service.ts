@@ -26,6 +26,8 @@ import { bangladeshDateTimeToUtc } from "@/lib/timezone";
 import { parsePosition } from "@/types/player";
 import type {
   Game,
+  GameAward,
+  GameAwardPlayer,
   GameGoal,
   GameGoalKind,
   GameInput,
@@ -44,10 +46,16 @@ import {
   compareParticipantsByJoinOrder,
   DEFAULT_TEAM_NAMES,
   GAME_LOCATIONS,
+  getComputedMvpTallies,
+  getExtraAwards,
   getResultWinner,
+  getStoredMvpAward,
   isGuestParticipant,
   isGuestParticipantId,
+  isMvpAward,
   isTossLanded,
+  MVP_AWARD_ID,
+  MVP_AWARD_TITLE,
   normalizeGameMapUrl,
 } from "@/types/game";
 import {
@@ -246,6 +254,74 @@ function mapGoal(value: unknown): GameGoal | null {
   return goal;
 }
 
+function mapAwardPlayer(value: unknown): GameAwardPlayer | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const data = value as DocumentData;
+
+  if (typeof data.playerId !== "string" || !data.playerId) {
+    return null;
+  }
+
+  return {
+    playerId: data.playerId,
+    playerName:
+      typeof data.playerName === "string" && data.playerName.trim()
+        ? data.playerName.trim()
+        : "Player",
+  };
+}
+
+function mapAwardPlayers(value: unknown): GameAwardPlayer[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+
+  return value.flatMap((item) => {
+    const player = mapAwardPlayer(item);
+
+    if (!player || seen.has(player.playerId)) {
+      return [];
+    }
+
+    seen.add(player.playerId);
+    return [player];
+  });
+}
+
+function mapAward(value: unknown): GameAward | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const data = value as DocumentData;
+  const title = typeof data.title === "string" ? data.title.trim() : "";
+  const players = mapAwardPlayers(data.players);
+
+  if (typeof data.id !== "string" || !data.id || !title || !players.length) {
+    return null;
+  }
+
+  const kind = data.kind === "mvp" || title.toLowerCase() === "mvp" ? "mvp" : "custom";
+
+  return {
+    id: kind === "mvp" ? MVP_AWARD_ID : data.id,
+    kind,
+    title: kind === "mvp" ? MVP_AWARD_TITLE : title,
+    players,
+    source: kind === "mvp" && data.source === "manual" ? "manual" : kind === "mvp" ? "auto" : "manual",
+    createdBy: typeof data.createdBy === "string" ? data.createdBy : "",
+    createdAtMs:
+      typeof data.createdAtMs === "number" && Number.isFinite(data.createdAtMs)
+        ? data.createdAtMs
+        : 0,
+  };
+}
+
 function mapResult(value: unknown): GameResult | undefined {
   if (!value || typeof value !== "object") {
     return undefined;
@@ -270,12 +346,19 @@ function mapResult(value: unknown): GameResult | undefined {
     data.winner === "a" || data.winner === "b" || data.winner === "draw"
       ? data.winner
       : getResultWinner(scoreA, scoreB);
+  const awards = Array.isArray(data.awards)
+    ? data.awards.flatMap((item) => {
+        const award = mapAward(item);
+        return award ? [award] : [];
+      })
+    : [];
 
   return {
     a: scoreA,
     b: scoreB,
     winner,
     goals,
+    ...(awards.length ? { awards } : {}),
     updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : undefined,
     updatedAtMs:
       typeof data.updatedAtMs === "number" && Number.isFinite(data.updatedAtMs)
@@ -289,6 +372,120 @@ function mapResult(value: unknown): GameResult | undefined {
 
 function createGoalId() {
   return globalThis.crypto?.randomUUID?.() ?? `goal-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function createAwardId() {
+  return globalThis.crypto?.randomUUID?.() ?? `award-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function dedupeAwardPlayers(players: GameAwardPlayer[]): GameAwardPlayer[] {
+  const seen = new Set<string>();
+
+  return players.flatMap((player) => {
+    const playerId = player.playerId.trim();
+
+    if (!playerId || seen.has(playerId)) {
+      return [];
+    }
+
+    seen.add(playerId);
+    return [
+      {
+        playerId,
+        playerName: player.playerName.trim() || "Player",
+      },
+    ];
+  });
+}
+
+function extrasFromResult(
+  result: GameResult | undefined,
+): Pick<GameResult, "awards"> {
+  return result?.awards?.length ? { awards: result.awards } : {};
+}
+
+function renameAwardPlayers(
+  players: GameAwardPlayer[],
+  playerId: string,
+  displayName: string,
+) {
+  return players.map((player) =>
+    player.playerId === playerId ? { ...player, playerName: displayName } : player,
+  );
+}
+
+function renameResultPlayers(
+  result: GameResult,
+  playerId: string,
+  displayName: string,
+): Pick<GameResult, "awards"> {
+  if (!result.awards?.length) {
+    return {};
+  }
+
+  return {
+    awards: result.awards.map((award) => ({
+      ...award,
+      players: renameAwardPlayers(award.players, playerId, displayName),
+    })),
+  };
+}
+
+function withCurrentAwards(
+  goals: GameGoal[],
+  awards: GameAward[] | undefined,
+  updatedBy: string,
+): GameAward[] {
+  const extras = getExtraAwards(awards);
+  const stored = getStoredMvpAward(awards);
+
+  if (stored?.source === "manual" && stored.players.length) {
+    return [
+      {
+        ...stored,
+        id: MVP_AWARD_ID,
+        kind: "mvp",
+        title: MVP_AWARD_TITLE,
+        source: "manual",
+      },
+      ...extras,
+    ];
+  }
+
+  const tallies = getComputedMvpTallies(goals);
+
+  if (!tallies.length) {
+    return extras;
+  }
+
+  return [
+    {
+      id: MVP_AWARD_ID,
+      kind: "mvp",
+      title: MVP_AWARD_TITLE,
+      source: "auto",
+      players: tallies.map((tally) => ({
+        playerId: tally.scorerId,
+        playerName: tally.scorerName,
+      })),
+      createdBy: stored?.createdBy || updatedBy,
+      createdAtMs: stored?.createdAtMs || Date.now(),
+    },
+    ...extras,
+  ];
+}
+
+async function writeGameResult(
+  gameId: string,
+  result: Omit<GameResult, "updatedAt">,
+) {
+  await updateDoc(doc(db, "games", gameId), {
+    result: {
+      ...result,
+      updatedAt: serverTimestamp(),
+    },
+    updatedAt: serverTimestamp(),
+  });
 }
 
 function createGuestParticipantId() {
@@ -306,11 +503,15 @@ function mapParticipantKind(value: unknown, userId: string): GameParticipantKind
   return userId.startsWith("guest_") ? "guest" : "user";
 }
 
-function buildResult(goals: GameGoal[], updatedBy: string): Omit<GameResult, "updatedAt"> {
+function buildResult(
+  goals: GameGoal[],
+  updatedBy: string,
+  extras?: Pick<GameResult, "awards">,
+): Omit<GameResult, "updatedAt"> {
   const a = goals.filter((goal) => goal.teamId === "a").length;
   const b = goals.filter((goal) => goal.teamId === "b").length;
-
-  return {
+  const awards = withCurrentAwards(goals, extras?.awards, updatedBy);
+  const result: Omit<GameResult, "updatedAt"> = {
     a,
     b,
     winner: getResultWinner(a, b),
@@ -318,6 +519,12 @@ function buildResult(goals: GameGoal[], updatedBy: string): Omit<GameResult, "up
     updatedAtMs: Date.now(),
     updatedBy,
   };
+
+  if (awards.length) {
+    result.awards = awards;
+  }
+
+  return result;
 }
 
 export function mapGame(id: string, data: DocumentData): Game {
@@ -565,7 +772,7 @@ export async function syncAllGameStats(
         totalsByUser.set(
           userId,
           addStatTotals(
-            totalsByUser.get(userId) ?? { ...EMPTY_STAT_TOTALS },
+            totalsByUser.get(userId) ?? { ...EMPTY_STAT_TOTALS, awards: {} },
             totalsFromContribution(stat),
           ),
         );
@@ -582,7 +789,7 @@ export async function syncAllGameStats(
   users.docs.forEach((userDoc) => {
     writes.push((batch) => {
       batch.update(userDoc.ref, {
-        stats: totalsByUser.get(userDoc.id) ?? { ...EMPTY_STAT_TOTALS },
+        stats: totalsByUser.get(userDoc.id) ?? { ...EMPTY_STAT_TOTALS, awards: {} },
         statGames: deleteField(),
         updatedAt: serverTimestamp(),
       });
@@ -770,7 +977,11 @@ export async function updateGuestInGame(
   batch.update(participantRef, updates);
 
   if (game?.result && nameChanged) {
-    const result = buildResult(nextGoals, game.result.updatedBy);
+    const result = buildResult(
+      nextGoals,
+      game.result.updatedBy,
+      renameResultPlayers(game.result, guestId, displayName),
+    );
 
     batch.update(doc(db, "games", gameId), {
       result: {
@@ -940,7 +1151,11 @@ export async function startGame(gameId: string, updatedBy: string): Promise<void
     throw new Error("Finish the coin toss before starting the game.");
   }
 
-  const result = game.result ?? buildResult([], updatedBy);
+  const result = buildResult(
+    game.result?.goals ?? [],
+    updatedBy,
+    extrasFromResult(game.result),
+  );
   await syncServerClock();
   const startedAtMs = getServerNowMs();
 
@@ -979,7 +1194,11 @@ export async function setGamePlayStatus(
     return;
   }
 
-  const result = game.result ?? buildResult([], updatedBy);
+  const result = buildResult(
+    game.result?.goals ?? [],
+    updatedBy,
+    extrasFromResult(game.result),
+  );
 
   await updateDoc(doc(db, "games", gameId), {
     status,
@@ -1058,15 +1277,10 @@ export async function addGameGoal(
   }
 
   const goals = [...(game.result?.goals ?? []), goal];
-  const result = buildResult(goals, input.createdBy);
-
-  await updateDoc(doc(db, "games", gameId), {
-    result: {
-      ...result,
-      updatedAt: serverTimestamp(),
-    },
-    updatedAt: serverTimestamp(),
-  });
+  await writeGameResult(
+    gameId,
+    buildResult(goals, input.createdBy, extrasFromResult(game.result)),
+  );
 
   await syncGameStats(gameId);
 }
@@ -1082,19 +1296,215 @@ export async function removeGameGoal(
     throw new Error("This game could not be found.");
   }
 
-  const result = buildResult(
-    (game.result?.goals ?? []).filter((goal) => goal.id !== goalId),
-    updatedBy,
+  await writeGameResult(
+    gameId,
+    buildResult(
+      (game.result?.goals ?? []).filter((goal) => goal.id !== goalId),
+      updatedBy,
+      extrasFromResult(game.result),
+    ),
   );
 
-  await updateDoc(doc(db, "games", gameId), {
-    result: {
-      ...result,
-      updatedAt: serverTimestamp(),
-    },
-    updatedAt: serverTimestamp(),
-  });
+  await syncGameStats(gameId);
+}
 
+function requireAwardPlayers(players: GameAwardPlayer[]) {
+  const unique = dedupeAwardPlayers(players);
+
+  if (!unique.length) {
+    throw new Error("Pick at least one player.");
+  }
+
+  return unique;
+}
+
+export async function setGameMvp(
+  gameId: string,
+  players: GameAwardPlayer[],
+  updatedBy: string,
+): Promise<void> {
+  const game = await getGameById(gameId);
+
+  if (!game) {
+    throw new Error("This game could not be found.");
+  }
+
+  if (game.status === "cancelled") {
+    throw new Error("This game is cancelled.");
+  }
+
+  const stored = getStoredMvpAward(game.result?.awards);
+  const mvpAward: GameAward = {
+    id: MVP_AWARD_ID,
+    kind: "mvp",
+    title: MVP_AWARD_TITLE,
+    source: "manual",
+    players: requireAwardPlayers(players),
+    createdBy: stored?.createdBy || updatedBy,
+    createdAtMs: stored?.createdAtMs || Date.now(),
+  };
+
+  await writeGameResult(
+    gameId,
+    buildResult(game.result?.goals ?? [], updatedBy, {
+      awards: [mvpAward, ...getExtraAwards(game.result?.awards)],
+    }),
+  );
+  await syncGameStats(gameId);
+}
+
+export async function clearGameMvp(gameId: string, updatedBy: string): Promise<void> {
+  const game = await getGameById(gameId);
+
+  if (!game) {
+    throw new Error("This game could not be found.");
+  }
+
+  if (game.status === "cancelled") {
+    throw new Error("This game is cancelled.");
+  }
+
+  await writeGameResult(
+    gameId,
+    buildResult(game.result?.goals ?? [], updatedBy, {
+      awards: getExtraAwards(game.result?.awards),
+    }),
+  );
+  await syncGameStats(gameId);
+}
+
+export async function addGameAward(
+  gameId: string,
+  input: {
+    title: string;
+    players: GameAwardPlayer[];
+    createdBy: string;
+  },
+): Promise<void> {
+  const title = input.title.trim();
+
+  if (!title) {
+    throw new Error("Enter an award title.");
+  }
+
+  if (title.toLowerCase() === "mvp") {
+    throw new Error("Use Edit MVP for the match MVP.");
+  }
+
+  const game = await getGameById(gameId);
+
+  if (!game) {
+    throw new Error("This game could not be found.");
+  }
+
+  if (game.status === "cancelled") {
+    throw new Error("This game is cancelled.");
+  }
+
+  const award: GameAward = {
+    id: createAwardId(),
+    kind: "custom",
+    title,
+    source: "manual",
+    players: requireAwardPlayers(input.players),
+    createdBy: input.createdBy,
+    createdAtMs: Date.now(),
+  };
+
+  await writeGameResult(
+    gameId,
+    buildResult(game.result?.goals ?? [], input.createdBy, {
+      awards: [...(game.result?.awards ?? []), award],
+    }),
+  );
+  await syncGameStats(gameId);
+}
+
+export async function updateGameAward(
+  gameId: string,
+  awardId: string,
+  input: {
+    title: string;
+    players: GameAwardPlayer[];
+    updatedBy: string;
+  },
+): Promise<void> {
+  const title = input.title.trim();
+
+  if (!title) {
+    throw new Error("Enter an award title.");
+  }
+
+  if (title.toLowerCase() === "mvp") {
+    throw new Error("Use Edit MVP for the match MVP.");
+  }
+
+  const game = await getGameById(gameId);
+
+  if (!game) {
+    throw new Error("This game could not be found.");
+  }
+
+  if (game.status === "cancelled") {
+    throw new Error("This game is cancelled.");
+  }
+
+  const awards = game.result?.awards ?? [];
+  const index = awards.findIndex((award) => award.id === awardId);
+
+  if (index < 0) {
+    throw new Error("This award could not be found.");
+  }
+
+  if (isMvpAward(awards[index])) {
+    throw new Error("Use Edit MVP for the match MVP.");
+  }
+
+  const nextAwards = [...awards];
+  nextAwards[index] = {
+    ...awards[index],
+    kind: "custom",
+    title,
+    source: "manual",
+    players: requireAwardPlayers(input.players),
+  };
+
+  await writeGameResult(
+    gameId,
+    buildResult(game.result?.goals ?? [], input.updatedBy, {
+      awards: nextAwards,
+    }),
+  );
+  await syncGameStats(gameId);
+}
+
+export async function removeGameAward(
+  gameId: string,
+  awardId: string,
+  updatedBy: string,
+): Promise<void> {
+  const game = await getGameById(gameId);
+
+  if (!game) {
+    throw new Error("This game could not be found.");
+  }
+
+  if (game.status === "cancelled") {
+    throw new Error("This game is cancelled.");
+  }
+
+  const current = (game.result?.awards ?? []).find((award) => award.id === awardId);
+
+  if (current && isMvpAward(current)) {
+    throw new Error("Use auto ranking to clear the MVP.");
+  }
+
+  await writeGameResult(
+    gameId,
+    buildResult(game.result?.goals ?? [], updatedBy, {
+      awards: (game.result?.awards ?? []).filter((award) => award.id !== awardId),
+    }),
+  );
   await syncGameStats(gameId);
 }
 

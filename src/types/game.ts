@@ -84,11 +84,112 @@ export const GAME_GOAL_KIND_LABELS: Record<GameGoalKind, string> = {
   own: "Own goal",
 };
 
+export type GameAwardPlayer = {
+  playerId: string;
+  playerName: string;
+};
+
+export type GameAwardKind = "mvp" | "custom";
+
+export type GameAwardSource = "auto" | "manual";
+
+export const MVP_AWARD_ID = "mvp";
+export const MVP_AWARD_TITLE = "MVP";
+
+/** One match award. MVP is `kind: "mvp"`; extras such as most saves are `custom`. */
+export type GameAward = {
+  id: string;
+  kind: GameAwardKind;
+  title: string;
+  players: GameAwardPlayer[];
+  source: GameAwardSource;
+  createdBy: string;
+  createdAtMs: number;
+};
+
+export const GAME_AWARD_TITLE_PRESETS = ["Most saves", "Best defender"] as const;
+
+export const AWARD_STAT_KEYS = {
+  mvp: "mvp",
+  mostSaves: "mostSaves",
+  bestDefender: "bestDefender",
+} as const;
+
+export const AWARD_STAT_LABELS: Record<string, string> = {
+  mvp: "MVP",
+  mostSaves: "Most saves",
+  bestDefender: "Best defender",
+};
+
+export function isMvpAward(award: Pick<GameAward, "kind" | "title">) {
+  return award.kind === "mvp" || award.title.trim().toLowerCase() === "mvp";
+}
+
+export function getExtraAwards(awards: GameAward[] | undefined) {
+  return (awards ?? []).filter((award) => !isMvpAward(award));
+}
+
+export function getStoredMvpAward(awards: GameAward[] | undefined) {
+  return (awards ?? []).find((award) => isMvpAward(award));
+}
+
+/** Career-stat key for an award title. Presets stay stable; custom titles become camelCase. */
+export function toAwardStatKey(title: string, kind?: GameAwardKind) {
+  if (kind === "mvp" || title.trim().toLowerCase() === "mvp") {
+    return AWARD_STAT_KEYS.mvp;
+  }
+
+  const normalized = title.trim().toLowerCase().replace(/\s+/g, " ");
+
+  if (normalized === "most saves") {
+    return AWARD_STAT_KEYS.mostSaves;
+  }
+
+  if (normalized === "best defender") {
+    return AWARD_STAT_KEYS.bestDefender;
+  }
+
+  const words = normalized
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .split(" ")
+    .filter(Boolean);
+
+  if (!words.length) {
+    return "award";
+  }
+
+  return words
+    .map((word, index) =>
+      index === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1),
+    )
+    .join("");
+}
+
+export function getAwardStatLabel(key: string) {
+  if (AWARD_STAT_LABELS[key]) {
+    return AWARD_STAT_LABELS[key];
+  }
+
+  return key
+    .replace(/([A-Z])/g, " $1")
+    .replace(/^./, (char) => char.toUpperCase())
+    .trim();
+}
+
+export function getAwardTotal(awards: Record<string, number> | undefined) {
+  return Object.values(awards ?? {}).reduce(
+    (sum, count) => sum + Math.max(0, count),
+    0,
+  );
+}
+
 export type GameResult = {
   a: number;
   b: number;
   winner: GameResultWinner;
   goals: GameGoal[];
+  awards?: GameAward[];
   updatedAt?: Timestamp;
   updatedAtMs: number;
   updatedBy: string;
@@ -564,6 +665,60 @@ export function getPlayerGoalCounts(goals: GameGoal[]) {
       right.assists - left.assists ||
       left.scorerName.localeCompare(right.scorerName),
   );
+}
+
+/**
+ * Rank MVP by goals first, then assists. Anyone matching the leader on both
+ * shares the award.
+ */
+export function getComputedMvpTallies(goals: GameGoal[]): PlayerGoalTally[] {
+  const tallies = getPlayerGoalCounts(goals);
+
+  if (!tallies.length) {
+    return [];
+  }
+
+  const topGoals = tallies[0].count;
+  const goalLeaders = tallies.filter((tally) => tally.count === topGoals);
+  const topAssists = Math.max(...goalLeaders.map((tally) => tally.assists));
+
+  return goalLeaders.filter((tally) => tally.assists === topAssists);
+}
+
+export type GameMvpDisplay = {
+  players: GameAwardPlayer[];
+  source: "auto" | "manual";
+  tallies: PlayerGoalTally[];
+};
+
+export function getGameMvp(game: Pick<Game, "result">): GameMvpDisplay {
+  const goals = game.result?.goals ?? [];
+  const talliesById = new Map(
+    getPlayerGoalCounts(goals).map((tally) => [tally.scorerId, tally]),
+  );
+  const stored = getStoredMvpAward(game.result?.awards);
+
+  if (stored?.source === "manual" && stored.players.length) {
+    return {
+      players: stored.players,
+      source: "manual",
+      tallies: stored.players.flatMap((player) => {
+        const tally = talliesById.get(player.playerId);
+        return tally ? [tally] : [];
+      }),
+    };
+  }
+
+  const tallies = getComputedMvpTallies(goals);
+
+  return {
+    players: tallies.map((tally) => ({
+      playerId: tally.scorerId,
+      playerName: tally.scorerName,
+    })),
+    source: "auto",
+    tallies,
+  };
 }
 
 export type TeamGoalTally = {

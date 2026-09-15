@@ -7,12 +7,15 @@ export type UserRole = "admin" | "moderator" | "user";
 
 export type PlayerGameResult = "win" | "loss" | "draw";
 
+export type PlayerAwardCounts = Record<string, number>;
+
 /** One finished match's contribution to a player's career totals. */
 export type PlayerGameStat = {
   teamId?: GameTeamId;
   result?: PlayerGameResult;
   goals: number;
   assists: number;
+  awards?: PlayerAwardCounts;
 };
 
 export type PlayerStatTotals = {
@@ -22,6 +25,7 @@ export type PlayerStatTotals = {
   wins: number;
   losses: number;
   draws: number;
+  awards: PlayerAwardCounts;
 };
 
 export const EMPTY_STAT_TOTALS: PlayerStatTotals = {
@@ -31,6 +35,7 @@ export const EMPTY_STAT_TOTALS: PlayerStatTotals = {
   wins: 0,
   losses: 0,
   draws: 0,
+  awards: {},
 };
 
 export type UserProfile = {
@@ -53,12 +58,70 @@ function parseCount(value: unknown) {
     : 0;
 }
 
+function parseAwardCounts(value: unknown): PlayerAwardCounts {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  const counts: PlayerAwardCounts = {};
+
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    const count = parseCount(item);
+
+    if (key && count > 0) {
+      counts[key] = count;
+    }
+  }
+
+  return counts;
+}
+
+export function addAwardCounts(
+  left: PlayerAwardCounts | undefined,
+  right: PlayerAwardCounts | undefined,
+): PlayerAwardCounts {
+  const counts: PlayerAwardCounts = {};
+  const keys = new Set([
+    ...Object.keys(left ?? {}),
+    ...Object.keys(right ?? {}),
+  ]);
+
+  for (const key of keys) {
+    const count = (left?.[key] ?? 0) + (right?.[key] ?? 0);
+
+    if (count > 0) {
+      counts[key] = count;
+    }
+  }
+
+  return counts;
+}
+
+export function isSameAwardCounts(
+  left: PlayerAwardCounts | undefined,
+  right: PlayerAwardCounts | undefined,
+) {
+  const keys = new Set([
+    ...Object.keys(left ?? {}),
+    ...Object.keys(right ?? {}),
+  ]);
+
+  for (const key of keys) {
+    if ((left?.[key] ?? 0) !== (right?.[key] ?? 0)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 export function parsePlayerGameStat(value: unknown): PlayerGameStat | null {
   if (!value || typeof value !== "object") {
     return null;
   }
 
   const data = value as Record<string, unknown>;
+  const awards = parseAwardCounts(data.awards);
   const stat: PlayerGameStat = {
     goals: parseCount(data.goals),
     assists: parseCount(data.assists),
@@ -70,6 +133,10 @@ export function parsePlayerGameStat(value: unknown): PlayerGameStat | null {
 
   if (data.result === "win" || data.result === "loss" || data.result === "draw") {
     stat.result = data.result;
+  }
+
+  if (Object.keys(awards).length) {
+    stat.awards = awards;
   }
 
   return stat;
@@ -92,7 +159,7 @@ export function parseStatGames(value: unknown): Record<string, PlayerGameStat> {
 
 export function parseStatTotals(value: unknown): PlayerStatTotals {
   if (!value || typeof value !== "object") {
-    return { ...EMPTY_STAT_TOTALS };
+    return { ...EMPTY_STAT_TOTALS, awards: {} };
   }
 
   const data = value as Record<string, unknown>;
@@ -104,6 +171,7 @@ export function parseStatTotals(value: unknown): PlayerStatTotals {
     wins: parseCount(data.wins),
     losses: parseCount(data.losses),
     draws: parseCount(data.draws),
+    awards: parseAwardCounts(data.awards),
   };
 }
 
@@ -111,7 +179,7 @@ export function totalsFromContribution(
   stat: PlayerGameStat | undefined,
 ): PlayerStatTotals {
   if (!stat) {
-    return { ...EMPTY_STAT_TOTALS };
+    return { ...EMPTY_STAT_TOTALS, awards: {} };
   }
 
   return {
@@ -121,6 +189,7 @@ export function totalsFromContribution(
     wins: stat.result === "win" ? 1 : 0,
     losses: stat.result === "loss" ? 1 : 0,
     draws: stat.result === "draw" ? 1 : 0,
+    awards: addAwardCounts(undefined, stat.awards),
   };
 }
 
@@ -135,6 +204,7 @@ export function addStatTotals(
     wins: Math.max(0, left.wins + right.wins),
     losses: Math.max(0, left.losses + right.losses),
     draws: Math.max(0, left.draws + right.draws),
+    awards: addAwardCounts(left.awards, right.awards),
   };
 }
 
@@ -153,6 +223,9 @@ export function applyStatDelta(
       wins: -previousTotals.wins,
       losses: -previousTotals.losses,
       draws: -previousTotals.draws,
+      awards: Object.fromEntries(
+        Object.entries(previousTotals.awards).map(([key, count]) => [key, -count]),
+      ),
     }),
     totalsFromContribution(next),
   );

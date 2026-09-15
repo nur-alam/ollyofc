@@ -15,6 +15,7 @@ import { buildLeaderboard } from "@/features/players/leaderboard";
 import { useSquad } from "@/features/players/player.hooks";
 import { cn } from "@/lib/utils";
 import { formatPosition } from "@/types/player";
+import { AWARD_STAT_KEYS, getAwardTotal } from "@/types/game";
 
 const allPlayers = {
   search: "",
@@ -70,6 +71,8 @@ export function LeaderboardPage() {
               <TableHead className="text-right">Games</TableHead>
               <TableHead className="text-right">Goals</TableHead>
               <TableHead className="text-right">Assists</TableHead>
+              <TableHead className="text-right">MVP</TableHead>
+              <TableHead className="text-right">Awards</TableHead>
               <TableHead className="text-right">W</TableHead>
               <TableHead className="text-right">L</TableHead>
               <TableHead className="text-right">D</TableHead>
@@ -78,7 +81,7 @@ export function LeaderboardPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
+                <TableCell colSpan={10} className="py-8 text-center text-muted-foreground">
                   Loading leaderboard...
                 </TableCell>
               </TableRow>
@@ -129,6 +132,12 @@ export function LeaderboardPage() {
                     {player.stats.assists}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
+                    {player.stats.awards[AWARD_STAT_KEYS.mvp] ?? 0}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {getAwardTotal(player.stats.awards)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
                     {player.stats.wins}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
@@ -141,7 +150,7 @@ export function LeaderboardPage() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
+                <TableCell colSpan={10} className="py-8 text-center text-muted-foreground">
                   Nobody has played a finished game yet.
                 </TableCell>
               </TableRow>

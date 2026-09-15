@@ -1,8 +1,9 @@
 Stats are written only when a game is completed. Every trigger below re-syncs that one game and writes only what changed.
 
-Finish game — the main one. Games, goals, assists, and win/loss/draw land for everyone who played (finishGame → setGamePlayStatus).
+Finish game — the main one. Games, goals, assists, win/loss/draw, and match awards (MVP, most saves, and so on) land for everyone who played (`finishGame` → `setGamePlayStatus`). Awards are stored on the user as `stats.awards: { mvp, mostSaves, bestDefender, ... }`.
 Reopen a completed game back to active — contributions are removed until it's finished again.
 Add a player to a finished game — pure add for that player.
+Edit MVP or extra awards on a finished game — award counts are re-synced.
 Delete a game — contributions stripped first, then the game is deleted.
 Admin "Rebuild player stats" on Dashboard — re-syncs every game; used for backfill or repair.
 
@@ -21,4 +22,4 @@ Remove a player (canRemoveGamePlayers blocks completed)
 Add or remove a goal (needs status active)
 Build, rebuild, or clear teams (canEdit is upcoming only)
 
-To correct a finished match, reopen it, make the change, then finish it again. Each step re-syncs.
+To correct a finished match’s score, reopen it, make the change, then finish it again. Each step re-syncs. Award titles and players can be edited on a completed game without reopening.
