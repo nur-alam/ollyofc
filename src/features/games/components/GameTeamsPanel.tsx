@@ -575,18 +575,10 @@ export function GameTeamsPanel({
                 <section
                   key={teamId}
                   className={cn(
-                    "relative flex h-full flex-col rounded-lg",
-                    isWinner ? "p-[3px]" : "border",
+                    "relative flex h-full flex-col",
+                    isWinner ? "winner-frame" : "rounded-lg border",
                   )}
                 >
-                  {isWinner ? (
-                    <div
-                      className="pointer-events-none absolute inset-0 overflow-hidden rounded-lg"
-                      aria-hidden
-                    >
-                      <div className="winner-ring absolute top-1/2 left-1/2 size-[220%] -translate-x-1/2 -translate-y-1/2" />
-                    </div>
-                  ) : null}
                   <div
                     className={cn(
                       "relative flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background p-3",
