@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { useUserMap } from "@/features/players/player.hooks";
+import { useAuthStore } from "@/features/auth/auth.store";
 import {
   addGameAward,
   clearGameMvp,
@@ -215,6 +216,7 @@ export function GameAwardsCard({
   updatedBy?: string;
 }) {
   const usersById = useUserMap();
+  const isAdmin = useAuthStore((state) => state.profile?.role === "admin");
   const mvp = getGameMvp(game);
   const awards = getExtraAwards(game.result?.awards);
   const tallyById = useMemo(
@@ -224,6 +226,7 @@ export function GameAwardsCard({
   const canEditAwards = Boolean(
     canEdit && updatedBy && canUpdateGameResult(game),
   );
+  const canEditMvp = canEditAwards && isAdmin;
   const hasContent = mvp.players.length > 0 || awards.length > 0;
 
   const [mvpOpen, setMvpOpen] = useState(false);
@@ -242,6 +245,10 @@ export function GameAwardsCard({
   }
 
   const openMvpEditor = () => {
+    if (!canEditMvp) {
+      return;
+    }
+
     setSelectedIds(new Set(mvp.players.map((player) => player.playerId)));
     setMvpOpen(true);
   };
@@ -268,7 +275,7 @@ export function GameAwardsCard({
   };
 
   const handleSaveMvp = async () => {
-    if (!updatedBy) {
+    if (!updatedBy || !canEditMvp) {
       return;
     }
 
@@ -293,7 +300,7 @@ export function GameAwardsCard({
   };
 
   const handleUseAutoMvp = async () => {
-    if (!updatedBy) {
+    if (!updatedBy || !canEditMvp) {
       return;
     }
 
@@ -378,9 +385,11 @@ export function GameAwardsCard({
         <h3 className="text-sm font-medium">Match awards</h3>
         {canEditAwards ? (
           <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={openMvpEditor}>
-              {mvp.players.length || mvp.source === "manual" ? "Edit MVP" : "Set MVP"}
-            </Button>
+            {canEditMvp ? (
+              <Button type="button" variant="outline" size="sm" onClick={openMvpEditor}>
+                {mvp.players.length || mvp.source === "manual" ? "Edit MVP" : "Set MVP"}
+              </Button>
+            ) : null}
             <Button
               type="button"
               variant="outline"
@@ -406,7 +415,7 @@ export function GameAwardsCard({
                       {mvp.players.length > 1 ? "MVPs" : "MVP"}
                     </p>
                   </div>
-                  {canEditAwards ? (
+                  {canEditMvp ? (
                     <Button
                       type="button"
                       variant="ghost"
@@ -493,7 +502,7 @@ export function GameAwardsCard({
         </p>
       )}
 
-      {mvpOpen && canEditAwards ? (
+      {mvpOpen && canEditMvp ? (
         <OverlayDialog
           title="Match MVP"
           description="Pick one or more players. Leave it on auto to rank by goals first, then assists. Tied players share the award."

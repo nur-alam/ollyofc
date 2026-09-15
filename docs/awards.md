@@ -2,7 +2,7 @@ Match awards live on the game result as one list: `result.awards`. MVP is an awa
 
 They show on the game details page and on the last game result on the home page, in one **Match awards** card: MVP first, then the extras.
 
-Anyone can see the card. Only staff (admin and moderator) can edit it, and only after the match has happened. Cancelled games cannot get awards.
+Anyone can see the card. Staff (admin and moderator) can add extra awards after the match has happened. Only admin can set or edit MVP. Cancelled games cannot get awards.
 
 ## MVP
 
@@ -16,13 +16,13 @@ How auto ranking works
 
 Examples: 2 goals beats 1 goal and 5 assists. Two players with 2 goals and 1 assist both get MVP. A 0–0 with no assists has no auto MVP.
 
-The ranking updates as goals are added or removed, until staff lock it.
+The ranking updates as goals are added or removed, until admin locks it.
 
-Staff can **Set MVP** or **Edit MVP** and pick one or more players from the joined list. Saving that selection sets `source: "manual"` on the MVP award. Later goals will not change it. The card shows a **Manual** badge.
+Admin can **Set MVP** or **Edit MVP** and pick one or more players from the joined list. Saving that selection sets `source: "manual"` on the MVP award. Later goals will not change it. The card shows a **Manual** badge.
 
 **Use auto ranking** clears the lock. MVP goes back to goals, then assists.
 
-A 0–0 (or any game with no scorer/assister) still lets staff pick an MVP by hand.
+A 0–0 (or any game with no scorer/assister) still lets admin pick an MVP by hand.
 
 ## Extra awards
 
@@ -30,7 +30,7 @@ These are always manual (`kind: "custom"`). They sit under MVP in the same card.
 
 Staff **Add award**, pick a title, and pick one or more players. Presets are **Most saves** and **Best defender**. Any other title can be typed (best goalkeeper, and so on). More than one player can share an award, same as MVP.
 
-Each extra award can be edited or removed later. Removing one does not touch MVP. Do not add a second MVP this way — use **Edit MVP**.
+Each extra award can be edited or removed later. Removing one does not touch MVP. Do not add a second MVP this way — admin uses **Edit MVP**.
 
 ## Career stats
 
