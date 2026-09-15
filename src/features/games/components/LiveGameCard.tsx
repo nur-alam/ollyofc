@@ -137,7 +137,7 @@ export function LiveGameCard({
             updatedBy={profile.id}
           />
         ) : (
-          <GameResultBoard game={game} />
+          <GameResultBoard game={game} participants={participants} />
         )}
       </div>
 

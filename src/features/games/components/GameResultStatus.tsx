@@ -24,7 +24,8 @@ function getResultStatusMessage(game: Game, now: Date) {
   }
 
   if (score.a === 0 && score.b === 0) {
-    return finished ? "No goals were scored." : "No goals yet.";
+    // return finished ? "No goals were scored." : "No goals yet.";
+    return "Match draw. No goals scored."
   }
 
   if (score.a === score.b) {

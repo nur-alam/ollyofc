@@ -1,4 +1,5 @@
 import type { PlayerMatchStats } from "@/features/games/playerStats";
+import { AWARD_STAT_KEYS, getAwardStatLabel, getAwardTotal } from "@/types/game";
 
 function StatTile({ label, value }: { label: string; value: string }) {
   return (
@@ -18,6 +19,12 @@ export function PlayerStatsCard({
   loading: boolean;
   description: string;
 }) {
+  const extraAwards = Object.entries(stats.awards)
+    .filter(([key, count]) => key !== AWARD_STAT_KEYS.mvp && count > 0)
+    .sort(([left], [right]) =>
+      getAwardStatLabel(left).localeCompare(getAwardStatLabel(right)),
+    );
+
   return (
     <div className="rounded-xl border bg-background p-5 shadow-sm">
       <h2 className="text-lg font-semibold">Match stats</h2>
@@ -32,6 +39,14 @@ export function PlayerStatsCard({
           <StatTile label="Wins" value={String(stats.wins)} />
           <StatTile label="Losses" value={String(stats.losses)} />
           <StatTile label="Draws" value={String(stats.draws)} />
+          <StatTile label="Awards" value={String(getAwardTotal(stats.awards))} />
+          <StatTile
+            label="MVP"
+            value={String(stats.awards[AWARD_STAT_KEYS.mvp] ?? 0)}
+          />
+          {extraAwards.map(([key, count]) => (
+            <StatTile key={key} label={getAwardStatLabel(key)} value={String(count)} />
+          ))}
           <StatTile label="Win rate" value={`${stats.winRate}%`} />
           <StatTile label="Loss rate" value={`${stats.lossRate}%`} />
           <StatTile label="Goals / game" value={String(stats.goalsPerGame)} />

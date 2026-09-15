@@ -28,6 +28,7 @@ import {
   GAME_GOAL_KINDS,
   GAME_TEAM_IDS,
   canRecordGameGoals,
+  canUpdateGameResult,
   getGameScore,
   getOpponentTeamId,
   getResultWinner,
@@ -247,6 +248,9 @@ export function GameResultUpdate({
 
       <GameResultBoard
         game={game}
+        participants={participants}
+        canEditAwards={isStaff && canUpdateGameResult(game, now)}
+        awardsUpdatedBy={updatedBy}
         onRemoveGoal={canRecordGoals ? handleRemoveGoal : undefined}
         removingId={removingId}
       />

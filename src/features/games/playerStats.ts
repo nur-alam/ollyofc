@@ -1,12 +1,19 @@
 import {
+  AWARD_STAT_KEYS,
+  getExtraAwards,
+  getGameMvp,
   getGameScore,
   getResultWinner,
   isGuestParticipant,
+  isGuestParticipantId,
+  toAwardStatKey,
   type Game,
   type GameParticipant,
 } from "@/types/game";
 import {
   EMPTY_STAT_TOTALS,
+  isSameAwardCounts,
+  type PlayerAwardCounts,
   type PlayerGameStat,
   type PlayerStatTotals,
 } from "@/types/user";
@@ -20,6 +27,7 @@ export type PlayerMatchStats = PlayerStatTotals & {
 
 export const EMPTY_PLAYER_STATS: PlayerMatchStats = {
   ...EMPTY_STAT_TOTALS,
+  awards: {},
   winRate: 0,
   lossRate: 0,
   drawRate: 0,
@@ -35,6 +43,7 @@ export function toPlayerMatchStats(
 
   return {
     ...totals,
+    awards: { ...totals.awards },
     winRate: Math.round((totals.wins / totals.games) * 100),
     lossRate: Math.round((totals.losses / totals.games) * 100),
     drawRate: Math.round((totals.draws / totals.games) * 100),
@@ -59,6 +68,29 @@ export function buildGameStatContributions(
   const winner = game.result?.winner ?? getResultWinner(score.a, score.b);
   const goals = game.result?.goals ?? [];
   const contributions: Record<string, PlayerGameStat> = {};
+  const awardsByUser = new Map<string, PlayerAwardCounts>();
+
+  const bumpAward = (playerId: string, key: string) => {
+    if (!playerId || isGuestParticipantId(playerId)) {
+      return;
+    }
+
+    const current = awardsByUser.get(playerId) ?? {};
+    current[key] = (current[key] ?? 0) + 1;
+    awardsByUser.set(playerId, current);
+  };
+
+  for (const player of getGameMvp(game).players) {
+    bumpAward(player.playerId, AWARD_STAT_KEYS.mvp);
+  }
+
+  for (const award of getExtraAwards(game.result?.awards)) {
+    const key = toAwardStatKey(award.title, award.kind);
+
+    for (const player of award.players) {
+      bumpAward(player.playerId, key);
+    }
+  }
 
   for (const participant of participants) {
     if (isGuestParticipant(participant)) {
@@ -80,6 +112,12 @@ export function buildGameStatContributions(
       stat.result = winner === participant.teamId ? "win" : "loss";
     }
 
+    const awards = awardsByUser.get(participant.userId);
+
+    if (awards && Object.keys(awards).length) {
+      stat.awards = awards;
+    }
+
     contributions[participant.userId] = stat;
   }
 
@@ -98,6 +136,7 @@ export function isSamePlayerGameStat(
     left.goals === right.goals &&
     left.assists === right.assists &&
     left.result === right.result &&
-    left.teamId === right.teamId
+    left.teamId === right.teamId &&
+    isSameAwardCounts(left.awards, right.awards)
   );
 }
