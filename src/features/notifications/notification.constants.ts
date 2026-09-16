@@ -14,6 +14,15 @@ export const NOTIFY_LINK_PRESETS = [
 
 const APP_PATH_PATTERN = /^\/[A-Za-z0-9/_-]*$/;
 
+export function gameDetailPath(gameId: string) {
+  return `/games/${gameId}`;
+}
+
+export function parseGameIdFromPath(path: string) {
+  const match = path.match(/^\/games\/([^/]+)$/);
+  return match?.[1] ?? "";
+}
+
 export function normalizeAppPath(value: string) {
   const trimmed = value.trim();
 

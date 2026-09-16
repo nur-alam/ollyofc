@@ -3,14 +3,12 @@ import { Loader2Icon } from "lucide-react";
 import toast from "react-hot-toast";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { NotifyLinkField } from "@/features/notifications/components/NotifyLinkField";
 import { NotifyMessageField } from "@/features/notifications/components/NotifyMessageField";
 import { NotifyUserPicker } from "@/features/notifications/components/NotifyUserPicker";
 import {
   isAppNotificationPath,
   normalizeAppPath,
-  NOTIFY_LINK_PRESETS,
 } from "@/features/notifications/notification.constants";
 import type { PushSubscriber } from "@/features/notifications/notification.hooks";
 import {
@@ -139,32 +137,13 @@ export function NotifyUsersPanel({
         />
       </div>
 
-      <div className="mt-4 grid gap-2">
-        <Label htmlFor="user-link">Link</Label>
-        <Input
+      <div className="mt-4">
+        <NotifyLinkField
           id="user-link"
           value={link}
           disabled={sending}
-          placeholder="/games"
-          onChange={(event) => setLink(event.target.value)}
+          onChange={setLink}
         />
-        <div className="flex flex-wrap gap-1.5">
-          {NOTIFY_LINK_PRESETS.map((preset) => (
-            <Button
-              key={preset.path}
-              type="button"
-              variant={path === preset.path ? "default" : "outline"}
-              size="xs"
-              disabled={sending}
-              onClick={() => setLink(preset.path)}
-            >
-              {preset.label}
-            </Button>
-          ))}
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Players open this page when they tap the notification.
-        </p>
       </div>
 
       <Button
