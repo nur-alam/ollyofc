@@ -71,7 +71,7 @@ export function LeaderboardPage() {
 
       {errorMessage && <p className="error-text">{errorMessage}</p>}
 
-      <div className="overflow-x-auto rounded-xl border bg-background shadow-sm">
+      <div className="overflow-x-auto px-2 rounded-xl border bg-background shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>
