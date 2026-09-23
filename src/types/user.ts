@@ -1,6 +1,6 @@
 import type { Timestamp } from "firebase/firestore";
 
-import type { GameTeamId } from "@/types/game";
+import { getAwardTotal, type GameTeamId } from "@/types/game";
 import type { PlayerPosition } from "@/types/player";
 
 export type UserRole = "admin" | "moderator" | "user";
@@ -26,6 +26,8 @@ export type PlayerStatTotals = {
   losses: number;
   draws: number;
   awards: PlayerAwardCounts;
+  /** Career points: (goals × 3) + (assists × 1.7) + (award total × 2). */
+  points: number;
 };
 
 export const EMPTY_STAT_TOTALS: PlayerStatTotals = {
@@ -36,7 +38,44 @@ export const EMPTY_STAT_TOTALS: PlayerStatTotals = {
   losses: 0,
   draws: 0,
   awards: {},
+  points: 0,
 };
+
+/**
+ * Career points from goals, assists, and the award total (MVP included).
+ * Counted in tenths so 1.7 stays exact: (goals × 30 + assists × 17 + awards × 20) / 10.
+ */
+export function careerPoints(totals: {
+  goals: number;
+  assists: number;
+  awards?: PlayerAwardCounts;
+}) {
+  const tenths =
+    totals.goals * 30 +
+    totals.assists * 17 +
+    getAwardTotal(totals.awards) * 20;
+
+  return tenths / 10;
+}
+
+export function formatCareerPoints(points: number) {
+  return (Number.isFinite(points) ? points : 0).toFixed(1);
+}
+
+function withCareerPoints(
+  totals: Omit<PlayerStatTotals, "points">,
+): PlayerStatTotals {
+  return {
+    ...totals,
+    points: careerPoints(totals),
+  };
+}
+
+function parseStoredPoints(value: unknown, fallback: number) {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? value
+    : fallback;
+}
 
 export type UserProfile = {
   id: string;
@@ -164,7 +203,7 @@ export function parseStatTotals(value: unknown): PlayerStatTotals {
 
   const data = value as Record<string, unknown>;
 
-  return {
+  const totals = {
     games: parseCount(data.games),
     goals: parseCount(data.goals),
     assists: parseCount(data.assists),
@@ -172,6 +211,11 @@ export function parseStatTotals(value: unknown): PlayerStatTotals {
     losses: parseCount(data.losses),
     draws: parseCount(data.draws),
     awards: parseAwardCounts(data.awards),
+  };
+
+  return {
+    ...totals,
+    points: parseStoredPoints(data.points, careerPoints(totals)),
   };
 }
 
@@ -182,7 +226,7 @@ export function totalsFromContribution(
     return { ...EMPTY_STAT_TOTALS, awards: {} };
   }
 
-  return {
+  return withCareerPoints({
     games: 1,
     goals: stat.goals,
     assists: stat.assists,
@@ -190,14 +234,14 @@ export function totalsFromContribution(
     losses: stat.result === "loss" ? 1 : 0,
     draws: stat.result === "draw" ? 1 : 0,
     awards: addAwardCounts(undefined, stat.awards),
-  };
+  });
 }
 
 export function addStatTotals(
   left: PlayerStatTotals,
   right: PlayerStatTotals,
 ): PlayerStatTotals {
-  return {
+  return withCareerPoints({
     games: Math.max(0, left.games + right.games),
     goals: Math.max(0, left.goals + right.goals),
     assists: Math.max(0, left.assists + right.assists),
@@ -205,7 +249,7 @@ export function addStatTotals(
     losses: Math.max(0, left.losses + right.losses),
     draws: Math.max(0, left.draws + right.draws),
     awards: addAwardCounts(left.awards, right.awards),
-  };
+  });
 }
 
 export function applyStatDelta(
@@ -226,6 +270,7 @@ export function applyStatDelta(
       awards: Object.fromEntries(
         Object.entries(previousTotals.awards).map(([key, count]) => [key, -count]),
       ),
+      points: 0,
     }),
     totalsFromContribution(next),
   );

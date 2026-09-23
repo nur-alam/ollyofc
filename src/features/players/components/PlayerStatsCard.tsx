@@ -1,5 +1,6 @@
 import type { PlayerMatchStats } from "@/features/games/playerStats";
 import { AWARD_STAT_KEYS, getAwardStatLabel, getAwardTotal } from "@/types/game";
+import { formatCareerPoints } from "@/types/user";
 
 function StatTile({ label, value }: { label: string; value: string }) {
   return (
@@ -34,6 +35,7 @@ export function PlayerStatsCard({
       ) : (
         <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
           <StatTile label="Games" value={String(stats.games)} />
+          <StatTile label="Points" value={formatCareerPoints(stats.points)} />
           <StatTile label="Goals" value={String(stats.goals)} />
           <StatTile label="Assists" value={String(stats.assists)} />
           <StatTile label="Wins" value={String(stats.wins)} />

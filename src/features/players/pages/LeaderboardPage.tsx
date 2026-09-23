@@ -14,8 +14,9 @@ import {
 import { buildLeaderboard } from "@/features/players/leaderboard";
 import { useSquad } from "@/features/players/player.hooks";
 import { cn } from "@/lib/utils";
+import { getAwardTotal } from "@/types/game";
 import { formatPosition } from "@/types/player";
-import { AWARD_STAT_KEYS, getAwardTotal } from "@/types/game";
+import { formatCareerPoints, type PlayerStatTotals } from "@/types/user";
 
 const allPlayers = {
   search: "",
@@ -28,6 +29,14 @@ const medalStyles: Record<number, string> = {
   2: "bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200",
   3: "bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-200",
 };
+
+function formatWinRate(stats: PlayerStatTotals) {
+  if (stats.games <= 0) {
+    return "0%";
+  }
+
+  return `${Math.round((stats.wins / stats.games) * 100)}%`;
+}
 
 function RankBadge({ rank }: { rank: number }) {
   const medal = medalStyles[rank];
@@ -56,32 +65,30 @@ export function LeaderboardPage() {
       <div className="min-w-0">
         <h1 className="text-2xl font-bold tracking-tight">Leaderboard</h1>
         <p className="text-muted-foreground">
-          Ranked by goals, then assists, wins and fewest losses
+          Ranked by points, then awards, then win rate
         </p>
       </div>
 
       {errorMessage && <p className="error-text">{errorMessage}</p>}
 
-      <div className="overflow-x-auto rounded-xl border bg-background shadow-sm">
+      <div className="overflow-x-auto px-2 rounded-xl border bg-background shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead className="w-12">#</TableHead>
               <TableHead>Player</TableHead>
-              <TableHead className="text-right">Games</TableHead>
-              <TableHead className="text-right">Goals</TableHead>
-              <TableHead className="text-right">Assists</TableHead>
-              <TableHead className="text-right">MVP</TableHead>
-              <TableHead className="text-right">Awards</TableHead>
-              <TableHead className="text-right">W</TableHead>
-              <TableHead className="text-right">L</TableHead>
-              <TableHead className="text-right">D</TableHead>
+              <TableHead className="text-center">Games</TableHead>
+              <TableHead className="text-center">Goals</TableHead>
+              <TableHead className="text-center">Assists</TableHead>
+              <TableHead className="text-center">Awards</TableHead>
+              <TableHead className="text-center">Win rate</TableHead>
+              <TableHead className="text-center">Points</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={10} className="py-8 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
                   Loading leaderboard...
                 </TableCell>
               </TableRow>
@@ -122,35 +129,29 @@ export function LeaderboardPage() {
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                  <TableCell className="text-center tabular-nums">
                     {player.stats.games}
                   </TableCell>
-                  <TableCell className="text-right font-semibold tabular-nums">
+                  <TableCell className="text-center tabular-nums">
                     {player.stats.goals}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
+                  <TableCell className="text-center tabular-nums">
                     {player.stats.assists}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {player.stats.awards[AWARD_STAT_KEYS.mvp] ?? 0}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
+                  <TableCell className="text-center tabular-nums">
                     {getAwardTotal(player.stats.awards)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {player.stats.wins}
+                  <TableCell className="text-center tabular-nums">
+                    {formatWinRate(player.stats)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {player.stats.losses}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {player.stats.draws}
+                  <TableCell className="text-center font-semibold tabular-nums">
+                    {formatCareerPoints(player.stats.points)}
                   </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={10} className="py-8 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
                   Nobody has played a finished game yet.
                 </TableCell>
               </TableRow>
