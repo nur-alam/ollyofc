@@ -77,11 +77,12 @@ export function LeaderboardPage() {
             <TableRow>
               <TableHead className="w-12">#</TableHead>
               <TableHead>Player</TableHead>
-              <TableHead className="text-right">Goals</TableHead>
-              <TableHead className="text-right">Assists</TableHead>
-              <TableHead className="text-right">Awards</TableHead>
-              <TableHead className="text-right">Win rate</TableHead>
-              <TableHead className="text-right">Points</TableHead>
+              <TableHead className="text-center">Games</TableHead>
+              <TableHead className="text-center">Goals</TableHead>
+              <TableHead className="text-center">Assists</TableHead>
+              <TableHead className="text-center">Awards</TableHead>
+              <TableHead className="text-center">Win rate</TableHead>
+              <TableHead className="text-center">Points</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -128,19 +129,22 @@ export function LeaderboardPage() {
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
+                  <TableCell className="text-center tabular-nums">
+                    {player.stats.games}
+                  </TableCell>
+                  <TableCell className="text-center tabular-nums">
                     {player.stats.goals}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
+                  <TableCell className="text-center tabular-nums">
                     {player.stats.assists}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
+                  <TableCell className="text-center tabular-nums">
                     {getAwardTotal(player.stats.awards)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
+                  <TableCell className="text-center tabular-nums">
                     {formatWinRate(player.stats)}
                   </TableCell>
-                  <TableCell className="text-right font-semibold tabular-nums">
+                  <TableCell className="text-center font-semibold tabular-nums">
                     {formatCareerPoints(player.stats.points)}
                   </TableCell>
                 </TableRow>
