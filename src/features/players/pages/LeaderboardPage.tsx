@@ -3,6 +3,15 @@ import { useNavigate } from "react-router-dom";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverDescription,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Table,
   TableBody,
@@ -17,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { getAwardTotal } from "@/types/game";
 import { formatPosition } from "@/types/player";
 import { formatCareerPoints, type PlayerStatTotals } from "@/types/user";
+import { InfoIcon } from "lucide-react";
 
 const allPlayers = {
   search: "",
@@ -36,6 +46,56 @@ function formatWinRate(stats: PlayerStatTotals) {
   }
 
   return `${Math.round((stats.wins / stats.games) * 100)}%`;
+}
+
+function PointsInfo() {
+  return (
+    <Popover>
+      <PopoverTrigger
+        render={
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="How points work"
+            className="text-muted-foreground"
+          />
+        }
+      >
+        <InfoIcon />
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-80 gap-3 p-4">
+        <PopoverHeader>
+          <PopoverTitle>How points work</PopoverTitle>
+          <PopoverDescription>
+            Points come from finished games. Awards include MVP.
+          </PopoverDescription>
+        </PopoverHeader>
+        <ul className="space-y-1 text-sm">
+          <li>1 goal = 3 points</li>
+          <li>1 assist = 1.7 points</li>
+          <li>1 award = 2 points</li>
+        </ul>
+        <p className="text-sm">
+          Total points = (Goals × 3) + (Assists × 1.7) + (Awards × 2)
+        </p>
+        <p className="text-sm text-muted-foreground">
+          5 goals, 4 assists, and 2 awards = 15 + 6.8 + 4 = 25.8 points.
+        </p>
+        <div className="space-y-1 text-sm">
+          <p className="font-medium">Ranking</p>
+          <ol className="list-decimal space-y-1 pl-4 text-muted-foreground">
+            <li>Highest points</li>
+            <li>If tied, more awards</li>
+            <li>If still tied, higher win rate</li>
+          </ol>
+          <p className="text-muted-foreground">
+            Players level on all three share a rank.
+          </p>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 function RankBadge({ rank }: { rank: number }) {
@@ -64,9 +124,12 @@ export function LeaderboardPage() {
     <div className="mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-6">
       <div className="min-w-0">
         <h1 className="text-2xl font-bold tracking-tight">Leaderboard</h1>
-        <p className="text-muted-foreground">
-          Ranked by points, then awards, then win rate
-        </p>
+        <div className="flex gap-2">
+          <p className="text-muted-foreground">
+            Ranked by points, then awards, then win rate
+          </p>
+          <PointsInfo />
+        </div>
       </div>
 
       {errorMessage && <p className="error-text">{errorMessage}</p>}
@@ -88,7 +151,7 @@ export function LeaderboardPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
+                <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
                   Loading leaderboard...
                 </TableCell>
               </TableRow>
@@ -151,7 +214,7 @@ export function LeaderboardPage() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
+                <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
                   Nobody has played a finished game yet.
                 </TableCell>
               </TableRow>
