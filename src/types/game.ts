@@ -667,22 +667,32 @@ export function getPlayerGoalCounts(goals: GameGoal[]) {
   );
 }
 
+/** Match points in tenths. A goal is 3 points, an assist is 1.7. */
+function mvpPointsTenths(tally: PlayerGoalTally) {
+  return tally.count * 30 + tally.assists * 17;
+}
+
 /**
- * Rank MVP by goals first, then assists. Anyone matching the leader on both
- * shares the award.
+ * Rank MVP by match points. Anyone level on points shares the award.
+ * A player with no goals and no assists has no points, so they are left out.
  */
 export function getComputedMvpTallies(goals: GameGoal[]): PlayerGoalTally[] {
-  const tallies = getPlayerGoalCounts(goals);
+  const ranked = getPlayerGoalCounts(goals)
+    .map((tally) => ({ tally, tenths: mvpPointsTenths(tally) }))
+    .filter((entry) => entry.tenths > 0)
+    .sort(
+      (left, right) =>
+        right.tenths - left.tenths ||
+        left.tally.scorerName.localeCompare(right.tally.scorerName),
+    );
 
-  if (!tallies.length) {
+  if (!ranked.length) {
     return [];
   }
 
-  const topGoals = tallies[0].count;
-  const goalLeaders = tallies.filter((tally) => tally.count === topGoals);
-  const topAssists = Math.max(...goalLeaders.map((tally) => tally.assists));
+  const top = ranked[0].tenths;
 
-  return goalLeaders.filter((tally) => tally.assists === topAssists);
+  return ranked.filter((entry) => entry.tenths === top).map((entry) => entry.tally);
 }
 
 export type GameMvpDisplay = {
