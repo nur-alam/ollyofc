@@ -67,9 +67,17 @@ export function UpcomingGamesList() {
         </section>
       ) : lastFinishedGame ? (
         <section className="flex flex-col gap-6">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Last Game Result</h1>
-            <p className="text-muted-foreground">Final score from the latest game.</p>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Last Game Result</h1>
+              <p className="text-muted-foreground">Final score from the latest game.</p>
+            </div>
+            <Link
+              to="/games"
+              className={cn(buttonVariants({ variant: "outline" }), "no-underline")}
+            >
+              All games
+            </Link>
           </div>
           <LiveGameCard game={lastFinishedGame} />
         </section>
