@@ -27,6 +27,7 @@ import {
   getGameDisplayTitle,
   getGameListBadge,
   getGameTeamNames,
+  canMarkGamePayment,
   hasGameTeams,
   isMatchClockRunning,
   type Game,
@@ -51,10 +52,12 @@ export function LiveGameCard({
     game.status !== "completed" &&
     game.status !== "cancelled";
   const teamsReady = hasGameTeams(game);
+  const paymentOpen = canMarkGamePayment(game, now);
   const showTeams =
     game.status !== "cancelled" &&
-    (teamsReady || game.teamBuild || game.status !== "completed");
-  const showJoinedList = showTeams && !teamsReady && !game.teamBuild && game.status !== "completed";
+    (teamsReady || game.teamBuild || game.status !== "completed" || paymentOpen);
+  const showJoinedList =
+    showTeams && !teamsReady && !game.teamBuild && game.status !== "completed";
 
   const [addOpen, setAddOpen] = useState(false);
   const [savingId, setSavingId] = useState("");
