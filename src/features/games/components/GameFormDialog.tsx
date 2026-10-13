@@ -41,6 +41,7 @@ const emptyForm: GameInput = {
   mapUrl: "",
   matchDurationMinutes: 90,
   notes: "Keep yourself present in the game",
+  paymentInfo: "",
 };
 
 export function GameFormDialog({
@@ -86,6 +87,7 @@ export function GameFormDialog({
       location: form.location.trim(),
       mapUrl: normalizeGameMapUrl(form.mapUrl),
       notes: form.notes?.trim() || undefined,
+      paymentInfo: form.paymentInfo?.trim() || undefined,
       maxPlayers: form.maxPlayers || undefined,
     });
   };
@@ -290,6 +292,23 @@ export function GameFormDialog({
                 setForm((current) => ({ ...current, notes: event.target.value }))
               }
               placeholder="Bring both kits"
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="game-payment-info">Payment info (optional)</Label>
+            <textarea
+              id="game-payment-info"
+              rows={3}
+              value={form.paymentInfo ?? ""}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  paymentInfo: event.target.value,
+                }))
+              }
+              placeholder="500 BDT to bKash 01XXXXXXXXX. Put your name as the reference."
+              className="min-h-20 w-full resize-y rounded-lg border border-input bg-transparent px-2.5 py-2 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm dark:bg-input/30"
             />
           </div>
 

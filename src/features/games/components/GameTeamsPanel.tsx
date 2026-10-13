@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import toast from "react-hot-toast";
 import { ArrowLeftIcon, ArrowRightIcon, PencilIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +13,7 @@ import {
   sortTeamPlayers,
 } from "@/features/games/buildTeams";
 import { EditGuestDialog } from "@/features/games/components/EditGuestDialog";
+import { GamePaymentNote } from "@/features/games/components/GamePaymentNote";
 import { TeamFireworks } from "@/features/games/components/TeamFireworks";
 import type { GuestJoinInput } from "@/features/games/components/JoinUsersDialog";
 import {
@@ -21,6 +23,7 @@ import {
   moveParticipantTeam,
   renameGameTeam,
   saveGeneratedTeams,
+  setParticipantPaid,
   startTeamBuild,
   updateGuestInGame,
 } from "@/features/games/game.service";
@@ -33,6 +36,7 @@ import {
   GAME_TEAM_IDS,
   getGameScore,
   canEditGameGuests,
+  canMarkGamePayment,
   canSwapGameTeams,
   getGameTeamNames,
   getTeamName,
@@ -189,6 +193,8 @@ export function GameTeamsPanel({
   const isStaff = profile ? isStaffRole(profile.role) : false;
   const usersById = useUserMap();
   const [nowMs, setNowMs] = useState(() => getServerNowMs());
+  const [tab, setTab] = useState<"teams" | "payment">("teams");
+  const [savingPaidId, setSavingPaidId] = useState("");
   const [saving, setSaving] = useState(false);
   const [canceling, setCanceling] = useState(false);
   const [movingId, setMovingId] = useState("");
@@ -215,6 +221,8 @@ export function GameTeamsPanel({
   );
 
   const teamsReady = hasGameTeams(game);
+  const paymentOpen = canMarkGamePayment(game, new Date(nowMs));
+  const showPaymentTab = paymentOpen && tab === "payment";
   const canSwap = isStaff && teamsReady && canSwapGameTeams(game);
   const canEditGuest = isStaff && canEditGameGuests(game);
   const score = getGameScore(game);
@@ -417,10 +425,74 @@ export function GameTeamsPanel({
     (participant) => !visibleAssignments[participant.userId],
   );
 
+  const canTogglePaid = (participant: GameParticipant) => {
+    if (!profile) {
+      return false;
+    }
+
+    if (isStaff) {
+      return true;
+    }
+
+    return participant.userId === profile.id && !isGuestParticipant(participant);
+  };
+
+  const handleSetPaid = async (participant: GameParticipant) => {
+    if (!profile || !canTogglePaid(participant)) {
+      return;
+    }
+
+    const paid = !participant.paid;
+    setSavingPaidId(participant.userId);
+
+    try {
+      await setParticipantPaid(game.id, participant.userId, paid, profile.id);
+      toast.success(paid ? "Marked as paid" : "Payment cleared");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Could not update payment."));
+    } finally {
+      setSavingPaidId("");
+    }
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-medium">Teams</h3>
+        {paymentOpen ? (
+          <div className="flex items-center gap-3" role="tablist" aria-label="Match sections">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "teams"}
+              className={cn(
+                "border-b-2 pb-1 text-sm font-medium",
+                tab === "teams"
+                  ? "border-foreground text-foreground"
+                  : "border-transparent text-muted-foreground",
+              )}
+              onClick={() => setTab("teams")}
+            >
+              Teams
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "payment"}
+              className={cn(
+                "border-b-2 pb-1 text-sm font-medium",
+                tab === "payment"
+                  ? "border-foreground text-foreground"
+                  : "border-transparent text-muted-foreground",
+              )}
+              onClick={() => setTab("payment")}
+            >
+              Payment
+            </button>
+          </div>
+        ) : (
+          <h3 className="text-sm font-medium">Teams</h3>
+        )}
+        {!showPaymentTab && (
         <div className="flex flex-wrap items-center justify-end gap-2">
           {progress?.phase === "countdown" ? (
             <>
@@ -480,8 +552,43 @@ export function GameTeamsPanel({
             </>
           )}
         </div>
+        )}
       </div>
 
+      {showPaymentTab ? (
+        <div>
+          <GamePaymentNote game={game} participants={participants} />
+          {resolvedParticipants.length ? (
+            <ul className="mt-3 grid grid-cols-2 overflow-hidden rounded-lg border">
+              {resolvedParticipants.map((participant) => {
+                const canToggle = canTogglePaid(participant);
+                const savingThis = savingPaidId === participant.userId;
+
+                return (
+                  <li
+                    key={participant.userId}
+                    className="flex items-center gap-2 border-r border-b p-3"
+                  >
+                    <PlayerLine participant={participant} className="min-w-0 flex-1" />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={participant.paid ? "default" : "outline"}
+                      disabled={!canToggle || savingThis}
+                      onClick={() => void handleSetPaid(participant)}
+                    >
+                      {savingThis ? "Saving..." : participant.paid ? "Paid" : "Pay"}
+                    </Button>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="mt-3 text-sm text-muted-foreground">No one has joined yet.</p>
+          )}
+        </div>
+      ) : (
+        <>
       {actionError && <p className="error-text mt-2">{actionError}</p>}
 
       {isAnimating ? (
@@ -700,6 +807,8 @@ export function GameTeamsPanel({
               </ul>
             </div>
           )}
+        </>
+      )}
         </>
       )}
 

@@ -206,6 +206,8 @@ export type Game = {
   maxPlayers?: number;
   matchDurationMinutes: number;
   notes?: string;
+  /** How to pay (bKash, bank, cash). Blank means this game has no payment UI. */
+  paymentInfo?: string;
   teamCount: 2;
   teams?: GameTeams;
   teamBuild?: GameTeamBuild;
@@ -230,6 +232,11 @@ export type GameParticipant = {
   teamId?: GameTeamId;
   joinedBy: string;
   joinedAt?: Timestamp;
+  /** Set when this player has confirmed they paid. */
+  paid?: boolean;
+  paidAt?: Timestamp;
+  /** Uid of the player or staff member who confirmed. */
+  paidBy?: string;
 };
 
 export function isGuestParticipant(
@@ -280,6 +287,7 @@ export type GameInput = {
   maxPlayers?: number;
   matchDurationMinutes: number;
   notes?: string;
+  paymentInfo?: string;
 };
 
 export const GAME_TEAM_IDS: GameTeamId[] = ["a", "b"];
@@ -938,7 +946,26 @@ export function gameToInput(game: Game): GameInput {
     maxPlayers: game.maxPlayers,
     matchDurationMinutes: game.matchDurationMinutes,
     notes: game.notes ?? "",
+    paymentInfo: game.paymentInfo ?? "",
   };
+}
+
+export function hasGamePayment(game: Pick<Game, "paymentInfo">) {
+  return Boolean(game.paymentInfo?.trim());
+}
+
+/**
+ * Payment instructions, the paid count, and confirm buttons stay hidden until
+ * the match time has ended. A completed game counts as ended. A cancelled game does not.
+ */
+export function canMarkGamePayment(game: Game, now = getServerNow()) {
+  return hasGamePayment(game) && hasMatchEnded(game, now);
+}
+
+export function countPaidParticipants(
+  participants: Pick<GameParticipant, "paid">[],
+) {
+  return participants.filter((participant) => participant.paid).length;
 }
 
 export function sortGames(games: Game[], now = getServerNow()) {

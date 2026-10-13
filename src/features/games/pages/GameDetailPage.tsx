@@ -35,6 +35,7 @@ import { isStaffRole } from "@/types/user";
 import type { UserProfile } from "@/types/user";
 import {
   canChangeGamePlayStatus,
+  canMarkGamePayment,
   canRemoveGamePlayers,
   canEditGameGuests,
   canShowGameResult,
@@ -348,7 +349,7 @@ export function GameDetailPage() {
         </section>
       )}
 
-      {(upcoming || inPlay || hasGameTeams(game) || game.teamBuild) && (
+      {(upcoming || inPlay || hasGameTeams(game) || game.teamBuild || canMarkGamePayment(game, now)) && (
         <section className="rounded-xl border bg-background p-5 shadow-sm">
           <GameTeamsPanel
             game={game}

@@ -40,7 +40,7 @@ src/pages/        thin route pages
 src/types/        shared types (game, player, user)
 api/              Vercel functions: clock, image proxy, push, visitors
 cloudflare/       kickoff reminder worker
-docs/             domain notes (stats, awards, completed games, PWA, push)
+docs/             domain notes (stats, awards, completed games, payment, PWA, push)
 ```
 
 Import with the `@/` alias (`@/features/...`). Feature modules follow `*.service.ts` (Firestore reads and writes), `*.hooks.ts` (subscriptions and derived state), `components/`, and `pages/`.
@@ -62,6 +62,8 @@ Career stats are written only when a game is completed, then re-synced on reopen
 Points live on `users/{id}.stats.points`: `(goals × 3) + (assists × 1.7) + (award total × 2)`. Compute in tenths so 1.7 stays exact: `(goals × 30 + assists × 17 + awardTotal × 20) / 10`. Format to one decimal only in the UI. `careerPoints` in `src/types/user.ts` is the source of that formula.
 
 Match awards are `result.awards`. MVP (`kind: "mvp"`) ranks by goals, then assists, until an admin locks it. Extra awards are `kind: "custom"`. See `docs/awards.md`.
+
+Payment is manual. Staff can put bKash or bank instructions on a game, and joined players (or staff) mark that they have paid. See `docs/payment.md`.
 
 Times are Bangladesh local time (`src/lib/timezone.ts`). The match clock uses server time from `/api/time` (`src/lib/clock.ts`).
 

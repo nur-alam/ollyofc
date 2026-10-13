@@ -546,6 +546,10 @@ export function mapGame(id: string, data: DocumentData): Game {
     matchDurationMinutes:
       typeof data.matchDurationMinutes === "number" ? data.matchDurationMinutes : 90,
     notes: typeof data.notes === "string" && data.notes.trim() ? data.notes : undefined,
+    paymentInfo:
+      typeof data.paymentInfo === "string" && data.paymentInfo.trim()
+        ? data.paymentInfo
+        : undefined,
     teamCount: 2,
     teams: mapTeams(data.teams),
     teamBuild: mapTeamBuild(data.teamBuild),
@@ -619,6 +623,7 @@ export async function createGame(
     maxPlayers: input.maxPlayers ? Math.round(input.maxPlayers) : 0,
     matchDurationMinutes: Math.round(input.matchDurationMinutes),
     notes: input.notes?.trim() || "",
+    paymentInfo: input.paymentInfo?.trim() || "",
     teamCount: 2,
     createdBy,
     createdAt: serverTimestamp(),
@@ -640,6 +645,7 @@ export async function updateGame(gameId: string, input: GameInput): Promise<void
     maxPlayers: input.maxPlayers ? Math.round(input.maxPlayers) : 0,
     matchDurationMinutes: Math.round(input.matchDurationMinutes),
     notes: input.notes?.trim() || "",
+    paymentInfo: input.paymentInfo?.trim() || "",
     updatedAt: serverTimestamp(),
   });
 }
@@ -656,6 +662,9 @@ export function mapParticipant(id: string, data: DocumentData): GameParticipant 
     teamId: mapTeamId(data.teamId),
     joinedBy: typeof data.joinedBy === "string" ? data.joinedBy : "",
     joinedAt: data.joinedAt instanceof Timestamp ? data.joinedAt : undefined,
+    paid: data.paid === true ? true : undefined,
+    paidAt: data.paidAt instanceof Timestamp ? data.paidAt : undefined,
+    paidBy: typeof data.paidBy === "string" && data.paidBy ? data.paidBy : undefined,
   };
 }
 
@@ -1014,6 +1023,31 @@ export async function leaveGame(
 
   await deleteDoc(doc(db, "games", gameId, "participants", userId));
   await syncGameStats(gameId);
+}
+
+/** Records that a joined player has paid, or clears that confirmation. */
+export async function setParticipantPaid(
+  gameId: string,
+  participantId: string,
+  paid: boolean,
+  paidBy: string,
+): Promise<void> {
+  const participantRef = doc(db, "games", gameId, "participants", participantId);
+
+  if (paid) {
+    await updateDoc(participantRef, {
+      paid: true,
+      paidAt: Timestamp.fromMillis(getServerNowMs()),
+      paidBy,
+    });
+    return;
+  }
+
+  await updateDoc(participantRef, {
+    paid: deleteField(),
+    paidAt: deleteField(),
+    paidBy: deleteField(),
+  });
 }
 
 export async function saveGeneratedTeams(
