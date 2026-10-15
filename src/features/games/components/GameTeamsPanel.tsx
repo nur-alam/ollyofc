@@ -531,7 +531,7 @@ export function GameTeamsPanel({
               {resolvedParticipants.map((participant) => (
                 <li
                   key={participant.userId}
-                  className="flex items-center gap-2 border-r border-b p-3"
+                  className="flex items-center gap-2 border-r border-b py-3 px-2"
                 >
                   <PlayerLine participant={participant} className="min-w-0 flex-1" />
                   <ParticipantPaymentControl
