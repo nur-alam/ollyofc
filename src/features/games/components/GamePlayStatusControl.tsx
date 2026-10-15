@@ -45,7 +45,9 @@ export function GamePlayStatusControl({
       setPending(null);
       toast.success(
         pending === "active"
-          ? "Game reopened. Score can be edited."
+          ? game.status === "upcoming"
+            ? "Game is active. You can enter the score."
+            : "Game reopened. Score can be edited."
           : "Game marked completed",
       );
     } catch (error) {
@@ -73,7 +75,9 @@ export function GamePlayStatusControl({
           >
             <SelectTrigger className="w-full min-w-40">
               <SelectValue>
-                {GAME_PLAY_STATUS_LABELS[game.status as GamePlayStatus]}
+                {game.status === "active" || game.status === "completed"
+                  ? GAME_PLAY_STATUS_LABELS[game.status]
+                  : "Upcoming"}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -86,7 +90,9 @@ export function GamePlayStatusControl({
           </Select>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          Set to Active to edit the score, then mark Completed again.
+          {game.status === "upcoming"
+            ? "Set to Active to enter the score, then mark Completed."
+            : "Set to Active to edit the score, then mark Completed again."}
         </p>
       </div>
 
@@ -106,11 +112,17 @@ export function GamePlayStatusControl({
             onClick={(event) => event.stopPropagation()}
           >
             <h2 className="text-lg font-semibold">
-              {pending === "active" ? "Reopen game" : "Mark completed"}
+              {pending === "active"
+                ? game.status === "upcoming"
+                  ? "Set game active"
+                  : "Reopen game"
+                : "Mark completed"}
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
               {pending === "active"
-                ? "Set this match back to active so goals can be added or removed. Player stats will update again when you mark it completed."
+                ? game.status === "upcoming"
+                  ? "Set this match to active so goals can be added. Player stats update when you mark it completed."
+                  : "Set this match back to active so goals can be added or removed. Player stats will update again when you mark it completed."
                 : `End this match at ${getTeamName(game, "a")} ${score.a}–${score.b} ${getTeamName(game, "b")}? The result will be final until an admin reopens it.`}
             </p>
             <div className="mt-6 flex justify-end gap-2">
@@ -126,7 +138,9 @@ export function GamePlayStatusControl({
                 {saving
                   ? "Saving..."
                   : pending === "active"
-                    ? "Reopen game"
+                    ? game.status === "upcoming"
+                      ? "Set active"
+                      : "Reopen game"
                     : "Mark completed"}
               </Button>
             </div>

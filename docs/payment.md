@@ -6,17 +6,21 @@ What to write is free text: the amount, a bKash number, bank details, and what t
 
 ## Who has paid
 
-Each joined player is a document under `games/{id}/participants/{id}`. Confirming sets:
+Each joined player is a document under `games/{id}/participants/{id}`. A player does not mark themselves paid.
 
-- `paid: true`
-- `paidAt` — server time
-- `paidBy` — the uid of the person who confirmed (the player, or a staff member)
+Clicking **Pay** opens a box for the bKash transaction ID. Submitting sets:
 
-Clearing removes those three fields.
+- `paymentStatus: "pending"`
+- `transactionId` — the ID they entered, at least 5 characters
+- `paymentSubmittedAt` — when they submitted
 
-A signed-in player who joined the game can mark or undo their own payment. Guests have no account, so they cannot confirm.
+The row then says **Pending**. A moderator or admin checks that ID in the bKash app. **Paid** means the money arrived. **Cancelled** means it did not. That writes `paymentStatus` to `paid` or `cancelled`, plus `paidBy` (the staff uid) and `paidAt`. The list updates as soon as the document changes.
 
-After the match time has ended, the teams panel gains a **Payment** tab next to **Teams**. Teams stays selected. The Payment tab shows the instructions, a count such as **8 of 12 paid**, then the joined players two to a row. Each row has a **Pay** button. A signed-in player clicks their own. Staff can click any row, including guests. The button says **Pay** in the outline style until that player is confirmed, then **Paid** in the default style. Clicking it again clears the confirmation. The team list and the joined-players list do not show payment.
+If staff mark it **Cancelled**, that player’s button goes back to **Pay**. They can submit a new transaction ID, and the row becomes **Pending** again. Other people still see **Cancelled** until that happens. A player cannot set their own status to paid. Guests have no account, so staff can enter an ID for them and then verify it.
+
+Older rows that only have `paid: true` still show as **Paid**.
+
+After the match time has ended, the teams panel gains a **Payment** tab next to **Teams**. Teams stays selected. The Payment tab shows the instructions, a count such as **8 of 12 paid**, then the joined players two to a row. Each row shows **Pay**, **Pending**, **Paid**, or **Cancelled**. The team list and the joined-players list do not show payment.
 
 Those stay hidden until the match time has ended: scheduled start plus the duration, or the kick-off clock if the match was started. A completed game shows the tab as well. A cancelled game does not. Staff can still write the instructions when they create or edit the game, before that time.
 

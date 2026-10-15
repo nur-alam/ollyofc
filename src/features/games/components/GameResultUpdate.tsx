@@ -30,11 +30,11 @@ import {
   canRecordGameGoals,
   canUpdateGameResult,
   getGameScore,
+  hasKickoffPassed,
   getOpponentTeamId,
   getResultWinner,
   getTeamName,
   hasMatchEnded,
-  isGameInPlay,
   isTossFlipping,
   isTossLanded,
   formatParticipantName,
@@ -71,8 +71,9 @@ export function GameResultUpdate({
   const isStaff = useAuthStore((state) =>
     state.profile ? isStaffRole(state.profile.role) : false,
   );
-  const canRecordGoals = canRecordGameGoals(game);
-  const canStart = game.status === "upcoming" && isGameInPlay(game, now);
+  const canRecordGoals = canRecordGameGoals(game, now);
+  const canStart = game.status === "upcoming" && hasKickoffPassed(game, now);
+  const canFinish = game.status === "active";
   const tossing = isTossFlipping(game.toss, now);
   const tossed = isTossLanded(game.toss, now);
   const score = getGameScore(game);
@@ -198,10 +199,7 @@ export function GameResultUpdate({
     }
   };
 
-  const showActions =
-    canStart ||
-    canShareResult ||
-    (game.status === "active" && isGameInPlay(game, now));
+  const showActions = canStart || canShareResult || canFinish;
 
   return (
     <div className="space-y-5">
@@ -222,7 +220,7 @@ export function GameResultUpdate({
             {saving ? "Starting..." : "Kick off"}
           </Button>
         )}
-        {game.status === "active" && isGameInPlay(game, now) && (
+        {canFinish && (
           <Button
             type="button"
             variant="outline"

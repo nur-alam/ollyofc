@@ -43,16 +43,21 @@ import type {
 } from "@/types/game";
 import {
   canPlayerLeaveGame,
+  canRecordGameGoals,
   compareParticipantsByJoinOrder,
   DEFAULT_TEAM_NAMES,
   GAME_LOCATIONS,
   getComputedMvpTallies,
   getExtraAwards,
+  getGameStartAt,
   getResultWinner,
+  hasMatchEnded,
   getStoredMvpAward,
   isGuestParticipant,
   isGuestParticipantId,
   isMvpAward,
+  MAX_PAYMENT_TRANSACTION_ID_LENGTH,
+  MIN_PAYMENT_TRANSACTION_ID_LENGTH,
   isTossLanded,
   MVP_AWARD_ID,
   MVP_AWARD_TITLE,
@@ -662,6 +667,18 @@ export function mapParticipant(id: string, data: DocumentData): GameParticipant 
     teamId: mapTeamId(data.teamId),
     joinedBy: typeof data.joinedBy === "string" ? data.joinedBy : "",
     joinedAt: data.joinedAt instanceof Timestamp ? data.joinedAt : undefined,
+    transactionId:
+      typeof data.transactionId === "string" && data.transactionId.trim()
+        ? data.transactionId.trim()
+        : undefined,
+    paymentStatus:
+      data.paymentStatus === "pending" ||
+      data.paymentStatus === "paid" ||
+      data.paymentStatus === "cancelled"
+        ? data.paymentStatus
+        : undefined,
+    paymentSubmittedAt:
+      data.paymentSubmittedAt instanceof Timestamp ? data.paymentSubmittedAt : undefined,
     paid: data.paid === true ? true : undefined,
     paidAt: data.paidAt instanceof Timestamp ? data.paidAt : undefined,
     paidBy: typeof data.paidBy === "string" && data.paidBy ? data.paidBy : undefined,
@@ -1025,28 +1042,41 @@ export async function leaveGame(
   await syncGameStats(gameId);
 }
 
-/** Records that a joined player has paid, or clears that confirmation. */
-export async function setParticipantPaid(
+/** Player submits a bKash transaction ID. Staff still have to mark it paid. */
+export async function submitParticipantPayment(
   gameId: string,
   participantId: string,
-  paid: boolean,
-  paidBy: string,
+  transactionId: string,
 ): Promise<void> {
-  const participantRef = doc(db, "games", gameId, "participants", participantId);
+  const trimmed = transactionId.trim();
 
-  if (paid) {
-    await updateDoc(participantRef, {
-      paid: true,
-      paidAt: Timestamp.fromMillis(getServerNowMs()),
-      paidBy,
-    });
-    return;
+  if (trimmed.length < MIN_PAYMENT_TRANSACTION_ID_LENGTH) {
+    throw new Error("Enter at least 5 characters of the transaction ID.");
   }
 
-  await updateDoc(participantRef, {
+  if (trimmed.length > MAX_PAYMENT_TRANSACTION_ID_LENGTH) {
+    throw new Error("That transaction ID is too long.");
+  }
+
+  await updateDoc(doc(db, "games", gameId, "participants", participantId), {
+    paymentStatus: "pending",
+    transactionId: trimmed,
+    paymentSubmittedAt: Timestamp.fromMillis(getServerNowMs()),
+  });
+}
+
+/** Staff confirm or reject a submitted payment after checking bKash. */
+export async function reviewParticipantPayment(
+  gameId: string,
+  participantId: string,
+  status: "paid" | "cancelled",
+  reviewedBy: string,
+): Promise<void> {
+  await updateDoc(doc(db, "games", gameId, "participants", participantId), {
+    paymentStatus: status,
     paid: deleteField(),
-    paidAt: deleteField(),
-    paidBy: deleteField(),
+    paidAt: Timestamp.fromMillis(getServerNowMs()),
+    paidBy: reviewedBy,
   });
 }
 
@@ -1191,7 +1221,12 @@ export async function startGame(gameId: string, updatedBy: string): Promise<void
     extrasFromResult(game.result),
   );
   await syncServerClock();
-  const startedAtMs = getServerNowMs();
+  const nowMs = getServerNowMs();
+  const scheduledStartMs = getGameStartAt(game).getTime();
+  const scheduledEndMs = scheduledStartMs + game.matchDurationMinutes * 60 * 1000;
+  // A kick off after the scheduled window records the match that already happened.
+  // It does not start a new live clock.
+  const startedAtMs = nowMs >= scheduledEndMs ? scheduledStartMs : nowMs;
 
   await updateDoc(doc(db, "games", gameId), {
     status: "active",
@@ -1220,7 +1255,11 @@ export async function setGamePlayStatus(
     throw new Error("Game not found.");
   }
 
-  if (game.status !== "active" && game.status !== "completed") {
+  if (
+    game.status !== "active" &&
+    game.status !== "completed" &&
+    !(game.status === "upcoming" && hasMatchEnded(game))
+  ) {
     throw new Error("Only active or completed games can change status.");
   }
 
@@ -1234,8 +1273,20 @@ export async function setGamePlayStatus(
     extrasFromResult(game.result),
   );
 
+  const startedAtMs = getGameStartAt(game).getTime();
+  const openingLate =
+    status === "active" &&
+    game.status === "upcoming" &&
+    !(typeof game.startedAtMs === "number" && game.startedAtMs > 0);
+
   await updateDoc(doc(db, "games", gameId), {
     status,
+    ...(openingLate
+      ? {
+          startedAt: Timestamp.fromMillis(startedAtMs),
+          startedAtMs,
+        }
+      : {}),
     result: {
       ...result,
       updatedAt: serverTimestamp(),
@@ -1273,8 +1324,8 @@ export async function addGameGoal(
     throw new Error("This game could not be found.");
   }
 
-  if (game.status !== "active") {
-    throw new Error("Start the game before adding goals.");
+  if (!canRecordGameGoals(game)) {
+    throw new Error("This game is not open for scoring.");
   }
 
   const kind = input.kind ?? "player";

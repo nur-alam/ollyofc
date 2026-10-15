@@ -26,3 +26,9 @@ Staff: Edit date, time, location, notes from the games list.
 Admin only: Delete the game.
 Staff: still Add player on the game detail page (join is not blocked for completed).
 Admin only: reopen the match back to active, which unblocks swaps, removals, and goal edits.
+
+A match that was never kicked off
+
+The list badge follows the clock. After the scheduled start plus the duration, the badge says Completed even while Firestore status is still upcoming. That happens if staff built teams and never pressed Start game, or pressed Start game and never pressed Kick off.
+
+Staff can still press Start game and Kick off after that time, and can enter the score without those clicks. An admin can set the match to Active or Completed from the status dropdown. Kick off after the window does not start a new live clock; it keeps the scheduled time. Mark Completed when the score is in so career stats update.
