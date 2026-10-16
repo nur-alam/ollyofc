@@ -232,12 +232,49 @@ export type GameParticipant = {
   teamId?: GameTeamId;
   joinedBy: string;
   joinedAt?: Timestamp;
-  /** Set when this player has confirmed they paid. */
+  /** bKash transaction ID submitted by the player. Staff check it before marking paid. */
+  transactionId?: string;
+  paymentStatus?: GamePaymentStatus;
+  /** When the player submitted the transaction ID. */
+  paymentSubmittedAt?: Timestamp;
+  /**
+   * Older games stored only this flag. New payments use `paymentStatus`.
+   * A true value with no status still counts as paid.
+   */
   paid?: boolean;
   paidAt?: Timestamp;
-  /** Uid of the player or staff member who confirmed. */
+  /** Uid of the staff member who marked this paid or cancelled. */
   paidBy?: string;
 };
+
+export const MIN_PAYMENT_TRANSACTION_ID_LENGTH = 5;
+export const MAX_PAYMENT_TRANSACTION_ID_LENGTH = 120;
+
+export const GAME_PAYMENT_STATUSES = ["pending", "paid", "cancelled"] as const;
+
+export type GamePaymentStatus = (typeof GAME_PAYMENT_STATUSES)[number];
+
+export const GAME_PAYMENT_STATUS_LABELS: Record<GamePaymentStatus | "unpaid", string> = {
+  unpaid: "Pay",
+  pending: "Pending",
+  paid: "Paid",
+  cancelled: "Cancelled",
+};
+
+export function isGamePaymentStatus(value: unknown): value is GamePaymentStatus {
+  return value === "pending" || value === "paid" || value === "cancelled";
+}
+
+/** Pending and cancelled stay visible. Older paid flags still count as paid. */
+export function getParticipantPaymentStatus(
+  participant: Pick<GameParticipant, "paymentStatus" | "paid">,
+): GamePaymentStatus | "unpaid" {
+  if (isGamePaymentStatus(participant.paymentStatus)) {
+    return participant.paymentStatus;
+  }
+
+  return participant.paid ? "paid" : "unpaid";
+}
 
 export function isGuestParticipant(
   participant: Pick<GameParticipant, "kind" | "userId">,
@@ -536,8 +573,17 @@ export function isMatchClockRunning(game: Game, now = getServerNow()) {
   return game.status === "active" && isGameInPlay(game, now);
 }
 
-export function canRecordGameGoals(game: Game) {
-  return game.status === "active";
+/**
+ * Goals can be entered while the match is active, and also after the scheduled
+ * time has ended even if nobody pressed kick off. A finished or cancelled
+ * match stays closed until an admin sets it back to active.
+ */
+export function canRecordGameGoals(game: Game, now = getServerNow()) {
+  if (game.status === "active") {
+    return true;
+  }
+
+  return game.status === "upcoming" && hasMatchEnded(game, now);
 }
 
 /**
@@ -880,8 +926,12 @@ export const GAME_PLAY_STATUS_LABELS: Record<GamePlayStatus, string> = {
   completed: "Completed",
 };
 
-export function canChangeGamePlayStatus(game: Game) {
-  return game.status === "active" || game.status === "completed";
+export function canChangeGamePlayStatus(game: Game, now = getServerNow()) {
+  if (game.status === "active" || game.status === "completed") {
+    return true;
+  }
+
+  return game.status === "upcoming" && hasMatchEnded(game, now);
 }
 
 export function formatGameDate(game: Pick<Game, "date">) {
@@ -963,9 +1013,11 @@ export function canMarkGamePayment(game: Game, now = getServerNow()) {
 }
 
 export function countPaidParticipants(
-  participants: Pick<GameParticipant, "paid">[],
+  participants: Pick<GameParticipant, "paymentStatus" | "paid">[],
 ) {
-  return participants.filter((participant) => participant.paid).length;
+  return participants.filter(
+    (participant) => getParticipantPaymentStatus(participant) === "paid",
+  ).length;
 }
 
 export function sortGames(games: Game[], now = getServerNow()) {

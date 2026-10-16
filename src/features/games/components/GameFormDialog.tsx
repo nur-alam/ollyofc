@@ -253,7 +253,7 @@ export function GameFormDialog({
               <Input
                 id="game-duration"
                 type="number"
-                min={10}
+                min={2}
                 max={180}
                 value={form.matchDurationMinutes}
                 onChange={(event) =>

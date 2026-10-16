@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import toast from "react-hot-toast";
 import { ArrowLeftIcon, ArrowRightIcon, PencilIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +13,7 @@ import {
 } from "@/features/games/buildTeams";
 import { EditGuestDialog } from "@/features/games/components/EditGuestDialog";
 import { GamePaymentNote } from "@/features/games/components/GamePaymentNote";
+import { ParticipantPaymentControl } from "@/features/games/components/ParticipantPaymentControl";
 import { TeamFireworks } from "@/features/games/components/TeamFireworks";
 import type { GuestJoinInput } from "@/features/games/components/JoinUsersDialog";
 import {
@@ -23,7 +23,6 @@ import {
   moveParticipantTeam,
   renameGameTeam,
   saveGeneratedTeams,
-  setParticipantPaid,
   startTeamBuild,
   updateGuestInGame,
 } from "@/features/games/game.service";
@@ -194,7 +193,6 @@ export function GameTeamsPanel({
   const usersById = useUserMap();
   const [nowMs, setNowMs] = useState(() => getServerNowMs());
   const [tab, setTab] = useState<"teams" | "payment">("teams");
-  const [savingPaidId, setSavingPaidId] = useState("");
   const [saving, setSaving] = useState(false);
   const [canceling, setCanceling] = useState(false);
   const [movingId, setMovingId] = useState("");
@@ -425,36 +423,6 @@ export function GameTeamsPanel({
     (participant) => !visibleAssignments[participant.userId],
   );
 
-  const canTogglePaid = (participant: GameParticipant) => {
-    if (!profile) {
-      return false;
-    }
-
-    if (isStaff) {
-      return true;
-    }
-
-    return participant.userId === profile.id && !isGuestParticipant(participant);
-  };
-
-  const handleSetPaid = async (participant: GameParticipant) => {
-    if (!profile || !canTogglePaid(participant)) {
-      return;
-    }
-
-    const paid = !participant.paid;
-    setSavingPaidId(participant.userId);
-
-    try {
-      await setParticipantPaid(game.id, participant.userId, paid, profile.id);
-      toast.success(paid ? "Marked as paid" : "Payment cleared");
-    } catch (error) {
-      toast.error(getErrorMessage(error, "Could not update payment."));
-    } finally {
-      setSavingPaidId("");
-    }
-  };
-
   return (
     <div>
       <div className="flex items-center justify-between gap-3">
@@ -560,28 +528,20 @@ export function GameTeamsPanel({
           <GamePaymentNote game={game} participants={participants} />
           {resolvedParticipants.length ? (
             <ul className="mt-3 grid grid-cols-2 overflow-hidden rounded-lg border">
-              {resolvedParticipants.map((participant) => {
-                const canToggle = canTogglePaid(participant);
-                const savingThis = savingPaidId === participant.userId;
-
-                return (
-                  <li
-                    key={participant.userId}
-                    className="flex items-center gap-2 border-r border-b p-3"
-                  >
-                    <PlayerLine participant={participant} className="min-w-0 flex-1" />
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={participant.paid ? "default" : "outline"}
-                      disabled={!canToggle || savingThis}
-                      onClick={() => void handleSetPaid(participant)}
-                    >
-                      {savingThis ? "Saving..." : participant.paid ? "Paid" : "Pay"}
-                    </Button>
-                  </li>
-                );
-              })}
+              {resolvedParticipants.map((participant) => (
+                <li
+                  key={participant.userId}
+                  className="flex items-center gap-2 border-r border-b py-3 px-2"
+                >
+                  <PlayerLine participant={participant} className="min-w-0 flex-1" />
+                  <ParticipantPaymentControl
+                    gameId={game.id}
+                    participant={participant}
+                    isStaff={isStaff}
+                    profileId={profile?.id}
+                  />
+                </li>
+              ))}
             </ul>
           ) : (
             <p className="mt-3 text-sm text-muted-foreground">No one has joined yet.</p>

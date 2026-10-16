@@ -282,7 +282,7 @@ export function GameDetailPage() {
             <dd className="mt-1 font-medium">{game.notes}</dd>
           </div>
         )}
-        {isAdmin && profile && canChangeGamePlayStatus(game) ? (
+        {isAdmin && profile && canChangeGamePlayStatus(game, now) ? (
           <div className="sm:col-span-2 lg:col-span-3">
             <GamePlayStatusControl game={game} updatedBy={profile.id} />
           </div>

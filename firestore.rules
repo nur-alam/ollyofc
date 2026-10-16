@@ -105,24 +105,25 @@ service cloud.firestore {
       }
     }
 
-    // A signed-in player may set or clear only their own paid flag.
-    // Missing kind means a normal player. Guests are marked kind guest.
-    function isOwnParticipantPaymentUpdate(participantId) {
+    // A player may submit their own bKash transaction ID, which stays pending.
+    // They cannot set paid or cancelled. Staff verify those.
+    function isOwnParticipantPaymentSubmit(participantId) {
       return isSignedIn()
         && request.auth.uid == participantId
         && resource.data.get('kind', 'user') != 'guest'
-        && request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['paid', 'paidAt', 'paidBy'])
         && (
           (
-            request.resource.data.keys().hasAll(['paid', 'paidAt', 'paidBy'])
-            && request.resource.data.paid == true
-            && request.resource.data.paidBy == request.auth.uid
-            && request.resource.data.paidAt is timestamp
-          ) || (
-            !request.resource.data.keys().hasAny(['paid', 'paidAt', 'paidBy'])
-          )
-        );
+            !resource.data.keys().hasAny(['paymentStatus'])
+            && resource.data.get('paid', false) != true
+          ) || resource.data.get('paymentStatus', '') == 'cancelled'
+        )
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['paymentStatus', 'transactionId', 'paymentSubmittedAt'])
+        && request.resource.data.paymentStatus == 'pending'
+        && request.resource.data.transactionId is string
+        && request.resource.data.transactionId.size() >= 5
+        && request.resource.data.transactionId.size() <= 120
+        && request.resource.data.paymentSubmittedAt is timestamp;
     }
 
     match /games/{gameId} {
@@ -141,7 +142,7 @@ service cloud.firestore {
           )
         );
 
-        allow update: if isStaff() || isOwnParticipantPaymentUpdate(participantId);
+        allow update: if isStaff() || isOwnParticipantPaymentSubmit(participantId);
 
         allow delete: if isSignedIn() && (
           isStaff() || request.auth.uid == participantId
