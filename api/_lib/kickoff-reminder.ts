@@ -1,15 +1,19 @@
-import { googleJson, googleProjectId, numberField, sendPushToAllTokens, stringField } from "./fcm-http";
+import { googleJson, googleProjectId, sendPushToAllTokens, stringField } from "./fcm-http";
 
-const HOUR_MS = 60 * 60 * 1000;
 const MINUTE_MS = 60 * 1000;
 
 function formatKickoffTime(startTime: string) {
-  return new Intl.DateTimeFormat("en-GB", {
+  const [hours, minutes] = startTime.split(":").map(Number);
+  const label = new Intl.DateTimeFormat("en-US", {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
     timeZone: "UTC",
-  }).format(new Date(`1970-01-01T${startTime}:00Z`));
+  }).format(new Date(Date.UTC(1970, 0, 1, hours || 0, minutes || 0)));
+
+  return label
+    .replace(/\u202f/g, " ")
+    .replace(/\s?(am|pm)$/i, (meridiem) => ` ${meridiem.trim().toUpperCase()}`);
 }
 
 function formatRemaining(remainingMs: number) {
@@ -31,15 +35,33 @@ function formatRemaining(remainingMs: number) {
   return `${hourPart} ${minutePart}`;
 }
 
-function reminderBody(startTime: string, remainingMs: number) {
-  const remainingLabel = formatRemaining(remainingMs);
-  const timeLabel = startTime ? formatKickoffTime(startTime) : "";
-
-  if (!timeLabel) {
-    return `Exciting match ahead, get ready, game starts in ${remainingLabel}`;
+function joinStartTimes(times: string[]) {
+  if (times.length <= 1) {
+    return times[0] ?? "";
   }
 
-  return `Exciting match ahead, get ready, game starts in ${remainingLabel} at ${timeLabel}`;
+  if (times.length === 2) {
+    return `${times[0]} and ${times[1]}`;
+  }
+
+  return `${times.slice(0, -1).join(", ")}, and ${times.at(-1)}`;
+}
+
+type EligibleGame = {
+  gameId: string;
+  title: string;
+  startTime: string;
+  startMs: number;
+  remainingMs: number;
+};
+
+function reminderBody(games: EligibleGame[]) {
+  if (games.length === 1) {
+    return `Exciting match ahead, get ready! Game starts in ${formatRemaining(games[0].remainingMs)}.`;
+  }
+
+  const times = joinStartTimes(games.map((game) => formatKickoffTime(game.startTime)));
+  return `Exciting match ahead, get ready! ${games.length} games today. Games start at ${times}.`;
 }
 
 type GameFields = Record<
@@ -90,24 +112,6 @@ function documentId(name: string) {
   return name.split("/").pop() ?? "";
 }
 
-async function markReminderSent(documentName: string, startMs: number) {
-  const result = await googleJson(
-    `https://firestore.googleapis.com/v1/${documentName}?updateMask.fieldPaths=kickoffReminderSentForMs`,
-    {
-      method: "PATCH",
-      body: JSON.stringify({
-        fields: {
-          kickoffReminderSentForMs: { integerValue: String(startMs) },
-        },
-      }),
-    },
-  );
-
-  if (!result.ok) {
-    throw new Error("Could not mark kickoff reminder as sent");
-  }
-}
-
 async function loadUpcomingGames(projectId: string) {
   const filtered = await googleJson<GameRow[]>(
     `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:runQuery`,
@@ -153,45 +157,61 @@ async function loadUpcomingGames(projectId: string) {
   return fallback.data;
 }
 
-export async function runKickoffReminders() {
-  const projectId = await googleProjectId();
-  const rows = await loadUpcomingGames(projectId);
-  const now = Date.now();
-  let notified = 0;
-  let sent = 0;
+function eligibleGames(rows: GameRow[], now: number) {
+  const today = bangladeshYmd(new Date(now));
+  const games: EligibleGame[] = [];
 
   for (const row of rows) {
     const name = row.document?.name ?? "";
     const fields = row.document?.fields;
     const gameId = documentId(name);
-    const status = stringField(fields, "status");
+    const dateValue = fields?.date?.timestampValue;
+    const startTime = stringField(fields, "startTime");
     const startMs = gameStartMs(fields);
-    const remainingMs = startMs - now;
 
-    if (!name || !gameId || status !== "upcoming" || !startMs) {
+    if (
+      !name ||
+      !gameId ||
+      stringField(fields, "status") !== "upcoming" ||
+      !dateValue ||
+      !startTime ||
+      !startMs
+    ) {
       continue;
     }
 
-    // First cron tick at or under 1 hour, or a later catch-up tick before kickoff.
-    if (remainingMs < MINUTE_MS || remainingMs > HOUR_MS) {
+    if (bangladeshYmd(new Date(dateValue)) !== today || startMs <= now) {
       continue;
     }
 
-    if (numberField(fields, "kickoffReminderSentForMs") === startMs) {
-      continue;
-    }
-
-    const count = await sendPushToAllTokens({
-      title: stringField(fields, "title") || "Ollyo FC",
-      body: reminderBody(stringField(fields, "startTime"), remainingMs),
-      url: `/games/${gameId}`,
-      extraData: { gameId },
+    games.push({
+      gameId,
+      title: stringField(fields, "title"),
+      startTime,
+      startMs,
+      remainingMs: startMs - now,
     });
-
-    await markReminderSent(name, startMs);
-    notified += 1;
-    sent += count;
   }
 
-  return { notified, sent };
+  games.sort((left, right) => left.startMs - right.startMs);
+  return games;
+}
+
+export async function runKickoffReminders() {
+  const projectId = await googleProjectId();
+  const games = eligibleGames(await loadUpcomingGames(projectId), Date.now());
+
+  if (!games.length) {
+    return { notified: 0, sent: 0, games: 0 };
+  }
+
+  const onlyGame = games.length === 1 ? games[0] : undefined;
+  const sent = await sendPushToAllTokens({
+    title: onlyGame?.title || "Ollyo FC",
+    body: reminderBody(games),
+    url: onlyGame ? `/games/${onlyGame.gameId}` : "/games",
+    extraData: onlyGame ? { gameId: onlyGame.gameId } : undefined,
+  });
+
+  return { notified: 1, sent, games: games.length };
 }
