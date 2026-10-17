@@ -105,8 +105,28 @@ service cloud.firestore {
       }
     }
 
-    // A player may submit their own bKash transaction ID, which stays pending.
-    // They cannot set paid or cancelled. Staff verify those.
+    // The verifier is stored on that game, so one game does not share another's.
+    function isGamePaymentVerifier(gameId) {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/games/$(gameId)).data.get('paymentVerifierId', '') == request.auth.uid;
+    }
+
+    function touchesPaymentFields() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny(['paymentStatus', 'transactionId', 'paymentSubmittedAt', 'paid', 'paidAt', 'paidBy']);
+    }
+
+    function isPaymentReviewUpdate(gameId) {
+      return (isAdmin() || isGamePaymentVerifier(gameId))
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['paymentStatus', 'paid', 'paidAt', 'paidBy'])
+        && request.resource.data.paymentStatus in ['paid', 'cancelled']
+        && request.resource.data.paidBy == request.auth.uid
+        && request.resource.data.paidAt is timestamp;
+    }
+
+    // A player may submit their own transaction ID, which stays pending.
+    // They cannot set paid or cancelled.
     function isOwnParticipantPaymentSubmit(participantId) {
       return isSignedIn()
         && request.auth.uid == participantId
@@ -129,7 +149,20 @@ service cloud.firestore {
     match /games/{gameId} {
       allow read: if true;
       allow create: if isStaff();
-      allow update: if isSignedIn();
+      allow update: if isSignedIn() && (
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['paymentVerifierId'])
+        || (
+          isStaff()
+          && (
+            !request.resource.data.keys().hasAny(['paymentVerifierId'])
+            || (
+              request.resource.data.paymentVerifierId is string
+              && request.resource.data.paymentVerifierId.size() > 0
+              && exists(/databases/$(database)/documents/users/$(request.resource.data.paymentVerifierId))
+            )
+          )
+        )
+      );
       allow delete: if isAdmin();
 
       match /participants/{participantId} {
@@ -142,7 +175,9 @@ service cloud.firestore {
           )
         );
 
-        allow update: if isStaff() || isOwnParticipantPaymentSubmit(participantId);
+        allow update: if isOwnParticipantPaymentSubmit(participantId)
+          || isPaymentReviewUpdate(gameId)
+          || (isStaff() && !touchesPaymentFields());
 
         allow delete: if isSignedIn() && (
           isStaff() || request.auth.uid == participantId

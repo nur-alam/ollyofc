@@ -555,6 +555,10 @@ export function mapGame(id: string, data: DocumentData): Game {
       typeof data.paymentInfo === "string" && data.paymentInfo.trim()
         ? data.paymentInfo
         : undefined,
+    paymentVerifierId:
+      typeof data.paymentVerifierId === "string" && data.paymentVerifierId
+        ? data.paymentVerifierId
+        : undefined,
     teamCount: 2,
     teams: mapTeams(data.teams),
     teamBuild: mapTeamBuild(data.teamBuild),
@@ -1040,6 +1044,17 @@ export async function leaveGame(
 
   await deleteDoc(doc(db, "games", gameId, "participants", userId));
   await syncGameStats(gameId);
+}
+
+/** Staff choose who may verify payments for this game only. */
+export async function setGamePaymentVerifier(
+  gameId: string,
+  verifierId: string,
+): Promise<void> {
+  await updateDoc(doc(db, "games", gameId), {
+    paymentVerifierId: verifierId || deleteField(),
+    updatedAt: serverTimestamp(),
+  });
 }
 
 /** Player submits a bKash transaction ID. Staff still have to mark it paid. */
