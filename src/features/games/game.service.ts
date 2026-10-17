@@ -1080,7 +1080,7 @@ export async function submitParticipantPayment(
   });
 }
 
-/** Staff confirm or reject a submitted payment after checking bKash. */
+/** Admin or this game's verifier mark a payment paid or cancelled. */
 export async function reviewParticipantPayment(
   gameId: string,
   participantId: string,
@@ -1089,7 +1089,6 @@ export async function reviewParticipantPayment(
 ): Promise<void> {
   await updateDoc(doc(db, "games", gameId, "participants", participantId), {
     paymentStatus: status,
-    paid: deleteField(),
     paidAt: Timestamp.fromMillis(getServerNowMs()),
     paidBy: reviewedBy,
   });

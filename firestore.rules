@@ -116,6 +116,7 @@ service cloud.firestore {
         .hasAny(['paymentStatus', 'transactionId', 'paymentSubmittedAt', 'paid', 'paidAt', 'paidBy']);
     }
 
+    // Paid is allowed with no earlier submission. The player does not have to tap Pay.
     function isPaymentReviewUpdate(gameId) {
       return (isAdmin() || isGamePaymentVerifier(gameId))
         && request.resource.data.diff(resource.data).affectedKeys()

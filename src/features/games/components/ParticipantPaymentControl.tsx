@@ -34,13 +34,11 @@ const statusVariant = {
 export function ParticipantPaymentControl({
   gameId,
   participant,
-  isStaff,
   canVerifyPayments,
   profileId,
 }: {
   gameId: string;
   participant: GameParticipant;
-  isStaff: boolean;
   canVerifyPayments: boolean;
   profileId?: string;
 }) {
@@ -55,9 +53,10 @@ export function ParticipantPaymentControl({
     Boolean(profileId) &&
     participant.userId === profileId &&
     !isGuestParticipant(participant);
-  const canSubmit =
-    Boolean(profileId) && (isStaff || isOwn) && (status === "unpaid" || status === "cancelled");
-  const canReview = canVerifyPayments && status !== "unpaid";
+  const canSubmit = isOwn && (status === "unpaid" || status === "cancelled");
+  const canMarkPaid = canVerifyPayments && status !== "paid";
+  const canCancelPayment = canVerifyPayments && (status === "pending" || status === "paid");
+  const canReview = canMarkPaid || canCancelPayment;
   const canView = isOwn && status === "pending";
   const payingAgain = status === "cancelled" && isOwn;
   const label = saving ? "Saving..." : payingAgain ? "Pay" : GAME_PAYMENT_STATUS_LABELS[status];
@@ -130,32 +129,38 @@ export function ParticipantPaymentControl({
         {canReview ? (
           <div className="grid gap-3">
             <PopoverHeader>
-              <PopoverTitle>Check this payment</PopoverTitle>
+              <PopoverTitle>{participant.transactionId ? "Check this payment" : "Mark as paid"}</PopoverTitle>
               <PopoverDescription>
-                Match the transaction details, then mark it paid or cancelled.
+                {participant.transactionId
+                  ? "Match the transaction details, then mark it paid or cancelled."
+                  : "This player has not submitted a transaction ID. Mark them paid if the money already arrived."}
               </PopoverDescription>
             </PopoverHeader>
-            <p className="font-mono text-sm break-all">
-              {participant.transactionId || "No transaction details found"}
-            </p>
+            {participant.transactionId ? (
+              <p className="font-mono text-sm break-all">{participant.transactionId}</p>
+            ) : null}
             <div className="flex gap-2">
-              <Button
-                type="button"
-                size="sm"
-                disabled={saving || status === "paid"}
-                onClick={() => void handleReview("paid")}
-              >
-                Paid
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={saving || status === "cancelled"}
-                onClick={() => void handleReview("cancelled")}
-              >
-                Cancelled
-              </Button>
+              {canMarkPaid ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={saving}
+                  onClick={() => void handleReview("paid")}
+                >
+                  Paid
+                </Button>
+              ) : null}
+              {canCancelPayment ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={saving}
+                  onClick={() => void handleReview("cancelled")}
+                >
+                  Cancelled
+                </Button>
+              ) : null}
             </div>
           </div>
         ) : null}
