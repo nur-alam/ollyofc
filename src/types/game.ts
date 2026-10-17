@@ -208,6 +208,8 @@ export type Game = {
   notes?: string;
   /** How to pay (bKash, bank, cash). Blank means this game has no payment UI. */
   paymentInfo?: string;
+  /** Squad member who may mark this game's payments paid or cancelled. */
+  paymentVerifierId?: string;
   teamCount: 2;
   teams?: GameTeams;
   teamBuild?: GameTeamBuild;

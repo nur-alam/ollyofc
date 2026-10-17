@@ -14,6 +14,7 @@ import {
 import { EditGuestDialog } from "@/features/games/components/EditGuestDialog";
 import { GamePaymentNote } from "@/features/games/components/GamePaymentNote";
 import { ParticipantPaymentControl } from "@/features/games/components/ParticipantPaymentControl";
+import { PaymentVerifierAssign } from "@/features/games/components/PaymentVerifierAssign";
 import { TeamFireworks } from "@/features/games/components/TeamFireworks";
 import type { GuestJoinInput } from "@/features/games/components/JoinUsersDialog";
 import {
@@ -190,6 +191,9 @@ export function GameTeamsPanel({
 }: GameTeamsPanelProps) {
   const { profile } = useAuthStore();
   const isStaff = profile ? isStaffRole(profile.role) : false;
+  const canVerifyPayments = Boolean(
+    profile && (profile.role === "admin" || profile.id === game.paymentVerifierId),
+  );
   const usersById = useUserMap();
   const [nowMs, setNowMs] = useState(() => getServerNowMs());
   const [tab, setTab] = useState<"teams" | "payment">("teams");
@@ -526,6 +530,7 @@ export function GameTeamsPanel({
       {showPaymentTab ? (
         <div>
           <GamePaymentNote game={game} participants={participants} />
+          <PaymentVerifierAssign game={game} isStaff={isStaff} />
           {resolvedParticipants.length ? (
             <ul className="mt-3 grid grid-cols-2 overflow-hidden rounded-lg border">
               {resolvedParticipants.map((participant) => (
@@ -538,6 +543,7 @@ export function GameTeamsPanel({
                     gameId={game.id}
                     participant={participant}
                     isStaff={isStaff}
+                    canVerifyPayments={canVerifyPayments}
                     profileId={profile?.id}
                   />
                 </li>

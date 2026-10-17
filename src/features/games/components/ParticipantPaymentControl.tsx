@@ -35,11 +35,13 @@ export function ParticipantPaymentControl({
   gameId,
   participant,
   isStaff,
+  canVerifyPayments,
   profileId,
 }: {
   gameId: string;
   participant: GameParticipant;
   isStaff: boolean;
+  canVerifyPayments: boolean;
   profileId?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -55,7 +57,7 @@ export function ParticipantPaymentControl({
     !isGuestParticipant(participant);
   const canSubmit =
     Boolean(profileId) && (isStaff || isOwn) && (status === "unpaid" || status === "cancelled");
-  const canReview = isStaff && status !== "unpaid";
+  const canReview = canVerifyPayments && status !== "unpaid";
   const canView = isOwn && status === "pending";
   const payingAgain = status === "cancelled" && isOwn;
   const label = saving ? "Saving..." : payingAgain ? "Pay" : GAME_PAYMENT_STATUS_LABELS[status];
@@ -162,7 +164,7 @@ export function ParticipantPaymentControl({
           <PopoverHeader>
             <PopoverTitle>Pending</PopoverTitle>
             <PopoverDescription>
-              Staff will check transaction {participant.transactionId}.
+              The payment verifier will check transaction {participant.transactionId}.
             </PopoverDescription>
           </PopoverHeader>
         ) : null}
@@ -179,7 +181,7 @@ export function ParticipantPaymentControl({
               <PopoverHeader>
                 <PopoverTitle>Submit again</PopoverTitle>
                 <PopoverDescription>
-                  Staff cancelled
+                  The payment verifier cancelled
                   {participant.transactionId
                     ? ` transaction ${participant.transactionId}`
                     : " the last payment"}
