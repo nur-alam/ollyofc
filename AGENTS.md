@@ -63,7 +63,7 @@ Points live on `users/{id}.stats.points`: `(goals × 3) + (assists × 1.7) + (aw
 
 Match awards are `result.awards`. MVP (`kind: "mvp"`) ranks by goals, then assists, until an admin locks it. Extra awards are `kind: "custom"`. See `docs/awards.md`.
 
-Payment is manual. Staff can put bKash or bank instructions on a game and assign a payment verifier for that game only. A joined player submits a transaction ID, which stays pending until the admin or that game’s verifier marks it paid or cancelled. See `docs/payment.md`.
+Payment is manual. Staff can put bKash or bank instructions on a game and assign a payment verifier for that game only. A joined player submits a transaction ID, which stays pending until the admin or that game’s verifier marks it paid or cancelled. Those two can also mark a player paid when the player never tapped Pay. See `docs/payment.md`.
 
 Times are Bangladesh local time (`src/lib/timezone.ts`). The match clock uses server time from `/api/time` (`src/lib/clock.ts`).
 

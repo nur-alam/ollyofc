@@ -16,9 +16,11 @@ Clicking **Pay** opens a box for the bKash transaction ID. Submitting sets:
 
 The row then says **Pending**. The admin, or the one squad member assigned as payment verifier, checks that ID in the bKash app. **Paid** means the money arrived. **Cancelled** means it did not. That writes `paymentStatus` to `paid` or `cancelled`, plus `paidBy` (the uid of the person who checked) and `paidAt`. The list updates as soon as the document changes.
 
+They can also mark a player **Paid** when that player never tapped **Pay**. That covers money that already arrived by bKash, bank, or cash. No transaction ID is required for that.
+
 Each game has its own verifier, stored as `paymentVerifierId` on that game. Staff assign them from that game’s Payment section. The choice does not carry over to another game. Other moderators cannot mark a payment paid or cancelled unless they are the verifier for that game. The admin can always do it.
 
-If the payment is **Cancelled**, that player’s button goes back to **Pay**. They can submit a new transaction ID, and the row becomes **Pending** again. Other people still see **Cancelled** until that happens. A player cannot set their own status to paid. Guests have no account, so staff can enter an ID for them. Only the admin or the payment verifier can then mark it paid or cancelled.
+If the payment is **Cancelled**, that player’s button goes back to **Pay**. They can submit a new transaction ID, and the row becomes **Pending** again. Other people still see **Cancelled** until that happens. A player cannot set their own status to paid. Guests have no account, so the admin or that game’s verifier marks them paid directly.
 
 Older rows that only have `paid: true` still show as **Paid**.
 

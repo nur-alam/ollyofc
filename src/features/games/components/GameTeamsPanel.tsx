@@ -542,7 +542,6 @@ export function GameTeamsPanel({
                   <ParticipantPaymentControl
                     gameId={game.id}
                     participant={participant}
-                    isStaff={isStaff}
                     canVerifyPayments={canVerifyPayments}
                     profileId={profile?.id}
                   />
