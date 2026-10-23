@@ -309,7 +309,7 @@ export function GameAwardsCard({
     try {
       await clearGameMvp(game.id, updatedBy);
       setMvpOpen(false);
-      toast.success("MVP is ranked from goals, then assists");
+      toast.success("MVP is ranked by points");
     } catch (error) {
       toast.error(getErrorMessage(error, "Could not reset the MVP."));
     } finally {
@@ -497,15 +497,15 @@ export function GameAwardsCard({
         </div>
       ) : (
         <p className="mt-2 text-sm text-muted-foreground">
-          MVP is ranked by goals, then assists. Add a manual award such as most
-          saves or best defender.
+          MVP is ranked by points: 3 per goal and 1.7 per assist. Add a manual
+          award such as most saves or best defender.
         </p>
       )}
 
       {mvpOpen && canEditMvp ? (
         <OverlayDialog
           title="Match MVP"
-          description="Pick one or more players. Leave it on auto to rank by goals first, then assists. Tied players share the award."
+          description="Pick one or more players. Leave it on auto to rank by points. Tied players share the award."
           saving={saving}
           onClose={() => setMvpOpen(false)}
           footer={
