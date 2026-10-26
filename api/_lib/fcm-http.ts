@@ -1,3 +1,5 @@
+import { env } from "./env";
+
 const ORIGIN = "https://ollyofc.vercel.app";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const FCM_SCOPE = "https://www.googleapis.com/auth/firebase.messaging";
@@ -51,7 +53,7 @@ export function bearerToken(request: Request) {
 }
 
 function serviceAccount(): ServiceAccount {
-  const jsonAccount = process.env.FIREBASE_SERVICE_ACCOUNT?.trim();
+  const jsonAccount = env.FIREBASE_SERVICE_ACCOUNT;
 
   if (jsonAccount) {
     const parsed = JSON.parse(jsonAccount) as ServiceAccount;
@@ -62,9 +64,9 @@ function serviceAccount(): ServiceAccount {
     };
   }
 
-  const project_id = process.env.FIREBASE_PROJECT_ID?.trim() ?? "";
-  const client_email = process.env.FIREBASE_CLIENT_EMAIL?.trim() ?? "";
-  const private_key = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n").trim() ?? "";
+  const project_id = env.FIREBASE_PROJECT_ID ?? "";
+  const client_email = env.FIREBASE_CLIENT_EMAIL ?? "";
+  const private_key = env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n").trim() ?? "";
 
   if (!project_id || !client_email || !private_key) {
     throw new Error("Missing Firebase service account");

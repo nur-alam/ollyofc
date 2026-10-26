@@ -1,3 +1,4 @@
+import { env } from "./_lib/env";
 import { json } from "./_lib/fcm-http";
 import { runKickoffReminders } from "./_lib/kickoff-reminder";
 
@@ -6,7 +7,7 @@ export const config = {
 };
 
 function isCronRequest(request: Request) {
-  const secret = process.env.CRON_SECRET?.trim();
+  const secret = env.CRON_SECRET;
 
   if (!secret) {
     return false;
@@ -23,7 +24,7 @@ export default async function handler(request: Request) {
       return json({ error: "Method not allowed" }, 405);
     }
 
-    if (!process.env.CRON_SECRET?.trim()) {
+    if (!env.CRON_SECRET) {
       return json({ error: "CRON_SECRET is not set" }, 500);
     }
 
