@@ -6,7 +6,7 @@ Staff already create matches from the Games page (`createGame` → Firestore `ga
 
 That is Web Push. It is not an in-app toast and not a Firestore listener while the tab is open. Those only work when the app is already running.
 
-`docs/pwa.md` listed this as Phase 3. The PWA shell is in place, which is the prerequisite: Chrome/Android can receive Web Push in the browser; iOS only after Add to Home Screen (16.4+).
+`docs/logic/pwa.md` listed this as Phase 3. The PWA shell is in place, which is the prerequisite: Chrome/Android can receive Web Push in the browser; iOS only after Add to Home Screen (16.4+).
 
 ---
 
