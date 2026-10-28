@@ -40,7 +40,7 @@ src/pages/        thin route pages
 src/types/        shared types (game, player, user)
 api/              Vercel functions: clock, image proxy, push, visitors
 cloudflare/       kickoff reminder worker
-docs/             domain notes (stats, awards, completed games, payment, PWA, push)
+docs/             numbered specs (01–06) and logic/ domain notes
 ```
 
 Import with the `@/` alias (`@/features/...`). Feature modules follow `*.service.ts` (Firestore reads and writes), `*.hooks.ts` (subscriptions and derived state), `components/`, and `pages/`.
@@ -55,19 +55,19 @@ Home (`UpcomingGamesList`) shows upcoming games, otherwise a live game, otherwis
 
 ## Domain
 
-Game status is `draft | upcoming | active | completed | cancelled`. `completed` means staff finished the match. It is not a lock on every field. Scoring, toss, kick-off, join/leave, swaps, and rebuilds stop. Staff can still edit match details; admin can delete or reopen. See `docs/completed-game-logic.md`.
+Game status is `draft | upcoming | active | completed | cancelled`. `completed` means staff finished the match. It is not a lock on every field. Scoring, toss, kick-off, join/leave, swaps, and rebuilds stop. Staff can still edit match details; admin can delete or reopen. See `docs/logic/completed-game-logic.md`.
 
-Career stats are written only when a game is completed, then re-synced on reopen, add-player-to-finished-game, award edits, delete, and the dashboard rebuild. Live goals do not move career totals. Guests do not get career stats. Own goals never count as that player's goals. See `docs/player-stats-docs.md`.
+Career stats are written only when a game is completed, then re-synced on reopen, add-player-to-finished-game, award edits, delete, and the dashboard rebuild. Live goals do not move career totals. Guests do not get career stats. Own goals never count as that player's goals. See `docs/logic/player-stats-docs.md`.
 
 Points live on `users/{id}.stats.points`: `(goals × 3) + (assists × 1.7) + (award total × 2)`. Compute in tenths so 1.7 stays exact: `(goals × 30 + assists × 17 + awardTotal × 20) / 10`. Format to one decimal only in the UI. `careerPoints` in `src/types/user.ts` is the source of that formula.
 
-Match awards are `result.awards`. MVP (`kind: "mvp"`) ranks by goals, then assists, until an admin locks it. Extra awards are `kind: "custom"`. See `docs/awards.md`.
+Match awards are `result.awards`. MVP (`kind: "mvp"`) ranks by goals, then assists, until an admin locks it. Extra awards are `kind: "custom"`. See `docs/logic/awards.md`.
 
 Payment is manual. Staff can put bKash or bank instructions on a game and assign a payment verifier for that game only. A joined player submits a transaction ID, which stays pending until the admin or that game’s verifier marks it paid or cancelled. Those two can also mark a player paid when the player never tapped Pay. See `docs/payment.md`.
 
 Times are Bangladesh local time (`src/lib/timezone.ts`). The match clock uses server time from `/api/time` (`src/lib/clock.ts`).
 
-Push notifications go out from `api/notify-*.ts`. Creating a game must still succeed if push fails. See `docs/push-noti.md` and `docs/pwa.md`.
+Push notifications go out from `api/notify-*.ts`. Creating a game must still succeed if push fails. See `docs/logic/push-noti.md` and `docs/logic/pwa.md`.
 
 ## How to change the code
 

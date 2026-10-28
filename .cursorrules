@@ -1,0 +1,7 @@
+Before any task, read docs/01_PRD.md, docs/02_AppFlow.md, docs/03_UI_Spec.md, docs/04_TRD.md, docs/05_Schema.md, and docs/06_Plan.md. Follow them.
+
+After every completed step, update docs/06_Plan.md: check the finished box, or append a checked step under the phase it belongs to.
+
+Also follow AGENTS.md. For commits, pushes, and pull requests, follow .claude/skills/git-commits-prs/SKILL.md.
+
+Do not invent a SQL database, a second auth provider, or a dark-mode toggle. Firestore, Google sign-in, and the light theme are locked. Career stats change only on finish, reopen, add-player-to-finished-game, award edits, delete, and the dashboard rebuild.
