@@ -59,6 +59,18 @@ No test runner is installed. Add one only when the first test in this phase is s
 - [ ] Transaction id shorter than 5 or longer than 120 is rejected.
 - [ ] Delete game subtracts career stats before the game document is gone.
 
+## Phase 5: Tournaments
+
+Design is `docs/notes/tournaments.md`. A tournament groups existing games. It does not add a second match, a second career write, or a second payment flag. `01`–`05` stay as the shipped product until a step below lands, and that step updates them in the same change.
+
+- [x] Design note: formats (`series`, `league`, `knockout`), screens, schema, and what stays on the game.
+- [ ] Types, `tournaments` rules, and optional `tournament*` fields on `games`.
+- [ ] Tournament service: status, entries, squads, link and unlink fixture, knockout decider.
+- [ ] Standings computed from completed fixtures. Series first.
+- [ ] Public `/tournaments` and `/tournaments/:tournamentId`, header link, home line, game-page link.
+- [ ] Game form can attach a fixture. League and knockout can name the two squads.
+- [ ] Registration cap, guest and own-goal exclusion, and “delete tournament does not delete games” locked as Phase 4 cases when a runner exists.
+
 ## How to extend
 
 Add the next unchecked box under the earliest phase that can accept it. A schema change is Phase 1 and must land before the API step that writes the new field. A new route is Phase 3 and must land after the service it calls. A regression check is Phase 4 and names the rule it locks.
