@@ -34,6 +34,7 @@ When you finish a step, check its box in this file in the same change. New work 
 - [x] Public routes: `/`, `/squad`, `/leaderboard`, `/player/:playerId`, `/games`, `/games/:gameId`.
 - [x] Signed-in `/profile`. Staff `/dashboard`. Admin `/notification` and `/visitors`.
 - [x] Home order: upcoming game, otherwise live game, otherwise last finished game.
+- [x] Restore Last Game Result header and card on home when there is no live game.
 - [x] Join, leave lockout at 60 minutes, guests, two-team build, toss, kickoff, goals, finish, reopen, awards, payment.
 - [x] Leaderboard sort: points, award total, win rate. Empty copy: "Nobody has played a finished game yet."
 - [x] Header, mobile menu, staff sidebar, toasts, PWA install, push opt-in.
