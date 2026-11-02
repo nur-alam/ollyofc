@@ -108,6 +108,9 @@ export function buildGameStatContributions(
 
     if (winner === "draw") {
       stat.result = "draw";
+    } else if (participant.playedBoth && participant.teamId) {
+      // They played both sides, so a decided match is a win and never a loss.
+      stat.result = "win";
     } else if (participant.teamId) {
       stat.result = winner === participant.teamId ? "win" : "loss";
     }

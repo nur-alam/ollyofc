@@ -11,18 +11,25 @@ Does not write anything:
 
 Adding or removing goals during a live match (career totals wait for Finish; the match page still updates instantly)
 Clock hitting 90:00 without Finish being tapped
-Joining, leaving, swapping, or building teams on an upcoming or live game
+Joining, leaving, swapping, marking played both sides, or building teams on an upcoming or live game
 Kick-off
 Running the same sync twice with nothing changed
 
 Not reachable on a completed game, so these can never move career totals directly:
 
 Swap players between teams (canSwapGameTeams blocks completed)
+Mark played both sides (canSwapGameTeams blocks completed)
 Remove a player (canRemoveGamePlayers blocks completed)
 Add or remove a goal (needs status active)
 Build, rebuild, or clear teams (canEdit is upcoming only)
 
 To correct a finished match’s score, reopen it, make the change, then finish it again. Each step re-syncs. Award titles and players can be edited on a completed game without reopening.
+
+## Played both sides
+
+A player marked `playedBoth` still counts as one game. Goals and assists follow that player, and an own goal still does not. Guests can be marked and still get no career stats.
+
+When the match has a winner, that player gets a win. When the match is a draw, they get a draw. They do not get a loss for that match. Everyone who stayed on one team still gets a win, loss, or draw from that team.
 
 ## Points
 

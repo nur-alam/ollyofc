@@ -10,7 +10,7 @@ import { GamePlayStatusControl } from "@/features/games/components/GamePlayStatu
 import { GameResultBoard } from "@/features/games/components/GameResultBoard";
 import { GameResultUpdate } from "@/features/games/components/GameResultUpdate";
 import { GameStatusBadge } from "@/features/games/components/GameStatusBadge";
-import { GameTeamsPanel } from "@/features/games/components/GameTeamsPanel";
+import { GameTeamsPanel } from "@/features/games/components/GameTeamsPanel/GameTeamsPanel";
 import { JoinedPlayersList } from "@/features/games/components/JoinedPlayersList";
 import {
   JoinUsersDialog,

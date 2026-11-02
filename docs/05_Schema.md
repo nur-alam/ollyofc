@@ -156,6 +156,7 @@ Primary key `participantId` is the user uid, or `guest_` plus a generated id.
 | photoURL | string | Optional. |
 | position | string | |
 | teamId | `a` \| `b` | Optional until teams are dealt. |
+| playedBoth | bool | Optional. Missing means one team. `teamId` stays their original side, and they are also listed on the other team. |
 | joinedBy | string | Foreign key to `users`. |
 | joinedAt | timestamp | |
 | transactionId | string | Optional. Length 5–120 when set by the player. |
@@ -246,4 +247,5 @@ No composite index is declared. Do not add a query that needs one unless `firest
 - `stats` changes only when a game is completed, reopened, repaired by adding a player to a finished game, when awards change, when a game is deleted, or when an admin rebuilds.
 - `stats.points` is recomputed from the new totals in the same write.
 - An own goal never increments `stats.goals` for `ownGoalById`.
+- `playedBoth` does not add a second game. On finish that player gets a win when the match has a winner, and a draw when the match is a draw.
 - `paymentVerifierId` on game A is not consulted for game B.

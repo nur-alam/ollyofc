@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeftIcon, ArrowRightIcon, PencilIcon } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   buildTeamDealOrder,
   formatPositionBreakdown,
@@ -17,12 +15,16 @@ import { ParticipantPaymentControl } from "@/features/games/components/Participa
 import { PaymentVerifierAssign } from "@/features/games/components/PaymentVerifierAssign";
 import { TeamFireworks } from "@/features/games/components/TeamFireworks";
 import type { GuestJoinInput } from "@/features/games/components/JoinUsersDialog";
+import { PlayedBothMenu } from "./PlayedBothMenu";
+import { PlayerLine } from "./PlayerLine";
+import { TeamName } from "./TeamName";
 import {
   cancelTeamBuild,
   clearGameTeams,
   getErrorMessage,
   moveParticipantTeam,
   renameGameTeam,
+  setParticipantPlayedBoth,
   saveGeneratedTeams,
   startTeamBuild,
   updateGuestInGame,
@@ -42,12 +44,12 @@ import {
   getTeamName,
   hasGameTeams,
   isGuestParticipant,
+  isParticipantOnTeam,
   type Game,
   type GameParticipant,
   type GameTeamId,
 } from "@/types/game";
 import { isStaffRole } from "@/types/user";
-import { formatPosition } from "@/types/player";
 
 const MIN_PLAYERS_TO_BUILD = 2;
 
@@ -57,131 +59,6 @@ type GameTeamsPanelProps = {
   canEdit: boolean;
   generatedBy?: string;
 };
-
-function PlayerAvatar({
-  name,
-  photoURL,
-}: {
-  name: string;
-  photoURL?: string;
-}) {
-  return (
-    <div className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-xs font-semibold">
-      {photoURL ? (
-        <img src={photoURL} alt={name} className="size-full object-cover" />
-      ) : (
-        name.charAt(0).toUpperCase()
-      )}
-    </div>
-  );
-}
-
-function PlayerLine({
-  participant,
-  className,
-}: {
-  participant: GameParticipant;
-  className?: string;
-}) {
-  return (
-    <div className={cn("flex min-w-0 items-center gap-2", className)}>
-      <PlayerAvatar name={participant.displayName} photoURL={participant.photoURL} />
-      <div className="min-w-0">
-        <p className="flex min-w-0 items-center gap-1.5">
-          <span className="truncate text-sm font-medium">{participant.displayName}</span>
-          {isGuestParticipant(participant) ? (
-            <Badge variant="secondary" className="h-4 shrink-0 px-1.5 text-[10px]">
-              Guest
-            </Badge>
-          ) : null}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {isGuestParticipant(participant) && !participant.position
-            ? "Guest"
-            : formatPosition(participant.position)}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function TeamName({
-  name,
-  canEdit,
-  onSave,
-}: {
-  name: string;
-  canEdit: boolean;
-  onSave: (name: string) => Promise<void>;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(name);
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    setValue(name);
-  }, [name]);
-
-  const save = async () => {
-    const nextName = value.trim() || name;
-
-    if (nextName === name) {
-      setEditing(false);
-      setValue(name);
-      return;
-    }
-
-    setSaving(true);
-
-    try {
-      await onSave(nextName);
-      setEditing(false);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (!canEdit) {
-    return <h3 className="truncate text-sm font-semibold">{name}</h3>;
-  }
-
-  if (editing) {
-    return (
-      <Input
-        value={value}
-        autoFocus
-        disabled={saving}
-        onChange={(event) => setValue(event.target.value)}
-        onBlur={() => {
-          void save();
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            event.preventDefault();
-            void save();
-          }
-
-          if (event.key === "Escape") {
-            setValue(name);
-            setEditing(false);
-          }
-        }}
-        className="h-7 max-w-40 font-semibold"
-      />
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      className="flex min-w-0 items-center gap-1 text-left"
-      onClick={() => setEditing(true)}
-    >
-      <h3 className="truncate text-sm font-semibold">{name}</h3>
-      <PencilIcon className="size-3.5 shrink-0 text-muted-foreground" />
-    </button>
-  );
-}
 
 export function GameTeamsPanel({
   game,
@@ -400,6 +277,25 @@ export function GameTeamsPanel({
       await moveParticipantTeam(game.id, userId, teamId);
     } catch (error) {
       setActionError(getErrorMessage(error, "Could not move this player."));
+    } finally {
+      setMovingId("");
+    }
+  };
+
+  const handlePlayedBoth = async (userId: string, playedBoth: boolean) => {
+    if (!canSwap) {
+      return;
+    }
+
+    setMovingId(userId);
+    setActionError("");
+
+    try {
+      await setParticipantPlayedBoth(game.id, userId, playedBoth);
+    } catch (error) {
+      setActionError(
+        getErrorMessage(error, "Could not update who played both sides."),
+      );
     } finally {
       setMovingId("");
     }
@@ -636,8 +532,8 @@ export function GameTeamsPanel({
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             {GAME_TEAM_IDS.map((teamId) => {
               const players = sortTeamPlayers(
-                resolvedParticipants.filter(
-                  (participant) => participant.teamId === teamId,
+                resolvedParticipants.filter((participant) =>
+                  isParticipantOnTeam(participant, teamId),
                 ),
               );
               const otherTeam: GameTeamId = teamId === "a" ? "b" : "a";
@@ -679,16 +575,28 @@ export function GameTeamsPanel({
                         className="flex items-center gap-2 py-2 first:pt-0 last:pb-0"
                       >
                         {canSwap && teamId === "b" && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            disabled={movingId === participant.userId}
-                            onClick={() => handleMove(participant.userId, otherTeam)}
-                            aria-label={`Move ${participant.displayName} to ${getTeamName(game, otherTeam)}`}
-                          >
-                            <ArrowLeftIcon />
-                          </Button>
+                          <div className="flex shrink-0 items-center">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              disabled={movingId === participant.userId}
+                              onClick={() => handleMove(participant.userId, otherTeam)}
+                              aria-label={`Move ${participant.displayName} to ${getTeamName(game, otherTeam)}`}
+                            >
+                              <ArrowLeftIcon />
+                            </Button>
+                            <PlayedBothMenu
+                              participant={participant}
+                              disabled={movingId === participant.userId}
+                              onSelect={() =>
+                                handlePlayedBoth(
+                                  participant.userId,
+                                  !participant.playedBoth,
+                                )
+                              }
+                            />
+                          </div>
                         )}
                         <PlayerLine participant={participant} className="flex-1" />
                         {canEditGuest && isGuestParticipant(participant) ? (
@@ -704,16 +612,28 @@ export function GameTeamsPanel({
                           </Button>
                         ) : null}
                         {canSwap && teamId === "a" && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            disabled={movingId === participant.userId}
-                            onClick={() => handleMove(participant.userId, otherTeam)}
-                            aria-label={`Move ${participant.displayName} to ${getTeamName(game, otherTeam)}`}
-                          >
-                            <ArrowRightIcon />
-                          </Button>
+                          <div className="flex shrink-0 items-center">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              disabled={movingId === participant.userId}
+                              onClick={() => handleMove(participant.userId, otherTeam)}
+                              aria-label={`Move ${participant.displayName} to ${getTeamName(game, otherTeam)}`}
+                            >
+                              <ArrowRightIcon />
+                            </Button>
+                            <PlayedBothMenu
+                              participant={participant}
+                              disabled={movingId === participant.userId}
+                              onSelect={() =>
+                                handlePlayedBoth(
+                                  participant.userId,
+                                  !participant.playedBoth,
+                                )
+                              }
+                            />
+                          </div>
                         )}
                       </li>
                     ))}

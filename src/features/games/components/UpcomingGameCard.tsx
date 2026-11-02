@@ -5,7 +5,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { GameCountDown } from "@/features/games/components/GameCountDown";
 import { GameLocationText, GameMapButton } from "@/features/games/components/GameLocationText";
 import { GameStatusBadge } from "@/features/games/components/GameStatusBadge";
-import { GameTeamsPanel } from "@/features/games/components/GameTeamsPanel";
+import { GameTeamsPanel } from "@/features/games/components/GameTeamsPanel/GameTeamsPanel";
 import { JoinedPlayersList } from "@/features/games/components/JoinedPlayersList";
 import {
   JoinUsersDialog,

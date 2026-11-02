@@ -99,6 +99,7 @@ Actions by state:
 | Staff add or remove a player | Yes | Yes | No | No |
 | Staff edit guest name or position | Yes | Yes | Yes | No |
 | Build, rebuild, clear teams, swap | Yes | Yes, swap until finish | No | No |
+| Mark played both sides | Yes, after the player has a team | Yes, until finish | No | No |
 | Toss | Yes, 5 second animation | No | No | No |
 | Kick off | Staff, sets `startedAtMs` | Already started | No | No |
 | Record a goal | Only after the scheduled end if nobody kicked off | Yes | No | No |
@@ -115,6 +116,7 @@ Goal kinds:
 - Player goal: credits `scorerId` and optional `assistId`.
 - Team goal: credits the team when the scorer is unknown. No career goal.
 - Own goal: credits the opponent. `ownGoalById` is stored and never counted as that player's goal.
+- Played both sides: staff open the row menu after the swap arrow and choose Both sides. The player stays on that team and also appears on the other, with a "Played both sides" badge. One side in that menu clears the mark. Scorer, assist, and own-goal lists for either team include them. Each goal still counts once, for the team selected when it is recorded. A full move, rebuild, or clear removes the mark.
 
 Payment buttons on a participant:
 
