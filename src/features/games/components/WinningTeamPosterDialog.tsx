@@ -17,6 +17,7 @@ import {
   getPlayerGoalCounts,
   getResultWinner,
   getTeamName,
+  isParticipantOnTeam,
   type Game,
   type GameParticipant,
   type GameTeamId,
@@ -66,10 +67,10 @@ export function WinningTeamPosterDialog({
     goals: goalsByPlayer.get(participant.userId) ?? 0,
   });
   const playersA = sortTeamPlayers(
-    participants.filter((participant) => participant.teamId === "a"),
+    participants.filter((participant) => isParticipantOnTeam(participant, "a")),
   ).map(toPosterPlayer);
   const playersB = sortTeamPlayers(
-    participants.filter((participant) => participant.teamId === "b"),
+    participants.filter((participant) => isParticipantOnTeam(participant, "b")),
   ).map(toPosterPlayer);
   const playerKey = [...playersA, ...playersB]
     .map((player) => `${player.displayName}:${player.photoURL ?? ""}:${player.goals}`)

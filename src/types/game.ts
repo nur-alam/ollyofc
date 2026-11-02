@@ -232,6 +232,8 @@ export type GameParticipant = {
   photoURL?: string;
   position: string;
   teamId?: GameTeamId;
+  /** Also played the other side. Still stored on `teamId`, and listed on both teams. */
+  playedBoth?: boolean;
   joinedBy: string;
   joinedAt?: Timestamp;
   /** bKash transaction ID submitted by the player. Staff check it before marking paid. */
@@ -347,6 +349,18 @@ export function canSwapGameTeams(game: Pick<Game, "status">) {
 
 export function getOpponentTeamId(teamId: GameTeamId): GameTeamId {
   return teamId === "a" ? "b" : "a";
+}
+
+/** A player is on a side when that is their team, or they were marked as playing both. */
+export function isParticipantOnTeam(
+  participant: Pick<GameParticipant, "teamId" | "playedBoth">,
+  teamId: GameTeamId,
+) {
+  if (!participant.teamId) {
+    return false;
+  }
+
+  return participant.teamId === teamId || participant.playedBoth === true;
 }
 
 export function getGoalKind(goal: GameGoal): GameGoalKind {

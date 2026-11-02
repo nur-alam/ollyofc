@@ -14,6 +14,7 @@ When you finish a step, check its box in this file in the same change. New work 
 - [x] `storage.rules` for `profile-photos/{userId}/{fileName}`.
 - [x] Vercel `/__/auth/*` proxy so PWA Google sign-in stays on the site host.
 - [x] Zustand session, `ProtectedRoute`, and `RoleGuard`.
+- [x] Optional `playedBoth` on a participant. Missing means one team. `teamId` stays their original side.
 
 ## Phase 2: Core API
 
@@ -28,6 +29,7 @@ When you finish a step, check its box in this file in the same change. New work 
 - [x] Typed server env in `api/_lib/env.ts`.
 - [x] Cloudflare cron worker calling the reminder route with `Authorization: Bearer`.
 - [x] Game creation stays committed when push fails.
+- [x] `setParticipantPlayedBoth`. A full move, rebuild, or clear removes the mark. Finish gives that player a win unless the match is a draw.
 
 ## Phase 3: UI Integration
 
@@ -39,6 +41,9 @@ When you finish a step, check its box in this file in the same change. New work 
 - [x] Leaderboard sort: points, award total, win rate. Empty copy: "Nobody has played a finished game yet."
 - [x] Header, mobile menu, staff sidebar, toasts, PWA install, push opt-in.
 - [x] Shell hex tokens and shadcn OKLCH tokens documented in `03_UI_Spec.md`.
+- [x] A played-both player is listed on both team cards with a "Played both sides" badge, can be picked for a goal or assist on either team, and appears on both sides of the winning poster.
+- [x] Played both sides sits in the player row menu after the swap arrow.
+- [x] Game teams panel lives in `components/GameTeamsPanel`, with PlayedBothMenu, PlayerLine, and TeamName in their own files.
 
 ## Phase 4: Edge-case tests
 

@@ -35,6 +35,7 @@ import {
   getResultWinner,
   getTeamName,
   hasMatchEnded,
+  isParticipantOnTeam,
   isTossFlipping,
   isTossLanded,
   formatParticipantName,
@@ -88,7 +89,9 @@ export function GameResultUpdate({
   const creditedTeamId = goalKind === "own" ? getOpponentTeamId(teamId) : teamId;
 
   const scorers = useMemo(() => {
-    const onTeam = participants.filter((participant) => participant.teamId === teamId);
+    const onTeam = participants.filter((participant) =>
+      isParticipantOnTeam(participant, teamId),
+    );
     return onTeam.length ? onTeam : participants;
   }, [participants, teamId]);
 

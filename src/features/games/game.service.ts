@@ -669,6 +669,7 @@ export function mapParticipant(id: string, data: DocumentData): GameParticipant 
     photoURL: typeof data.photoURL === "string" ? data.photoURL : undefined,
     position: typeof data.position === "string" ? data.position : "",
     teamId: mapTeamId(data.teamId),
+    playedBoth: data.playedBoth === true ? true : undefined,
     joinedBy: typeof data.joinedBy === "string" ? data.joinedBy : "",
     joinedAt: data.joinedAt instanceof Timestamp ? data.joinedAt : undefined,
     transactionId:
@@ -981,6 +982,10 @@ export async function updateGuestInGame(
     teamChanged = true;
   }
 
+  if (teamChanged) {
+    updates.playedBoth = deleteField();
+  }
+
   const game = nameChanged ? await getGameById(gameId) : null;
   const goals = game?.result?.goals ?? [];
   const nextGoals = nameChanged
@@ -1116,9 +1121,12 @@ export async function saveGeneratedTeams(
 
   participants.docs.forEach((participant) => {
     const teamId = assignments[participant.id];
+    const playedBoth = participant.data().playedBoth === true;
 
     if (teamId) {
-      batch.update(participant.ref, { teamId });
+      batch.update(participant.ref, { teamId, playedBoth: deleteField() });
+    } else if (playedBoth) {
+      batch.update(participant.ref, { playedBoth: deleteField() });
     }
   });
 
@@ -1142,7 +1150,33 @@ export async function moveParticipantTeam(
   userId: string,
   teamId: GameTeamId,
 ): Promise<void> {
-  await updateDoc(doc(db, "games", gameId, "participants", userId), { teamId });
+  await updateDoc(doc(db, "games", gameId, "participants", userId), {
+    teamId,
+    playedBoth: deleteField(),
+  });
+  await syncGameStats(gameId);
+}
+
+/** Staff mark that this player also played the other side. A full move clears it. */
+export async function setParticipantPlayedBoth(
+  gameId: string,
+  userId: string,
+  playedBoth: boolean,
+): Promise<void> {
+  const participantRef = doc(db, "games", gameId, "participants", userId);
+
+  if (playedBoth) {
+    const snapshot = await getDoc(participantRef);
+    const teamId = snapshot.exists() ? mapTeamId(snapshot.data().teamId) : undefined;
+
+    if (!teamId) {
+      throw new Error("Assign this player to a team first.");
+    }
+  }
+
+  await updateDoc(participantRef, {
+    playedBoth: playedBoth ? true : deleteField(),
+  });
   await syncGameStats(gameId);
 }
 
@@ -1183,7 +1217,10 @@ export async function clearGameTeams(gameId: string): Promise<void> {
   });
 
   participants.docs.forEach((participant) => {
-    batch.update(participant.ref, { teamId: deleteField() });
+    batch.update(participant.ref, {
+      teamId: deleteField(),
+      playedBoth: deleteField(),
+    });
   });
 
   await batch.commit();
