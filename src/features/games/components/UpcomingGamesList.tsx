@@ -67,7 +67,7 @@ export function UpcomingGamesList() {
         </section>
       ) : lastFinishedGame ? (
         <section className="flex flex-col gap-6">
-          {/* <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h1 className="text-2xl font-bold tracking-tight">Last Game Result</h1>
               <p className="text-muted-foreground">Final score from the latest game.</p>
@@ -79,7 +79,7 @@ export function UpcomingGamesList() {
               All games
             </Link>
           </div>
-          <LiveGameCard game={lastFinishedGame} /> */}
+          <LiveGameCard game={lastFinishedGame} />
         </section>
       ) : null}
     </div>
