@@ -50,7 +50,7 @@ The sidebar (staff, desktop) lists Dashboard, and for admins Visitors and Notifi
 - Firebase env missing: helper text tells the developer to copy `.env.example` to `.env`. The Google button stays disabled.
 - Auth in progress: button label "Checking session..." and the button is disabled.
 - Google error: the message from the auth store renders under the button in the error color.
-- Success: navigate away. A brand-new profile is `role: "user"`.
+- Success: navigate away. A brand-new profile is `role: "user"`. That first write notifies opted-in admins and moderators. Sign-in still finishes if the push fails. A later sign-in does not send it again.
 
 ### Squad `/squad`
 
@@ -146,6 +146,7 @@ Map: a location name opens `GameMapDialog` with a Google Maps embed. A bad map U
 - Optional game link must be a game path the field already validates.
 - Empty audience: "No opted-in devices to notify."
 - The page does not create the game. Game-created and game-joined pushes fire from those flows. If those calls fail, the game or the join stays saved and staff see an error toast.
+- A first Google registration notifies opted-in admins and moderators and opens that player’s page. The new profile stays saved if the push fails, and the new player is not shown an error.
 
 ### Visitors `/visitors`
 

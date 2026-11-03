@@ -29,6 +29,7 @@ When you finish a step, check its box in this file in the same change. New work 
 - [x] Typed server env in `api/_lib/env.ts`.
 - [x] Cloudflare cron worker calling the reminder route with `Authorization: Bearer`.
 - [x] Game creation stays committed when push fails.
+- [x] `POST /api/notify-user-registered` after the first Google sign-in creates `users/{uid}`. Opted-in admins and moderators are notified. The profile stays saved if push fails.
 - [x] `setParticipantPlayedBoth`. A full move, rebuild, or clear removes the mark. Finish gives that player a win unless the match is a draw.
 
 ## Phase 3: UI Integration
@@ -64,6 +65,7 @@ No test runner is installed. Add one only when the first test in this phase is s
 - [ ] Map field rejects a non-Google URL and stores nothing.
 - [ ] Transaction id shorter than 5 or longer than 120 is rejected.
 - [ ] Delete game subtracts career stats before the game document is gone.
+- [ ] Registration notify sends nothing when the user document is older than 5 minutes, and a failed push does not delete the new profile.
 
 ## Phase 5: Tournaments
 

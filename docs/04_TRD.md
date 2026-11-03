@@ -93,6 +93,7 @@ Never prefix a secret with `VITE_`. Never commit `.env`.
 | `GET /api/track-visitor` | Visitor geo from Vercel IP headers | No user secret. The handler reads `x-forwarded-for` and `x-vercel-ip-*`. It does not call a separate geo vendor. |
 | `POST /api/notify-game-created` | After a game document is created | Firebase ID token of a staff user. |
 | `POST /api/notify-game-joined` | After a player joins | Firebase ID token. |
+| `POST /api/notify-user-registered` | After the first Google sign-in creates `users/{uid}` | Firebase ID token of that new user. The server re-reads the user document and only sends when Firestore `createTime` is within 5 minutes. Recipients are opted-in admins and moderators. |
 | `POST /api/notify-broadcast` | Admin notification page | Firebase ID token of an admin. |
 | `GET` or `POST /api/notify-kickoff-reminder` | Cloudflare cron | `Authorization: Bearer <CRON_SECRET>`. Missing secret is 500. Wrong secret is 401. |
 

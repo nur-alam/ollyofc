@@ -37,7 +37,8 @@ A new Google sign-in always starts as `user`. An admin promotes someone by editi
 13. As an admin, I can lock MVP and add extra awards. MVP ranks by goals, then assists, until it is locked.
 14. As an admin, I can notify all opted-in devices, a chosen set of users, or people about the leaderboard, and I can attach a game link. Creating a game still succeeds if the push fails.
 15. As a signed-in player, I can opt in to push and get a kickoff reminder about one hour before today’s games that have not started.
-16. As an admin, I can see who is on the site and daily visitor counts.
+16. As staff, I get a push when someone registers with Google for the first time. Their account is still created if that push fails.
+17. As an admin, I can see who is on the site and daily visitor counts.
 
 ## Success metrics
 
@@ -45,7 +46,7 @@ A new Google sign-in always starts as `user`. An admin promotes someone by editi
 - A joined player can submit one transaction id, and only an admin or that game’s verifier can mark it paid or cancelled.
 - Career points on the leaderboard match `(goals × 3) + (assists × 1.7) + (award total × 2)` after every finish, reopen, award edit, delete, and rebuild.
 - Own goals never increase the conceding player’s goal count. Guests never appear in career totals.
-- A failed push request does not roll back game creation.
+- A failed push request does not roll back game creation or a new registration.
 - Staff tools are unreachable for role `user` and for signed-out visitors. `/notification` and `/visitors` are admin only.
 
 ## Out of scope (non-goals)

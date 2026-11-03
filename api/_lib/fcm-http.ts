@@ -295,6 +295,31 @@ export async function listStaffUserIds(projectId: string) {
   return [...new Set([...admins, ...moderators])];
 }
 
+export async function readUserDocument(projectId: string, userId: string) {
+  const user = await googleJson<{
+    createTime?: string;
+    fields?: Record<string, { stringValue?: string }>;
+  }>(
+    `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users/${encodeURIComponent(userId)}`,
+  );
+
+  if (user.status === 404) {
+    return null;
+  }
+
+  if (!user.ok) {
+    throw new Error(googleMessage(user.data, "Player not found"));
+  }
+
+  const createTimeMs = user.data.createTime ? Date.parse(user.data.createTime) : 0;
+
+  return {
+    displayName: stringField(user.data.fields, "displayName") || "A new player",
+    email: stringField(user.data.fields, "email"),
+    createTimeMs: Number.isFinite(createTimeMs) ? createTimeMs : 0,
+  };
+}
+
 export async function readParticipant(projectId: string, gameId: string, participantId: string) {
   const participant = await googleJson<{
     fields?: Record<string, { stringValue?: string; timestampValue?: string }>;
