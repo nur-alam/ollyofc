@@ -67,7 +67,7 @@ Payment is manual. Staff can put bKash or bank instructions on a game and assign
 
 Times are Bangladesh local time (`src/lib/timezone.ts`). The match clock uses server time from `/api/time` (`src/lib/clock.ts`).
 
-Push notifications go out from `api/notify-*.ts`. Creating a game must still succeed if push fails. See `docs/logic/push-noti.md` and `docs/logic/pwa.md`.
+Push notifications go out from `api/notify-*.ts`. Creating a game must still succeed if push fails. The first Google sign-in notifies opted-in admins and moderators, and the new profile stays saved if that push fails. See `docs/notes/push-noti.md` and `docs/notes/pwa.md`.
 
 ## How to change the code
 

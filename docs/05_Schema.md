@@ -10,7 +10,7 @@ Timestamps are Firestore `Timestamp` unless the name ends in `Ms`, which is a nu
 
 1. The client signs in with Google through Firebase Auth.
 2. On the production host `ollyofc.vercel.app`, `authDomain` is the site host. Vercel proxies `/__/auth/*` to Firebase Hosting so the installed PWA can complete the redirect.
-3. `ensureUserProfile` writes `users/{auth.uid}` if it is missing: `role: "user"`, `isActive: true`, empty `position`.
+3. `ensureUserProfile` writes `users/{auth.uid}` if it is missing: `role: "user"`, `isActive: true`, empty `position`. That first write calls `POST /api/notify-user-registered`. Later sign-ins do not. A failed push leaves the profile in place.
 4. The client listens to that document. `role` decides staff and admin UI.
 5. Rules read the same document on every privileged write. A forged client role does nothing.
 6. Sign-out clears the Zustand session. It does not delete the user document.

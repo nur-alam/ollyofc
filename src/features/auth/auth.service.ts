@@ -12,6 +12,7 @@ import {
 } from "firebase/firestore";
 import type { User } from "firebase/auth";
 
+import { notifyUserRegistered } from "@/features/notifications/notify-user-registered";
 import { auth, db } from "@/lib/firebase";
 import { parseStatTotals } from "@/types/user";
 import type { UserProfile, UserRole } from "@/types/user";
@@ -79,6 +80,7 @@ export async function ensureUserProfile(user: User): Promise<UserProfile> {
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
+    void notifyUserRegistered();
     const created = await getDoc(userRef);
 
     return mapUserProfile(created.id, created.data() ?? {});
