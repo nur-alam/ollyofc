@@ -152,7 +152,9 @@ Map: a location name opens `GameMapDialog` with a Google Maps embed. A bad map U
 
 - Live list empty: "Nobody is on the site right now." A visitor counts as live for 90 seconds after the last ping.
 - Day list empty: "No visitors recorded for this day."
+- All time counts each browser once, from the saved visitor record. It does not add up daily totals, so a returning person is not counted again. Deleting a day does not change it. The card shows "—" while the count is loading.
 - Bots are not written. Reads are admin only.
+- "Delete day" removes the selected day's list and totals after confirmation. It stays disabled when that day has no record. "Delete history" removes days before 7 days ago in Bangladesh, after confirmation. The day that is 7 days ago and every later day stay. The button stays disabled when nothing is older than 7 days. Live visitors are left in place. Success and failure are toasts. After a day is deleted, that day shows "No visitors recorded for this day."
 
 ### Not found
 

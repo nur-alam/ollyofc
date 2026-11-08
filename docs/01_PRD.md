@@ -14,7 +14,7 @@ Match details, who is playing, the score, and season totals lived in chat. Peopl
 | --- | --- | --- |
 | Player | Signed-in Google user with `role: "user"` | See upcoming and live games, join or leave, submit a transaction id, open their own profile and the leaderboard. |
 | Staff | `admin` or `moderator` | Create and edit games, add guests, build teams, toss, kick off, score, finish, assign a payment verifier, mark payments. |
-| Admin | `role: "admin"` | Everything staff can do, plus delete or reopen a game, change roles, rebuild career stats, send push broadcasts, and read visitor analytics. |
+| Admin | `role: "admin"` | Everything staff can do, plus delete or reopen a game, change roles, rebuild career stats, send push broadcasts, read visitor analytics, and delete visitor history. |
 | Guest viewer | Signed out | Read the home match, squad, games, leaderboard, and a player page. Cannot join or open staff tools. |
 | Match guest | A person without an account, added by staff onto one game | Appear on that game only. Never receive career stats. |
 
@@ -38,7 +38,7 @@ A new Google sign-in always starts as `user`. An admin promotes someone by editi
 14. As an admin, I can notify all opted-in devices, a chosen set of users, or people about the leaderboard, and I can attach a game link. Creating a game still succeeds if the push fails.
 15. As a signed-in player, I can opt in to push and get a kickoff reminder about one hour before today’s games that have not started.
 16. As staff, I get a push when someone registers with Google for the first time. Their account is still created if that push fails.
-17. As an admin, I can see who is on the site and daily visitor counts.
+17. As an admin, I can see who is on the site, daily visitor counts, and an all-time total. The total counts each browser once and stays when old days are deleted. I can delete one day's history, or history from before 7 days ago. The last 7 days and people still on the site stay.
 
 ## Success metrics
 
