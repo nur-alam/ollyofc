@@ -49,6 +49,7 @@ When you finish a step, check its box in this file in the same change. New work 
 - [x] Admin can delete one day's visitor history, or history from before 7 days ago, from `/visitors`. The last 7 days and live sessions stay.
 - [x] Visitors page shows an all-time count of `visitorSessions`. Each browser is counted once, and deleting day history does not change the count.
 - [x] Games list pages 10 at a time with the shadcn pagination control. Upcoming games stay first. The page lives in `?page=`.
+- [x] Page query, clamp, and controls live in `usePagination` and `ListPagination` so another list can reuse them.
 
 ## Phase 4: Edge-case tests
 

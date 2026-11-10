@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useState } from "react";
+import { Link } from "react-router-dom";
 import { ChevronRightIcon } from "lucide-react";
 import toast from "react-hot-toast";
 
+import { ListPagination } from "@/components/ListPagination";
 import { Button } from "@/components/ui/button";
 import { GameFormDialog } from "@/features/games/components/GameFormDialog";
-import { GameListPagination, GAMES_PAGE_SIZE } from "@/features/games/components/GameListPagination";
 import { GameRowMenu } from "@/features/games/components/GameRowMenu";
 import { GameStatusBadge } from "@/features/games/components/GameStatusBadge";
 import { useGames } from "@/features/games/game.hooks";
@@ -17,6 +17,7 @@ import {
 } from "@/features/games/game.service";
 import { notifyGameCreated } from "@/features/games/notify-game-created";
 import { useAuthStore } from "@/features/auth/auth.store";
+import { usePagination } from "@/lib/pagination";
 import { cn } from "@/lib/utils";
 import { isStaffRole } from "@/types/user";
 import type { Game, GameInput } from "@/types/game";
@@ -29,6 +30,8 @@ import {
   getGameScore,
   getTeamName,
 } from "@/types/game";
+
+const GAMES_PAGE_SIZE = 10;
 
 function GameRowContent({ game }: { game: Game }) {
   const canOpen = game.status !== "cancelled";
@@ -63,38 +66,12 @@ export function GamesPage() {
   const isStaff = profile ? isStaffRole(profile.role) : false;
   const isAdmin = profile?.role === "admin";
   const { games, loading, errorMessage } = useGames();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const pageCount = Math.max(1, Math.ceil(games.length / GAMES_PAGE_SIZE));
-  const page = clampGamesPage(searchParams.get("page"), pageCount);
-  const visibleGames = games.slice((page - 1) * GAMES_PAGE_SIZE, page * GAMES_PAGE_SIZE);
-
-  useEffect(() => {
-    if (loading) {
-      return;
-    }
-
-    const raw = searchParams.get("page");
-    const canonical = page <= 1 ? null : String(page);
-
-    if (raw === canonical) {
-      return;
-    }
-
-    setSearchParams(
-      (current) => {
-        const next = new URLSearchParams(current);
-
-        if (canonical == null) {
-          next.delete("page");
-        } else {
-          next.set("page", canonical);
-        }
-
-        return next;
-      },
-      { replace: true },
-    );
-  }, [loading, page, searchParams, setSearchParams]);
+  const { page, pageCount, start, goToPage, pageHref } = usePagination({
+    itemCount: games.length,
+    pageSize: GAMES_PAGE_SIZE,
+    ready: !loading,
+  });
+  const visibleGames = games.slice(start, start + GAMES_PAGE_SIZE);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [gameToEdit, setGameToEdit] = useState<Game | null>(null);
@@ -161,21 +138,6 @@ export function GamesPage() {
   const closeForm = () => {
     setDialogOpen(false);
     setGameToEdit(null);
-  };
-
-  const goToPage = (nextPage: number) => {
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current);
-
-      if (nextPage <= 1) {
-        next.delete("page");
-      } else {
-        next.set("page", String(nextPage));
-      }
-
-      return next;
-    });
-    window.scrollTo(0, 0);
   };
 
   const handleDelete = async () => {
@@ -265,10 +227,11 @@ export function GamesPage() {
         )}
         {!loading && pageCount > 1 && (
           <div className="border-t px-4 py-3">
-            <GameListPagination
+            <ListPagination
               page={page}
               pageCount={pageCount}
               onPageChange={goToPage}
+              hrefForPage={pageHref}
             />
           </div>
         )}
@@ -326,14 +289,4 @@ export function GamesPage() {
       )}
     </div>
   );
-}
-
-function clampGamesPage(rawPage: string | null, pageCount: number) {
-  const parsed = Number.parseInt(rawPage ?? "1", 10);
-
-  if (!Number.isFinite(parsed)) {
-    return 1;
-  }
-
-  return Math.min(Math.max(parsed, 1), pageCount);
 }

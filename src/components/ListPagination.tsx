@@ -10,18 +10,18 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 
-export const GAMES_PAGE_SIZE = 10;
-
 type PageItem = number | "ellipsis";
 
-export function GameListPagination({
+export function ListPagination({
   page,
   pageCount,
   onPageChange,
+  hrefForPage,
 }: {
   page: number;
   pageCount: number;
   onPageChange: (page: number) => void;
+  hrefForPage: (page: number) => string;
 }) {
   if (pageCount <= 1) {
     return null;
@@ -34,7 +34,7 @@ export function GameListPagination({
       <PaginationContent>
         <PaginationItem>
           <PaginationPrevious
-            href={gamesPageHref(page - 1)}
+            href={hrefForPage(page - 1)}
             aria-disabled={page <= 1}
             tabIndex={page <= 1 ? -1 : undefined}
             className={page <= 1 ? "pointer-events-none opacity-50" : undefined}
@@ -49,7 +49,7 @@ export function GameListPagination({
           ) : (
             <PaginationItem key={item}>
               <PaginationLink
-                href={gamesPageHref(item)}
+                href={hrefForPage(item)}
                 isActive={item === page}
                 onClick={(event) => openPage(event, item, item !== page, onPageChange)}
               >
@@ -60,7 +60,7 @@ export function GameListPagination({
         )}
         <PaginationItem>
           <PaginationNext
-            href={gamesPageHref(page + 1)}
+            href={hrefForPage(page + 1)}
             aria-disabled={page >= pageCount}
             tabIndex={page >= pageCount ? -1 : undefined}
             className={page >= pageCount ? "pointer-events-none opacity-50" : undefined}
@@ -95,10 +95,6 @@ function openPage(
   if (enabled) {
     onPageChange(nextPage);
   }
-}
-
-function gamesPageHref(page: number) {
-  return page <= 1 ? "/games" : `/games?page=${page}`;
 }
 
 function getPageItems(page: number, pageCount: number): PageItem[] {
