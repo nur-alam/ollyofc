@@ -1,7 +1,10 @@
 import {
   arrayUnion,
   collection,
+  deleteDoc,
   doc,
+  getCountFromServer,
+  getDocs,
   increment,
   onSnapshot,
   serverTimestamp,
@@ -10,6 +13,7 @@ import {
   query,
   writeBatch,
   type DocumentData,
+  type DocumentReference,
   type Unsubscribe,
 } from "firebase/firestore";
 
@@ -17,7 +21,7 @@ import { isBotUserAgent, parseDevice } from "@/lib/device";
 import { getErrorMessage } from "@/lib/errors";
 import { db, isFirebaseConfigured } from "@/lib/firebase";
 import { isStandalonePwa } from "@/lib/pwa";
-import { bangladeshTodayYmd } from "@/lib/timezone";
+import { addCalendarDays, bangladeshTodayYmd } from "@/lib/timezone";
 
 import { pageLabel } from "./page-label";
 import type {
@@ -36,6 +40,8 @@ const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const LIVE_WINDOW_MS = 90_000;
+const DELETE_BATCH_SIZE = 450;
+const VISITOR_HISTORY_KEEP_DAYS = 7;
 
 function clip(value: string, max: number) {
   return value.trim().slice(0, max);
@@ -308,6 +314,47 @@ async function writeVisitorPing(input: VisitorPingInput) {
   batch.set(dayVisitorRef, dayVisitorData, { merge: true });
   batch.set(dayRef, dayData, { merge: true });
   await batch.commit();
+}
+
+async function deleteRefs(refs: DocumentReference[]) {
+  for (let index = 0; index < refs.length; index += DELETE_BATCH_SIZE) {
+    const batch = writeBatch(db);
+
+    for (const ref of refs.slice(index, index + DELETE_BATCH_SIZE)) {
+      batch.delete(ref);
+    }
+
+    await batch.commit();
+  }
+}
+
+export function visitorHistoryCutoffYmd(today = bangladeshTodayYmd()) {
+  return addCalendarDays(today, -VISITOR_HISTORY_KEEP_DAYS);
+}
+
+export async function deleteVisitorDay(ymd: string) {
+  const visitors = await getDocs(collection(db, "visitorDays", ymd, "visitors"));
+  await deleteRefs(visitors.docs.map((item) => item.ref));
+  await deleteDoc(doc(db, "visitorDays", ymd));
+}
+
+export async function deleteVisitorHistory() {
+  const cutoff = visitorHistoryCutoffYmd();
+  const days = await getDocs(collection(db, "visitorDays"));
+  const oldDays = days.docs.filter((day) => day.id < cutoff);
+
+  for (const day of oldDays) {
+    const visitors = await getDocs(collection(day.ref, "visitors"));
+    await deleteRefs(visitors.docs.map((item) => item.ref));
+  }
+
+  await deleteRefs(oldDays.map((item) => item.ref));
+  return oldDays.length;
+}
+
+export async function countAllTimeVisitors() {
+  const snapshot = await getCountFromServer(collection(db, "visitorSessions"));
+  return snapshot.data().count;
 }
 
 export function subscribeToLiveVisitors(

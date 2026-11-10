@@ -203,7 +203,7 @@ Path: `visitorSessions/{visitorId}`. Primary key is a UUID stored in the browser
 
 RLS: anyone may create or update a doc whose id is a UUID and whose `visitorId` matches that id. Read and delete are admin only.
 
-The live query is `where("online", "==", true)`.
+The live query is `where("online", "==", true)`. The all-time visitor count is the number of documents in this collection. One browser is one document, so the count does not depend on `visitorDays` and does not fall when old days are deleted.
 
 ## visitorDays
 
@@ -218,7 +218,7 @@ Path: `visitorDays/{day}`. Primary key `day` is `YYYY-MM-DD` in Bangladesh.
 | guests | number |
 | updatedAt | timestamp |
 
-RLS: anyone may create or update a day key of that shape. Read and delete are admin only.
+RLS: anyone may create or update a day key of that shape. Read and delete are admin only. An admin delete of a day removes that document and every doc in `visitors`. Delete history removes days whose id is before the Bangladesh date 7 days ago, and leaves that day and every later day. It does not delete `visitorSessions`, so people still on the site stay in the live list.
 
 ### visitorDays/{day}/visitors/{visitorId}
 

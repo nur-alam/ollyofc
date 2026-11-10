@@ -45,6 +45,8 @@ When you finish a step, check its box in this file in the same change. New work 
 - [x] A played-both player is listed on both team cards with a "Played both sides" badge, can be picked for a goal or assist on either team, and appears on both sides of the winning poster.
 - [x] Played both sides sits in the player row menu after the swap arrow.
 - [x] Game teams panel lives in `components/GameTeamsPanel`, with PlayedBothMenu, PlayerLine, and TeamName in their own files.
+- [x] Admin can delete one day's visitor history, or history from before 7 days ago, from `/visitors`. The last 7 days and live sessions stay.
+- [x] Visitors page shows an all-time count of `visitorSessions`. Each browser is counted once, and deleting day history does not change the count.
 
 ## Phase 4: Edge-case tests
 

@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 
+import { getErrorMessage } from "@/lib/errors";
 import { addCalendarDays, bangladeshTodayYmd } from "@/lib/timezone";
 
 import {
+  countAllTimeVisitors,
   isVisitorLive,
   subscribeToDaySummary,
   subscribeToDayVisitors,
@@ -115,6 +117,51 @@ export function useVisitorCalendar() {
   );
 
   return { days, datesWithVisits, loading, errorMessage };
+}
+
+export function useAllTimeVisitorCount() {
+  const [count, setCount] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const next = await countAllTimeVisitors();
+
+        if (cancelled) {
+          return;
+        }
+
+        setCount(next);
+        setErrorMessage("");
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        setErrorMessage(getErrorMessage(error, "Could not load the all-time visitor count."));
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void load();
+    const timer = window.setInterval(() => {
+      void load();
+    }, 30_000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  return { count, loading, errorMessage };
 }
 
 export function useVisitorDates() {
