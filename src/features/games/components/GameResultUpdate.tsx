@@ -220,7 +220,7 @@ export function GameResultUpdate({
         )}
         {canStart && tossed && (
           <Button type="button" size="sm" disabled={saving} onClick={() => void handleStart()}>
-            {saving ? "Starting..." : "Kick off"}
+            {saving ? "Starting..." : "Start game"}
           </Button>
         )}
         {canFinish && (
