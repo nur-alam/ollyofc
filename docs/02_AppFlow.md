@@ -22,7 +22,7 @@ Navigation uses React Router 7. The public header is on every page except the 40
 | `/squad` | Squad list. | Public | A row opens `/player/:playerId`. |
 | `/leaderboard` | Points table. | Public | A row opens `/player/:playerId`. |
 | `/player/:playerId` | One profile and career line. | Public | Back via header. |
-| `/games` | All games, upcoming first. | Public | A non-cancelled row opens `/games/:gameId`. Cancelled rows do not navigate. |
+| `/games` | All games, 10 per page, upcoming first. | Public | A non-cancelled row opens `/games/:gameId`. Cancelled rows do not navigate. |
 | `/games/:gameId` | Match page: join, teams, toss, score, awards, payment. | Public read. Actions depend on role and status. | Header Games link uses `end` so this page is not the list highlight. |
 | `/profile` | Own name, position, photo, push toggle. | Signed in | |
 | `/dashboard` | Squad and match counts, rebuild stats. | Staff | Links to `/profile` and `/games`. |
@@ -75,6 +75,7 @@ The sidebar (staff, desktop) lists Dashboard, and for admins Visitors and Notifi
 ### Games `/games`
 
 - Empty collection: "No games yet."
+- The list shows 10 games per page. Upcoming games stay first. Page controls sit under the rows when more than one page exists. The page is `?page=`. Page 1 omits the query. A page past the end snaps back to the last page.
 - Each row shows date, time, location, and a status badge derived from the clock (`upcoming`, `active`, `completed`) unless the stored status is `cancelled`.
 - Staff: row menu can edit. Admin: row menu can delete. Delete asks for confirmation, then removes the game and strips career contributions first.
 - Create opens `GameFormDialog`. Required pieces are date, start time, location (one of the four grounds), and duration. Map URL must be an http(s) Google Maps link or it is dropped. Payment instructions are optional. Blank payment instructions mean the game has no payment UI.

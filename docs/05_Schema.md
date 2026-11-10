@@ -2,7 +2,7 @@
 
 The database is Cloud Firestore, not a SQL engine. The tables below are the logical model: the document path is the primary key, a field that stores another document id is the foreign key, and `firestore.rules` is the row-level security policy. There is no `firestore.indexes.json`. Every query in the app is a single-field filter or a full collection listener, which Firestore indexes automatically.
 
-Two databases share this shape and these rules: `ollyofcdev` for `pnpm dev`, and `(default)` for production.
+Two databases share this shape and these rules: `ollyofcdev` for `pnpm dev`, and `(default)` for `pnpm prod` and production.
 
 Timestamps are Firestore `Timestamp` unless the name ends in `Ms`, which is a number of milliseconds. Career points are a number computed in tenths.
 

@@ -125,6 +125,7 @@ Use `src/components/ui` (shadcn) before adding a new control. Buttons come from 
 | Avatar | image, else one initial on `#dbeafe` / `#1d4ed8` | n/a | n/a | n/a | broken image falls back to the initial |
 | Dialog | existing shadcn dialog | overlay click closes when the dialog allows it | primary action disabled until the form is valid | spinner on the submit button | toast, dialog stays open |
 | Table row | default | `hover:bg-muted/60` when the row is a link | cancelled game rows are not links | "Loading…" copy spans the row | error copy replaces the body |
+| Pagination | ghost page buttons, outline on the current page | muted hover from the button variant | previous and next drop to 50% opacity and ignore pointer and keyboard at the ends | n/a | n/a |
 | Toast | hot-toast default | n/a | n/a | n/a | `toast.error` with the server or rules message |
 
 Empty copy is specified in `02_AppFlow.md`. Do not replace it with a blank container or a new illustration unless the product owner asks.

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ChevronRightIcon } from "lucide-react";
 import toast from "react-hot-toast";
 
+import { ListPagination } from "@/components/ListPagination";
 import { Button } from "@/components/ui/button";
 import { GameFormDialog } from "@/features/games/components/GameFormDialog";
 import { GameRowMenu } from "@/features/games/components/GameRowMenu";
@@ -16,6 +17,7 @@ import {
 } from "@/features/games/game.service";
 import { notifyGameCreated } from "@/features/games/notify-game-created";
 import { useAuthStore } from "@/features/auth/auth.store";
+import { usePagination } from "@/lib/pagination";
 import { cn } from "@/lib/utils";
 import { isStaffRole } from "@/types/user";
 import type { Game, GameInput } from "@/types/game";
@@ -28,6 +30,8 @@ import {
   getGameScore,
   getTeamName,
 } from "@/types/game";
+
+const GAMES_PAGE_SIZE = 10;
 
 function GameRowContent({ game }: { game: Game }) {
   const canOpen = game.status !== "cancelled";
@@ -62,6 +66,12 @@ export function GamesPage() {
   const isStaff = profile ? isStaffRole(profile.role) : false;
   const isAdmin = profile?.role === "admin";
   const { games, loading, errorMessage } = useGames();
+  const { page, pageCount, start, goToPage, pageHref } = usePagination({
+    itemCount: games.length,
+    pageSize: GAMES_PAGE_SIZE,
+    ready: !loading,
+  });
+  const visibleGames = games.slice(start, start + GAMES_PAGE_SIZE);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [gameToEdit, setGameToEdit] = useState<Game | null>(null);
@@ -176,7 +186,7 @@ export function GamesPage() {
           </p>
         ) : games.length ? (
           <ul className="divide-y">
-            {games.map((game) => {
+            {visibleGames.map((game) => {
               const canOpen = game.status !== "cancelled";
 
               return (
@@ -214,6 +224,16 @@ export function GamesPage() {
           <p className="p-8 text-center text-sm text-muted-foreground">
             No games yet.
           </p>
+        )}
+        {!loading && pageCount > 1 && (
+          <div className="border-t px-4 py-3">
+            <ListPagination
+              page={page}
+              pageCount={pageCount}
+              onPageChange={goToPage}
+              hrefForPage={pageHref}
+            />
+          </div>
         )}
       </div>
 
