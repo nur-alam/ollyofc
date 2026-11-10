@@ -45,10 +45,14 @@ const firebaseConfig = {
 
 export const isFirebaseConfigured = Object.values(firebaseConfig).every(Boolean);
 
-/** Named Firestore DB for `pnpm dev`. Production builds use `(default)`. */
-export const firestoreDatabaseId = import.meta.env.DEV ? "ollyofcdev" : "(default)";
+/** `pnpm dev` uses `ollyofcdev`. `pnpm prod` and production builds use `(default)`. */
+export const firestoreDatabaseId =
+  import.meta.env.MODE === "production" ? "(default)" : "ollyofcdev";
 
 export const isUsingDevFirebase = firestoreDatabaseId !== "(default)";
+
+/** True only while `pnpm prod` is the local Vite server. The built site has no banner. */
+export const isLocalProductionFirebase = import.meta.env.DEV && !isUsingDevFirebase;
 
 const app = initializeApp(firebaseConfig);
 

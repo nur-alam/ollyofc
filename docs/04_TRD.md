@@ -38,11 +38,12 @@ Locked to the versions installed in `pnpm-lock.yaml` on this repo. Ranges in `pa
 
 | Surface | Where it runs | Database |
 | --- | --- | --- |
-| `pnpm dev` | Vite | Named Firestore database `ollyofcdev`. A banner says so. |
-| `pnpm build` / Vercel production | Static app + `api/*.ts` edge routes | Firestore `(default)` |
+| `pnpm dev` | Vite | Named Firestore database `ollyofcdev`. A blue banner says so. |
+| `pnpm prod` | Vite, mode `production` | Firestore `(default)`. An amber banner says so. Push stays skipped on the local server. |
+| `pnpm build` / Vercel production | Static app + `api/*.ts` edge routes | Firestore `(default)`. No banner. |
 | Kickoff cron | Cloudflare Worker in `cloudflare/kickoff-reminder` | None. It POSTs to the Vercel reminder route. |
 
-`src/lib/firebase/index.ts` chooses the database from `import.meta.env.DEV`. The same `firestore.rules` and `storage.rules` apply to both databases. Rule changes ship with `firebase deploy --only firestore:rules`.
+`src/lib/firebase/index.ts` chooses the database from the Vite mode. Mode `production` (`pnpm prod`, `pnpm build`) uses `(default)`. Any other mode uses `ollyofcdev`. The same `firestore.rules` and `storage.rules` apply to both databases. Rule changes ship with `firebase deploy --only firestore:rules`.
 
 Firebase Hosting does not serve the app. Vercel rewrites non-API paths to `index.html`, and proxies `/__/auth/*` to `ollyofc-f97a1.firebaseapp.com` so installed PWAs can complete Google sign-in.
 
@@ -123,13 +124,14 @@ Push failures are logged and toasted. They must not roll back the Firestore writ
 - `CRON_SECRET` is compared as the full `Bearer` value. Do not accept it in a query string.
 - Service-account JSON and the private key exist only in server env. The edge route exchanges them for a short-lived Google access token.
 - Own goals must not increment the conceding player's `stats.goals`. Career totals change only on finish, reopen, add-player-to-finished-game, award edits, delete, and the dashboard rebuild.
-- Local development must stay on `ollyofcdev`.
+- `pnpm dev` must stay on `ollyofcdev`. `pnpm prod` is the local server for the production database. Writes there change real games and career stats.
 
 ## Commands
 
 ```bash
 pnpm install
 pnpm dev
+pnpm prod
 pnpm typecheck
 pnpm build
 pnpm preview

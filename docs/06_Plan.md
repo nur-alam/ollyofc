@@ -8,6 +8,7 @@ When you finish a step, check its box in this file in the same change. New work 
 
 - [x] Firebase project with Google sign-in, Firestore `(default)`, and Storage.
 - [x] Named database `ollyofcdev` for `pnpm dev`, selected in `src/lib/firebase/index.ts`.
+- [x] `pnpm prod` runs the Vite server in mode `production` so Firestore is `(default)`. `pnpm dev` stays on `ollyofcdev`.
 - [x] `users/{uid}` created on first sign-in with `role: "user"`.
 - [x] Roles `admin`, `moderator`, `user`. Staff is admin or moderator.
 - [x] `firestore.rules` for users, games, participants, payments, and visitors.
@@ -47,6 +48,7 @@ When you finish a step, check its box in this file in the same change. New work 
 - [x] Game teams panel lives in `components/GameTeamsPanel`, with PlayedBothMenu, PlayerLine, and TeamName in their own files.
 - [x] Admin can delete one day's visitor history, or history from before 7 days ago, from `/visitors`. The last 7 days and live sessions stay.
 - [x] Visitors page shows an all-time count of `visitorSessions`. Each browser is counted once, and deleting day history does not change the count.
+- [x] Games list pages 10 at a time with the shadcn pagination control. Upcoming games stay first. The page lives in `?page=`.
 
 ## Phase 4: Edge-case tests
 

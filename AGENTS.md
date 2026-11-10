@@ -9,6 +9,7 @@ React 19 + TypeScript + Vite 7, Tailwind CSS 4, shadcn/ui, Firebase (Auth, Fires
 ```bash
 pnpm install
 pnpm dev          # Vite. Uses the ollyofcdev Firestore database.
+pnpm prod         # Vite in production mode. Uses the (default) Firestore database.
 pnpm typecheck    # tsc --noEmit
 pnpm build        # typecheck, then production build (default Firestore database)
 pnpm preview
@@ -20,8 +21,9 @@ Copy `.env.example` to `.env` and fill in `VITE_FIREBASE_*`. Do not commit `.env
 
 `src/lib/firebase/index.ts` picks the database from the Vite mode:
 
-- `pnpm dev` uses the named database `ollyofcdev`. A blue banner says so. Local work must stay on that database.
-- `pnpm build` / production uses `(default)`.
+- `pnpm dev` uses the named database `ollyofcdev`. A blue banner says so. Day-to-day local work stays on that database.
+- `pnpm prod` uses `(default)`, the production database. An amber banner says so. Push from this server is still skipped.
+- `pnpm build` / the Vercel site uses `(default)` and shows no banner.
 
 The same `firestore.rules` and `storage.rules` apply to both databases. After rule changes: `firebase deploy --only firestore:rules`.
 
