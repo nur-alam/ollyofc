@@ -49,6 +49,7 @@ function playerFromDocument(document: UserDocument): LeaderboardPlayer {
 
   return {
     displayName: document.fields?.displayName?.stringValue?.trim() || "Player",
+    position: document.fields?.position?.stringValue?.trim() || "",
     games: statNumber(stats, "games"),
     goals,
     assists,

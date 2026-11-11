@@ -66,7 +66,7 @@ The sidebar (staff, desktop) lists Dashboard, and for admins Visitors and Notifi
 - Columns: rank, player, games, goals, assists, awards, win rate, points. Points render to one decimal.
 - Info control explains the formula. It does not change data.
 - Empty board: "Nobody has played a finished game yet."
-- Slack `/ollyofc-leaderboard` posts that same board into the channel where it was typed. Columns are rank, player, games, goals, assists, awards, win rate, and points. The message links to `/leaderboard`. An empty board uses the same empty copy. A failed load is visible only to the person who ran the command, and it does not change Firestore.
+- Slack `/ollyofc-leaderboard` posts that same board into the channel where it was typed, as a table with a header row. Columns are rank, player, games, goals, assists, awards, win rate, and points. The message links to `/leaderboard`. An empty board uses the same empty copy. A failed load is visible only to the person who ran the command, and it does not change Firestore.
 
 ### Player `/player/:playerId`
 

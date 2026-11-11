@@ -5,6 +5,7 @@
 
 export type LeaderboardPlayer = {
   displayName: string;
+  position?: string;
   games: number;
   goals: number;
   assists: number;
@@ -83,29 +84,30 @@ export function formatPoints(points: number) {
   return (Number.isFinite(points) ? points : 0).toFixed(1);
 }
 
-function slackPlain(value: string) {
-  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+function cell(text: string) {
+  return { type: "raw_text" as const, text };
 }
 
-function awardLabel(count: number) {
-  return count === 1 ? "1 award" : `${count} awards`;
-}
+const POSITION_LABELS: Record<string, string> = {
+  goalkeeper: "Goalkeeper",
+  defender: "Defender",
+  midfielder: "Midfielder",
+  forward: "Forward",
+};
 
-export function leaderboardLines(players: RankedPlayer[]) {
-  return players.map((player) => {
-    const name = slackPlain(player.displayName.trim() || "Player");
-    return `${player.rank}. ${name} — ${player.games} games, ${player.goals} goals, ${player.assists} assists, ${awardLabel(player.awards)}, ${formatWinRate(player)} wins, ${formatPoints(player.points)} pts`;
-  });
+function playerLabel(player: RankedPlayer) {
+  const name = player.displayName.trim() || "Player";
+  const position = POSITION_LABELS[player.position?.trim().toLowerCase() ?? ""] ?? "";
+  return position ? `${name} · ${position}` : name;
 }
 
 const BOARD_URL = "https://ollyofc.vercel.app/leaderboard";
-const SECTION_LIMIT = 2900;
 
-function section(text: string) {
-  return {
-    type: "section",
-    text: { type: "mrkdwn", text },
-  };
+function leaderboardLines(players: RankedPlayer[]) {
+  return players.map(
+    (player) =>
+      `${player.rank}. ${playerLabel(player)} — ${player.games} games, ${player.goals} goals, ${player.assists} assists, ${player.awards} awards, ${formatWinRate(player)} wins, ${formatPoints(player.points)} pts`,
+  );
 }
 
 export function leaderboardMessage(players: LeaderboardPlayer[]) {
@@ -118,34 +120,53 @@ export function leaderboardMessage(players: LeaderboardPlayer[]) {
     };
   }
 
+  const rows = [
+    ["#", "Player", "Games", "Goals", "Assists", "Awards", "Win rate", "Points"].map(cell),
+    ...ranked.slice(0, 99).map((player) => [
+      cell(String(player.rank)),
+      cell(playerLabel(player)),
+      cell(String(player.games)),
+      cell(String(player.goals)),
+      cell(String(player.assists)),
+      cell(String(player.awards)),
+      cell(formatWinRate(player)),
+      cell(formatPoints(player.points)),
+    ]),
+  ];
+
   const lines = leaderboardLines(ranked);
-  const blocks = [];
-  let chunk = "*Ollyo FC leaderboard*";
-
-  for (const line of lines) {
-    const next = `${chunk}\n${line}`;
-
-    if (next.length > SECTION_LIMIT) {
-      blocks.push(section(chunk));
-      chunk = line;
-    } else {
-      chunk = next;
-    }
-  }
-
-  const link = `<${BOARD_URL}|Open the full leaderboard>`;
-  const withLink = `${chunk}\n${link}`;
-
-  if (withLink.length > SECTION_LIMIT) {
-    blocks.push(section(chunk));
-    blocks.push(section(link));
-  } else {
-    blocks.push(section(withLink));
-  }
 
   return {
     response_type: "in_channel" as const,
-    text: `Ollyo FC leaderboard\n${lines.join("\n")}\n${BOARD_URL}`.slice(0, 3000),
-    blocks,
+    text: `Leaderboard\n${lines.join("\n")}\n${BOARD_URL}`.slice(0, 3000),
+    blocks: [
+      {
+        type: "header",
+        text: { type: "plain_text", text: "Leaderboard" },
+      },
+      {
+        type: "context",
+        elements: [
+          {
+            type: "mrkdwn",
+            text: `Ranked by points, then awards, then win rate · <${BOARD_URL}|Open the full leaderboard>`,
+          },
+        ],
+      },
+      {
+        type: "table",
+        column_settings: [
+          { align: "center" },
+          { is_wrapped: true },
+          { align: "center" },
+          { align: "center" },
+          { align: "center" },
+          { align: "center" },
+          { align: "center" },
+          { align: "right" },
+        ],
+        rows,
+      },
+    ],
   };
 }
