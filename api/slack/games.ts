@@ -4,6 +4,7 @@ import {
   defer,
   postSlackResponse,
   readSlackCommand,
+  slackAck,
   slackHookUrl,
   slackMessage,
   type SlackEdgeContext,
@@ -16,7 +17,7 @@ export const config = {
 async function deliverGames(responseUrl: string, page: number) {
   try {
     const message = await slackGamesMessage(page);
-    await postSlackResponse(responseUrl, { replace_original: true, ...message });
+    await postSlackResponse(responseUrl, message);
   } catch (error) {
     console.error(error);
     await postSlackResponse(responseUrl, {
@@ -45,7 +46,7 @@ export default async function handler(request: Request, context: SlackEdgeContex
       console.error("Slack games had no waitUntil, so the reply may not finish");
     }
 
-    return slackMessage("Loading games…");
+    return slackAck();
   }
 
   try {

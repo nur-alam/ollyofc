@@ -12,6 +12,11 @@ export function slackMessage(text: string, responseType: "ephemeral" | "in_chann
   return json({ response_type: responseType, text });
 }
 
+/** Acknowledge a slash command without leaving a message in Slack. */
+export function slackAck() {
+  return new Response(null, { status: 200 });
+}
+
 export function slackHookUrl(value: string | null) {
   if (!value) {
     return "";

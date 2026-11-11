@@ -32,6 +32,7 @@ When you finish a step, check its box in this file in the same change. New work 
 - [x] Game creation stays committed when push fails.
 - [x] `POST /api/notify-user-registered` after the first Google sign-in creates `users/{uid}`. Opted-in admins and moderators are notified. The profile stays saved if push fails.
 - [x] `POST /api/slack/leaderboard` answers `/ollyofc-leaderboard` from production `users` stats. Slack's signing secret is required. The route returns HTTP 200 before the Firestore read, then posts the same ranking as `/leaderboard` to Slack's `response_url`. Later Slack commands are sibling files under `api/slack/`.
+- [x] Slash commands acknowledge with an empty HTTP 200. The visible Slack message is only the one posted to `response_url`, so the loading line does not stay.
 - [x] `POST /api/slack/games` answers `/ollyofc-games` with the first 10 games, upcoming first. Previous (`games-previous`) and Next (`games-next`) post to `POST /api/slack/actions` and replace the message.
 - [x] `POST /api/slack/squad` answers `/ollyofc-squad` with active players, sorted by name, 10 per page. Previous (`squad-previous`) and Next (`squad-next`) use the same actions route.
 - [x] `POST /api/slack/me` answers `/ollyofc-me` with the caller's profile match stats. `users.info` matches the Slack email to `users.email`. The reply is ephemeral.
