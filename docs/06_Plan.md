@@ -73,7 +73,7 @@ No test runner is installed. Add one only when the first test in this phase is s
 - [ ] Transaction id shorter than 5 or longer than 120 is rejected.
 - [ ] Delete game subtracts career stats before the game document is gone.
 - [ ] Registration notify sends nothing when the user document is older than 5 minutes, and a failed push does not delete the new profile.
-- [ ] `/api/slack/leaderboard` returns 401 for a bad Slack signature and 500 when `SLACK_SIGNING_SECRET` is unset. `/ollyofc-leaderboard` ranks like `/leaderboard`.
+- [ ] `/api/slack/leaderboard` returns HTTP 200 with an ephemeral explanation when the Slack signature is bad or `SLACK_SIGNING_SECRET` is unset, and does not call `response_url`. A valid `/ollyofc-leaderboard` ranks like `/leaderboard`.
 
 ## Phase 5: Tournaments
 

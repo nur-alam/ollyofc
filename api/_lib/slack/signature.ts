@@ -14,27 +14,37 @@ function hexToBytes(hex: string) {
   return bytes;
 }
 
+export type SlackSignatureResult = "ok" | "missing" | "stale" | "malformed" | "mismatch" | "bot-token";
+
 /** Slack signs `v0:{timestamp}:{raw body}` with HMAC SHA-256. */
-export async function slackSignatureMatches(
+export async function checkSlackSignature(
   secret: string,
   timestamp: string,
   rawBody: string,
   signature: string,
-) {
+): Promise<SlackSignatureResult> {
+  if (!secret) {
+    return "missing";
+  }
+
+  if (secret.startsWith("xox")) {
+    return "bot-token";
+  }
+
   const sentAt = Number(timestamp);
 
   if (!Number.isFinite(sentAt) || Math.abs(Date.now() / 1000 - sentAt) > MAX_AGE_SECONDS) {
-    return false;
+    return "stale";
   }
 
   if (!signature.startsWith("v0=")) {
-    return false;
+    return "malformed";
   }
 
   const given = hexToBytes(signature.slice(3));
 
   if (!given) {
-    return false;
+    return "malformed";
   }
 
   const key = await crypto.subtle.importKey(
@@ -45,6 +55,7 @@ export async function slackSignatureMatches(
     ["verify"],
   );
   const data = new TextEncoder().encode(`v0:${timestamp}:${rawBody}`);
+  const matches = await crypto.subtle.verify("HMAC", key, given, data);
 
-  return crypto.subtle.verify("HMAC", key, given, data);
+  return matches ? "ok" : "mismatch";
 }
