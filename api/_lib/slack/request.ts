@@ -1,6 +1,6 @@
 import { env } from "../env";
 import { json } from "../fcm-http";
-import { slackSignatureMatches } from "./signature";
+import { checkSlackSignature, type SlackSignatureResult } from "./signature";
 
 const REQUEST_CONTEXT = Symbol.for("@vercel/request-context");
 
@@ -59,6 +59,39 @@ export async function postSlackResponse(responseUrl: string, body: unknown) {
   }
 }
 
+function signingSecret() {
+  let value = env.SLACK_SIGNING_SECRET ?? "";
+
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    value = value.slice(1, -1).trim();
+  }
+
+  return value;
+}
+
+function signatureProblem(result: SlackSignatureResult) {
+  if (result === "bot-token") {
+    return "SLACK_SIGNING_SECRET is the bot token. Open the Slack app, go to Basic Information, and copy Signing Secret into that Vercel variable.";
+  }
+
+  if (result === "missing") {
+    return "SLACK_SIGNING_SECRET is not set on the server.";
+  }
+
+  if (result === "stale") {
+    return "That Slack request was too old. Run /ollyofc-leaderboard again.";
+  }
+
+  if (result === "malformed") {
+    return "Slack did not send a signature Ollyo FC could read. Run /ollyofc-leaderboard again.";
+  }
+
+  return "The signing secret on the server does not match this Slack app. Copy Signing Secret from Basic Information into SLACK_SIGNING_SECRET on Vercel.";
+}
+
 /** Verifies a Slack slash-command POST. A `Response` is the reply to return immediately. */
 export async function readSlackCommand(request: Request): Promise<URLSearchParams | Response> {
   if (request.method !== "POST") {
@@ -72,21 +105,15 @@ export async function readSlackCommand(request: Request): Promise<URLSearchParam
     return new Response(null, { status: 200 });
   }
 
-  const secret = env.SLACK_SIGNING_SECRET;
-
-  if (!secret) {
-    return json({ error: "SLACK_SIGNING_SECRET is not set" }, 500);
-  }
-
-  const authorized = await slackSignatureMatches(
-    secret,
+  const result = await checkSlackSignature(
+    signingSecret(),
     request.headers.get("x-slack-request-timestamp") ?? "",
     rawBody,
     request.headers.get("x-slack-signature") ?? "",
   );
 
-  if (!authorized) {
-    return json({ error: "Unauthorized" }, 401);
+  if (result !== "ok") {
+    return slackMessage(signatureProblem(result));
   }
 
   if (params.get("ssl_check") === "1") {

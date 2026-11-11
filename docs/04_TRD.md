@@ -100,7 +100,7 @@ Never prefix a secret with `VITE_`. Never commit `.env`.
 | `POST /api/notify-user-registered` | After the first Google sign-in creates `users/{uid}` | Firebase ID token of that new user. The server re-reads the user document and only sends when Firestore `createTime` is within 5 minutes. Recipients are opted-in admins and moderators. |
 | `POST /api/notify-broadcast` | Admin notification page | Firebase ID token of an admin. |
 | `GET` or `POST /api/notify-kickoff-reminder` | Cloudflare cron | `Authorization: Bearer <CRON_SECRET>`. Missing secret is 500. Wrong secret is 401. |
-| `POST /api/slack/leaderboard` | Slack slash command `/ollyofc-leaderboard` | Slack signing secret (`X-Slack-Signature` over the raw body). Missing secret is 500. Bad or stale signature is 401. A valid command gets HTTP 200 immediately, then the board is posted to Slack's `response_url`. |
+| `POST /api/slack/leaderboard` | Slack slash command `/ollyofc-leaderboard` | Slack signing secret (`X-Slack-Signature` over the raw body). The reply is always HTTP 200 so Slack can show it. A bad secret or signature is an ephemeral explanation and does not use `response_url`. A valid command returns 200 immediately, then the board is posted to Slack's `response_url`. |
 
 Push failures are logged and toasted. They must not roll back the Firestore write that triggered them.
 
@@ -127,7 +127,7 @@ Push failures are logged and toasted. They must not roll back the Firestore writ
 - Profile photos are public read, owner or staff write, under 2 MB, content type jpeg, png, or webp.
 - Visitor session writes are unauthenticated and limited to a UUID id. Visitor reads and deletes are admin only. Do not widen visitor reads.
 - `CRON_SECRET` is compared as the full `Bearer` value. Do not accept it in a query string.
-- `SLACK_SIGNING_SECRET` verifies `v0:{timestamp}:{raw body}` with HMAC SHA-256. Reject timestamps more than five minutes off. Do not log the secret or the signature.
+- `SLACK_SIGNING_SECRET` verifies `v0:{timestamp}:{raw body}` with HMAC SHA-256. Reject timestamps more than five minutes off. A failed check is HTTP 200 with an ephemeral Slack message, and that request must not be posted to `response_url`. Do not log the secret or the signature.
 - Service-account JSON and the private key exist only in server env. The edge route exchanges them for a short-lived Google access token.
 - Own goals must not increment the conceding player's `stats.goals`. Career totals change only on finish, reopen, add-player-to-finished-game, award edits, delete, and the dashboard rebuild.
 - `pnpm dev` must stay on `ollyofcdev`. `pnpm prod` is the local server for the production database. Writes there change real games and career stats.
