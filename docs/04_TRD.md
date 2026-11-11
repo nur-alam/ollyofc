@@ -58,7 +58,7 @@ src/pages/          thin route pages
 src/types/          game, player, user
 src/scss/           shell tokens and layout
 api/                Vercel edge routes
-api/slack/          one slash command per file (`leaderboard.ts`, `games.ts`, `squad.ts`). `actions.ts` receives button clicks.
+api/slack/          one slash command per file (`leaderboard.ts`, `games.ts`, `squad.ts`, `me.ts`). `actions.ts` receives button clicks.
 api/_lib/           shared server code, not a public route
 api/_lib/slack/     Slack signature and command helpers, not a public route
 cloudflare/         kickoff reminder worker
@@ -80,10 +80,11 @@ Browser variables are typed on `ImportMetaEnv` in `src/vite-env.d.ts`:
 - `VITE_FIREBASE_APP_ID`
 - `VITE_FIREBASE_VAPID_KEY` (optional)
 
-Server variables are typed on `ServerEnv` in `api/_lib/env.ts` and read as `env.CRON_SECRET`, `env.SLACK_SIGNING_SECRET`, and the `env.FIREBASE_*` fields. A blank value is `undefined`.
+Server variables are typed on `ServerEnv` in `api/_lib/env.ts` and read as `env.CRON_SECRET`, `env.SLACK_SIGNING_SECRET`, `env.SLACK_BOT_TOKEN`, and the `env.FIREBASE_*` fields. A blank value is `undefined`.
 
 - `CRON_SECRET`
 - `SLACK_SIGNING_SECRET`
+- `SLACK_BOT_TOKEN`
 - `FIREBASE_SERVICE_ACCOUNT` or the trio `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`
 
 Never prefix a secret with `VITE_`. Never commit `.env`.
@@ -103,6 +104,7 @@ Never prefix a secret with `VITE_`. Never commit `.env`.
 | `POST /api/slack/leaderboard` | Slack slash command `/ollyofc-leaderboard` | Slack signing secret (`X-Slack-Signature` over the raw body). The reply is always HTTP 200 so Slack can show it. A bad secret or signature is an ephemeral explanation and does not use `response_url`. A valid command returns 200 immediately, then the board is posted to Slack's `response_url`. |
 | `POST /api/slack/games` | Slack slash command `/ollyofc-games` | Same signing secret. First page is 10 games, upcoming first. Optional command text is a page number. |
 | `POST /api/slack/squad` | Slack slash command `/ollyofc-squad` | Same signing secret. Active players, sorted by name, 10 per page. Optional command text is a page number. |
+| `POST /api/slack/me` | Slack slash command `/ollyofc-me` | Same signing secret, plus `SLACK_BOT_TOKEN` with `users:read` and `users:read.email`. Looks up the Slack member's email and returns that player's profile stats. The reply stays ephemeral. |
 | `POST /api/slack/actions` | Slack button clicks | Same signing secret. `games-previous` and `games-next` replace the games message. `squad-previous` and `squad-next` replace the squad message. |
 
 Push failures are logged and toasted. They must not roll back the Firestore write that triggered them.
@@ -117,7 +119,7 @@ Push failures are logged and toasted. They must not roll back the Firestore writ
 | FCM HTTP v1 | Push from the edge route, with a Google OAuth token minted from the service account |
 | Google Maps | Embed and share links for the four grounds. No Maps API key in the client. |
 | Vercel request headers on `/api/track-visitor` | IP, city, region, and country for the visitor page. A failed or empty response stores empty geo. |
-| Slack slash commands | `/ollyofc-leaderboard` posts the production leaderboard into the channel. `/ollyofc-games` posts 10 games per page, upcoming first. `/ollyofc-squad` posts the active squad, 10 players per page. Previous and Next replace that message. The signing secret stays on the server. |
+| Slack slash commands | `/ollyofc-leaderboard` posts the production leaderboard into the channel. `/ollyofc-games` posts 10 games per page, upcoming first. `/ollyofc-squad` posts the active squad, 10 players per page. `/ollyofc-me` posts that member's profile stats only to them. Previous and Next replace a list message. The signing secret and bot token stay on the server. |
 
 ## Security constraints
 
@@ -130,7 +132,7 @@ Push failures are logged and toasted. They must not roll back the Firestore writ
 - Profile photos are public read, owner or staff write, under 2 MB, content type jpeg, png, or webp.
 - Visitor session writes are unauthenticated and limited to a UUID id. Visitor reads and deletes are admin only. Do not widen visitor reads.
 - `CRON_SECRET` is compared as the full `Bearer` value. Do not accept it in a query string.
-- `SLACK_SIGNING_SECRET` verifies `v0:{timestamp}:{raw body}` with HMAC SHA-256. Reject timestamps more than five minutes off. A failed check is HTTP 200 with an ephemeral Slack message, and that request must not be posted to `response_url`. Do not log the secret or the signature.
+- `SLACK_SIGNING_SECRET` verifies `v0:{timestamp}:{raw body}` with HMAC SHA-256. Reject timestamps more than five minutes off. A failed check is HTTP 200 with an ephemeral Slack message, and that request must not be posted to `response_url`. Do not log the secret, the bot token, or the signature.
 - Service-account JSON and the private key exist only in server env. The edge route exchanges them for a short-lived Google access token.
 - Own goals must not increment the conceding player's `stats.goals`. Career totals change only on finish, reopen, add-player-to-finished-game, award edits, delete, and the dashboard rebuild.
 - `pnpm dev` must stay on `ollyofcdev`. `pnpm prod` is the local server for the production database. Writes there change real games and career stats.

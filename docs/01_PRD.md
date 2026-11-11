@@ -42,6 +42,7 @@ A new Google sign-in always starts as `user`. An admin promotes someone by editi
 18. As a member of the Ollyo Slack workspace, I can type `/ollyofc-leaderboard` and see the same leaderboard in that channel.
 19. As a member of the Ollyo Slack workspace, I can type `/ollyofc-games` and page through the same game list, 10 games at a time, upcoming first.
 20. As a member of the Ollyo Slack workspace, I can type `/ollyofc-squad` and page through the active squad, 10 players at a time.
+21. As a member of the Ollyo Slack workspace, I can type `/ollyofc-me` and see my own match stats, the same numbers as on my profile. Only I see that reply.
 
 ## Success metrics
 
