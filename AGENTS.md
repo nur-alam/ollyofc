@@ -73,7 +73,7 @@ Times are Bangladesh local time (`src/lib/timezone.ts`). The match clock uses se
 
 Push notifications go out from `api/notify-*.ts`. Creating a game must still succeed if push fails. The first Google sign-in notifies opted-in admins and moderators, and the new profile stays saved if that push fails. See `docs/notes/push-noti.md` and `docs/notes/pwa.md`.
 
-`/ollyofc-leaderboard` in Slack posts to `POST /api/slack/leaderboard`. The route checks `SLACK_SIGNING_SECRET`, then reads production `users` and replies with the same ranking as `/leaderboard`. A later command is another file under `api/slack/`, such as `games.ts` for `/api/slack/games`.
+`/ollyofc-leaderboard` in Slack posts to `POST /api/slack/leaderboard`. The route checks `SLACK_SIGNING_SECRET`, returns HTTP 200 immediately, then reads production `users` and posts the same ranking as `/leaderboard` back to Slack. A later command is another file under `api/slack/`, such as `games.ts` for `/api/slack/games`.
 
 ## How to change the code
 

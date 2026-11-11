@@ -100,7 +100,7 @@ Never prefix a secret with `VITE_`. Never commit `.env`.
 | `POST /api/notify-user-registered` | After the first Google sign-in creates `users/{uid}` | Firebase ID token of that new user. The server re-reads the user document and only sends when Firestore `createTime` is within 5 minutes. Recipients are opted-in admins and moderators. |
 | `POST /api/notify-broadcast` | Admin notification page | Firebase ID token of an admin. |
 | `GET` or `POST /api/notify-kickoff-reminder` | Cloudflare cron | `Authorization: Bearer <CRON_SECRET>`. Missing secret is 500. Wrong secret is 401. |
-| `POST /api/slack/leaderboard` | Slack slash command `/ollyofc-leaderboard` | Slack signing secret (`X-Slack-Signature` over the raw body). Missing secret is 500. Bad or stale signature is 401. |
+| `POST /api/slack/leaderboard` | Slack slash command `/ollyofc-leaderboard` | Slack signing secret (`X-Slack-Signature` over the raw body). Missing secret is 500. Bad or stale signature is 401. A valid command gets HTTP 200 immediately, then the board is posted to Slack's `response_url`. |
 
 Push failures are logged and toasted. They must not roll back the Firestore write that triggered them.
 
