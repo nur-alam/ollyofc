@@ -40,6 +40,7 @@ A new Google sign-in always starts as `user`. An admin promotes someone by editi
 16. As staff, I get a push when someone registers with Google for the first time. Their account is still created if that push fails.
 17. As an admin, I can see who is on the site, daily visitor counts, and an all-time total. The total counts each browser once and stays when old days are deleted. I can delete one day's history, or history from before 7 days ago. The last 7 days and people still on the site stay.
 18. As a member of the Ollyo Slack workspace, I can type `/ollyofc-leaderboard` and see the same leaderboard in that channel.
+19. As a member of the Ollyo Slack workspace, I can type `/ollyofc-games` and page through the same game list, 10 games at a time, upcoming first.
 
 ## Success metrics
 

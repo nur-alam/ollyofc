@@ -82,11 +82,11 @@ function signatureProblem(result: SlackSignatureResult) {
   }
 
   if (result === "stale") {
-    return "That Slack request was too old. Run /ollyofc-leaderboard again.";
+    return "That Slack request was too old. Run the command again.";
   }
 
   if (result === "malformed") {
-    return "Slack did not send a signature Ollyo FC could read. Run /ollyofc-leaderboard again.";
+    return "Slack did not send a signature Ollyo FC could read. Run the command again.";
   }
 
   return "The signing secret on the server does not match this Slack app. Copy Signing Secret from Basic Information into SLACK_SIGNING_SECRET on Vercel.";
