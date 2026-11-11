@@ -58,7 +58,7 @@ src/pages/          thin route pages
 src/types/          game, player, user
 src/scss/           shell tokens and layout
 api/                Vercel edge routes
-api/slack/          one slash command per file (`leaderboard.ts`, `games.ts`). `actions.ts` receives button clicks.
+api/slack/          one slash command per file (`leaderboard.ts`, `games.ts`, `squad.ts`). `actions.ts` receives button clicks.
 api/_lib/           shared server code, not a public route
 api/_lib/slack/     Slack signature and command helpers, not a public route
 cloudflare/         kickoff reminder worker
@@ -102,7 +102,8 @@ Never prefix a secret with `VITE_`. Never commit `.env`.
 | `GET` or `POST /api/notify-kickoff-reminder` | Cloudflare cron | `Authorization: Bearer <CRON_SECRET>`. Missing secret is 500. Wrong secret is 401. |
 | `POST /api/slack/leaderboard` | Slack slash command `/ollyofc-leaderboard` | Slack signing secret (`X-Slack-Signature` over the raw body). The reply is always HTTP 200 so Slack can show it. A bad secret or signature is an ephemeral explanation and does not use `response_url`. A valid command returns 200 immediately, then the board is posted to Slack's `response_url`. |
 | `POST /api/slack/games` | Slack slash command `/ollyofc-games` | Same signing secret. First page is 10 games, upcoming first. Optional command text is a page number. |
-| `POST /api/slack/actions` | Slack button clicks | Same signing secret. `games-page` replaces the games message with the requested page. |
+| `POST /api/slack/squad` | Slack slash command `/ollyofc-squad` | Same signing secret. Active players, sorted by name, 10 per page. Optional command text is a page number. |
+| `POST /api/slack/actions` | Slack button clicks | Same signing secret. `games-previous` and `games-next` replace the games message. `squad-previous` and `squad-next` replace the squad message. |
 
 Push failures are logged and toasted. They must not roll back the Firestore write that triggered them.
 
@@ -116,7 +117,7 @@ Push failures are logged and toasted. They must not roll back the Firestore writ
 | FCM HTTP v1 | Push from the edge route, with a Google OAuth token minted from the service account |
 | Google Maps | Embed and share links for the four grounds. No Maps API key in the client. |
 | Vercel request headers on `/api/track-visitor` | IP, city, region, and country for the visitor page. A failed or empty response stores empty geo. |
-| Slack slash commands | `/ollyofc-leaderboard` posts the production leaderboard into the channel. `/ollyofc-games` posts 10 games per page, upcoming first, and Previous and Next replace that message. The signing secret stays on the server. |
+| Slack slash commands | `/ollyofc-leaderboard` posts the production leaderboard into the channel. `/ollyofc-games` posts 10 games per page, upcoming first. `/ollyofc-squad` posts the active squad, 10 players per page. Previous and Next replace that message. The signing secret stays on the server. |
 
 ## Security constraints
 

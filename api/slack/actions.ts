@@ -1,4 +1,5 @@
 import { slackGamesMessage } from "../_lib/slack/games";
+import { slackSquadMessage } from "../_lib/slack/squad";
 import {
   defer,
   postSlackResponse,
@@ -23,16 +24,21 @@ type SlackActionPayload = {
   actions?: SlackAction[];
 };
 
-async function replaceGames(responseUrl: string, page: number) {
+async function replaceMessage(
+  responseUrl: string,
+  page: number,
+  load: (page: number) => Promise<{ response_type: "in_channel"; text: string; blocks?: unknown[] }>,
+  failure: string,
+) {
   try {
-    const message = await slackGamesMessage(page);
+    const message = await load(page);
     await postSlackResponse(responseUrl, { replace_original: true, ...message });
   } catch (error) {
     console.error(error);
     await postSlackResponse(responseUrl, {
       replace_original: true,
       response_type: "ephemeral",
-      text: "Games could not be loaded. Try again in a moment.",
+      text: failure,
     }).catch((postError) => {
       console.error(postError);
     });
@@ -60,20 +66,29 @@ export default async function handler(request: Request, context: SlackEdgeContex
 
   const action = payload.actions?.[0];
 
-  if (action?.action_id !== "games-previous" && action?.action_id !== "games-next") {
+  const actionId = action?.action_id;
+  const gamesAction = actionId === "games-previous" || actionId === "games-next";
+  const squadAction = actionId === "squad-previous" || actionId === "squad-next";
+
+  if (!gamesAction && !squadAction) {
     return new Response(null, { status: 200 });
   }
 
   const responseUrl = slackHookUrl(payload.response_url ?? null);
+  const failure = gamesAction
+    ? "Games could not be loaded. Try again in a moment."
+    : "The squad could not be loaded. Try again in a moment.";
 
   if (!responseUrl) {
-    return slackMessage("Games could not be loaded. Try again in a moment.");
+    return slackMessage(failure);
   }
 
-  const delivery = replaceGames(responseUrl, Number(action.value));
+  const delivery = gamesAction
+    ? replaceMessage(responseUrl, Number(action?.value), slackGamesMessage, failure)
+    : replaceMessage(responseUrl, Number(action?.value), slackSquadMessage, failure);
 
   if (!defer(delivery, context)) {
-    console.error("Slack games page had no waitUntil, so the reply may not finish");
+    console.error("Slack page had no waitUntil, so the reply may not finish");
   }
 
   return new Response(null, { status: 200 });
