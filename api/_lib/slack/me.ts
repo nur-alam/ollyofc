@@ -18,13 +18,6 @@ export type SlackProfile = {
   awards: Record<string, number>;
 };
 
-const POSITION_LABELS: Record<string, string> = {
-  goalkeeper: "Goalkeeper",
-  defender: "Defender",
-  midfielder: "Midfielder",
-  forward: "Forward",
-};
-
 const AWARD_LABELS: Record<string, string> = {
   mvp: "MVP",
   mostSaves: "Most saves",
@@ -52,10 +45,6 @@ type SlackUserResponse = {
 export type SlackMeResult =
   | { ok: true; message: ReturnType<typeof profileMessage> }
   | { ok: false; text: string };
-
-function cell(text: string) {
-  return { type: "raw_text" as const, text };
-}
 
 function botToken() {
   let value = env.SLACK_BOT_TOKEN ?? "";
@@ -92,16 +81,6 @@ function awardTotal(awards: Record<string, number>) {
 
 function careerPoints(goals: number, assists: number, awards: number) {
   return (goals * 30 + assists * 17 + awards * 20) / 10;
-}
-
-function formatPosition(position: string) {
-  const normalized = position.trim().toLowerCase();
-
-  if (!normalized) {
-    return "Not set";
-  }
-
-  return POSITION_LABELS[normalized] ?? position.trim();
 }
 
 function awardLabel(key: string) {
@@ -164,50 +143,79 @@ function profileFromDocument(document: UserDocument): SlackProfile | null {
   };
 }
 
+function statTile(label: string, value: string) {
+  return {
+    type: "rich_text" as const,
+    elements: [
+      {
+        type: "rich_text_section",
+        elements: [
+          { type: "text", text: label },
+          { type: "text", text: `\n${value}`, style: { bold: true } },
+        ],
+      },
+    ],
+  };
+}
+
+function matchStatsTitle(name: string) {
+  const suffix = " match stats";
+  const trimmed = name.trim() || "Player";
+  return `${trimmed.slice(0, 150 - suffix.length)}${suffix}`;
+}
+
 export function profileMessage(profile: SlackProfile) {
   const points = (Number.isFinite(profile.points) ? profile.points : 0).toFixed(1);
   const extraAwards = Object.entries(profile.awards)
     .filter(([key, count]) => key !== "mvp" && count > 0)
     .sort(([left], [right]) => awardLabel(left).localeCompare(awardLabel(right)));
-  const rows = [
-    ["Stat", "Value"].map(cell),
-    ...[
-      ["Games", String(profile.games)],
-      ["Points", points],
-      ["Goals", String(profile.goals)],
-      ["Assists", String(profile.assists)],
-      ["Wins", String(profile.wins)],
-      ["Losses", String(profile.losses)],
-      ["Draws", String(profile.draws)],
-      ["Awards", String(awardTotal(profile.awards))],
-      ["MVP", String(profile.awards.mvp ?? 0)],
-      ...extraAwards.map(([key, count]) => [awardLabel(key), String(count)]),
-      ["Win rate", rate(profile.wins, profile.games)],
-      ["Loss rate", rate(profile.losses, profile.games)],
-      ["Goals / game", goalsPerGame(profile.goals, profile.games)],
-    ].map(([label, value]) => [cell(label), cell(value)]),
+  const tiles = [
+    statTile("Games", String(profile.games)),
+    statTile("Points", points),
+    statTile("Goals", String(profile.goals)),
+    statTile("Assists", String(profile.assists)),
+    statTile("Wins", String(profile.wins)),
+    statTile("Losses", String(profile.losses)),
+    statTile("Draws", String(profile.draws)),
+    statTile("Awards", String(awardTotal(profile.awards))),
+    statTile("MVP", String(profile.awards.mvp ?? 0)),
+    ...extraAwards.map(([key, count]) => statTile(awardLabel(key), String(count))),
+    statTile("Win rate", rate(profile.wins, profile.games)),
+    statTile("Loss rate", rate(profile.losses, profile.games)),
+    statTile("Goals / game", goalsPerGame(profile.goals, profile.games)),
   ];
+  const rows = [];
+
+  for (let index = 0; index < tiles.length; index += 3) {
+    const row = tiles.slice(index, index + 3);
+
+    while (row.length < 3) {
+      row.push({ type: "raw_text" as const, text: " " });
+    }
+
+    rows.push(row);
+  }
 
   return {
     response_type: "ephemeral" as const,
-    text: `${profile.displayName}: ${points} points from ${profile.games} games.`,
+    text: `${matchStatsTitle(profile.displayName)}: ${points} points from ${profile.games} games.`,
     blocks: [
       {
         type: "header",
-        text: { type: "plain_text", text: profile.displayName.slice(0, 150) || "Player" },
+        text: { type: "plain_text", text: matchStatsTitle(profile.displayName) },
       },
       {
         type: "context",
         elements: [
           {
             type: "mrkdwn",
-            text: `${formatPosition(profile.position)} · From finished games you joined · <${PLAYER_URL}/${profile.id}|Open profile>`,
+            text: `From finished games you joined. · <${PLAYER_URL}/${profile.id}|Open profile>`,
           },
         ],
       },
       {
         type: "table",
-        column_settings: [{ is_wrapped: true }, { align: "right" }],
+        column_settings: [{ is_wrapped: true }, { is_wrapped: true }, { is_wrapped: true }],
         rows,
       },
     ],
