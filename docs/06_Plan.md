@@ -31,6 +31,7 @@ When you finish a step, check its box in this file in the same change. New work 
 - [x] Cloudflare cron worker calling the reminder route with `Authorization: Bearer`.
 - [x] Game creation stays committed when push fails.
 - [x] `POST /api/notify-user-registered` after the first Google sign-in creates `users/{uid}`. Opted-in admins and moderators are notified. The profile stays saved if push fails.
+- [x] `POST /api/slack/leaderboard` answers `/ollyofc-leaderboard` from production `users` stats. Slack's signing secret is required. The channel sees the same ranking as `/leaderboard`. Later Slack commands are sibling files under `api/slack/`.
 - [x] `setParticipantPlayedBoth`. A full move, rebuild, or clear removes the mark. Finish gives that player a win unless the match is a draw.
 
 ## Phase 3: UI Integration
@@ -71,6 +72,7 @@ No test runner is installed. Add one only when the first test in this phase is s
 - [ ] Transaction id shorter than 5 or longer than 120 is rejected.
 - [ ] Delete game subtracts career stats before the game document is gone.
 - [ ] Registration notify sends nothing when the user document is older than 5 minutes, and a failed push does not delete the new profile.
+- [ ] `/api/slack/leaderboard` returns 401 for a bad Slack signature and 500 when `SLACK_SIGNING_SECRET` is unset. `/ollyofc-leaderboard` ranks like `/leaderboard`.
 
 ## Phase 5: Tournaments
 
