@@ -137,7 +137,7 @@ Map: a location name opens `GameMapDialog` with a Google Maps embed. A bad map U
 - Signed-out users never see it. They hit `/login`.
 - Save name and position. Photo upload accepts jpeg, png, or webp under 2 MB.
 - Push toggle: asks notification permission, stores an FCM token, or removes it. If the browser has no push, the control explains that instead of failing the rest of the form.
-- Slack `/ollyofc-me` shows the person who typed it their own match stats: games, points, goals, assists, wins, losses, draws, awards, MVP, any extra awards, win rate, loss rate, and goals per game. The reply is visible only to them. Slack's email must match the Google email on `users`. The slash command Request URL is `https://ollyofc.vercel.app/api/slack/me`.
+- Slack `/ollyofc-me` shows the person who typed it their own match stats. The title is their name plus "match stats". The numbers use the same order as the profile card: games, points, goals, assists, wins, losses, draws, awards, MVP, any extra awards, win rate, loss rate, and goals per game. The reply is visible only to them. Slack's email must match the Google email on `users`. The slash command Request URL is `https://ollyofc.vercel.app/api/slack/me`.
 
 ### Dashboard `/dashboard`
 
