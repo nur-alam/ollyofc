@@ -40,7 +40,9 @@ src/features/     auth, games, players, notifications, visitors
 src/lib/          firebase, clock, timezone, utils
 src/pages/        thin route pages
 src/types/        shared types (game, player, user)
-api/              Vercel functions: clock, image proxy, push, visitors
+api/              Vercel functions: clock, image proxy, push, visitors, slack
+api/slack/        one slash command per file
+api/_lib/slack/   Slack helpers, not public routes
 cloudflare/       kickoff reminder worker
 docs/             numbered specs (01–06) and logic/ domain notes
 ```
@@ -70,6 +72,8 @@ Payment is manual. Staff can put bKash or bank instructions on a game and assign
 Times are Bangladesh local time (`src/lib/timezone.ts`). The match clock uses server time from `/api/time` (`src/lib/clock.ts`).
 
 Push notifications go out from `api/notify-*.ts`. Creating a game must still succeed if push fails. The first Google sign-in notifies opted-in admins and moderators, and the new profile stays saved if that push fails. See `docs/notes/push-noti.md` and `docs/notes/pwa.md`.
+
+`/ollyofc-leaderboard` in Slack posts to `POST /api/slack/leaderboard`. The route checks `SLACK_SIGNING_SECRET`, then reads production `users` and replies with the same ranking as `/leaderboard`. A later command is another file under `api/slack/`, such as `games.ts` for `/api/slack/games`.
 
 ## How to change the code
 

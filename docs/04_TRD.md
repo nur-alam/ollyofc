@@ -58,7 +58,9 @@ src/pages/          thin route pages
 src/types/          game, player, user
 src/scss/           shell tokens and layout
 api/                Vercel edge routes
+api/slack/          one slash command per file (`leaderboard.ts` is `/api/slack/leaderboard`)
 api/_lib/           shared server code, not a public route
+api/_lib/slack/     Slack signature and command helpers, not a public route
 cloudflare/         kickoff reminder worker
 docs/               numbered specs (01–06)
 docs/logic/         domain notes these specs summarize
@@ -78,9 +80,10 @@ Browser variables are typed on `ImportMetaEnv` in `src/vite-env.d.ts`:
 - `VITE_FIREBASE_APP_ID`
 - `VITE_FIREBASE_VAPID_KEY` (optional)
 
-Server variables are typed on `ServerEnv` in `api/_lib/env.ts` and read as `env.CRON_SECRET` and the `env.FIREBASE_*` fields. A blank value is `undefined`.
+Server variables are typed on `ServerEnv` in `api/_lib/env.ts` and read as `env.CRON_SECRET`, `env.SLACK_SIGNING_SECRET`, and the `env.FIREBASE_*` fields. A blank value is `undefined`.
 
 - `CRON_SECRET`
+- `SLACK_SIGNING_SECRET`
 - `FIREBASE_SERVICE_ACCOUNT` or the trio `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`
 
 Never prefix a secret with `VITE_`. Never commit `.env`.
@@ -97,6 +100,7 @@ Never prefix a secret with `VITE_`. Never commit `.env`.
 | `POST /api/notify-user-registered` | After the first Google sign-in creates `users/{uid}` | Firebase ID token of that new user. The server re-reads the user document and only sends when Firestore `createTime` is within 5 minutes. Recipients are opted-in admins and moderators. |
 | `POST /api/notify-broadcast` | Admin notification page | Firebase ID token of an admin. |
 | `GET` or `POST /api/notify-kickoff-reminder` | Cloudflare cron | `Authorization: Bearer <CRON_SECRET>`. Missing secret is 500. Wrong secret is 401. |
+| `POST /api/slack/leaderboard` | Slack slash command `/ollyofc-leaderboard` | Slack signing secret (`X-Slack-Signature` over the raw body). Missing secret is 500. Bad or stale signature is 401. |
 
 Push failures are logged and toasted. They must not roll back the Firestore write that triggered them.
 
@@ -110,6 +114,7 @@ Push failures are logged and toasted. They must not roll back the Firestore writ
 | FCM HTTP v1 | Push from the edge route, with a Google OAuth token minted from the service account |
 | Google Maps | Embed and share links for the four grounds. No Maps API key in the client. |
 | Vercel request headers on `/api/track-visitor` | IP, city, region, and country for the visitor page. A failed or empty response stores empty geo. |
+| Slack slash commands | `/ollyofc-leaderboard` posts the production leaderboard into the channel. The signing secret stays on the server. |
 
 ## Security constraints
 
@@ -122,6 +127,7 @@ Push failures are logged and toasted. They must not roll back the Firestore writ
 - Profile photos are public read, owner or staff write, under 2 MB, content type jpeg, png, or webp.
 - Visitor session writes are unauthenticated and limited to a UUID id. Visitor reads and deletes are admin only. Do not widen visitor reads.
 - `CRON_SECRET` is compared as the full `Bearer` value. Do not accept it in a query string.
+- `SLACK_SIGNING_SECRET` verifies `v0:{timestamp}:{raw body}` with HMAC SHA-256. Reject timestamps more than five minutes off. Do not log the secret or the signature.
 - Service-account JSON and the private key exist only in server env. The edge route exchanges them for a short-lived Google access token.
 - Own goals must not increment the conceding player's `stats.goals`. Career totals change only on finish, reopen, add-player-to-finished-game, award edits, delete, and the dashboard rebuild.
 - `pnpm dev` must stay on `ollyofcdev`. `pnpm prod` is the local server for the production database. Writes there change real games and career stats.

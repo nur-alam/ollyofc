@@ -4,6 +4,7 @@ export type ServerEnv = {
   FIREBASE_PROJECT_ID?: string;
   FIREBASE_CLIENT_EMAIL?: string;
   FIREBASE_PRIVATE_KEY?: string;
+  SLACK_SIGNING_SECRET?: string;
 };
 
 function readEnv(name: keyof ServerEnv) {
@@ -26,5 +27,8 @@ export const env: ServerEnv = {
   },
   get FIREBASE_PRIVATE_KEY() {
     return readEnv("FIREBASE_PRIVATE_KEY");
+  },
+  get SLACK_SIGNING_SECRET() {
+    return readEnv("SLACK_SIGNING_SECRET");
   },
 };
