@@ -32,6 +32,7 @@ When you finish a step, check its box in this file in the same change. New work 
 - [x] Game creation stays committed when push fails.
 - [x] `POST /api/notify-user-registered` after the first Google sign-in creates `users/{uid}`. Opted-in admins and moderators are notified. The profile stays saved if push fails.
 - [x] `POST /api/slack/leaderboard` answers `/ollyofc-leaderboard` from production `users` stats. Slack's signing secret is required. The route returns HTTP 200 before the Firestore read, then posts the same ranking as `/leaderboard` to Slack's `response_url`. Later Slack commands are sibling files under `api/slack/`.
+- [x] `POST /api/slack/games` answers `/ollyofc-games` with the first 10 games, upcoming first. Previous (`games-previous`) and Next (`games-next`) post to `POST /api/slack/actions` and replace the message.
 - [x] The leaderboard slash command keeps that read alive with the edge handler `waitUntil`. The private request-context symbol is not set on this runtime, so Slack was waiting on the users read and timing out.
 - [x] `setParticipantPlayedBoth`. A full move, rebuild, or clear removes the mark. Finish gives that player a win unless the match is a draw.
 

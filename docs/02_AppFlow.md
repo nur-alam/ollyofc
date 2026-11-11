@@ -77,6 +77,7 @@ The sidebar (staff, desktop) lists Dashboard, and for admins Visitors and Notifi
 
 - Empty collection: "No games yet."
 - The list shows 10 games per page. Upcoming games stay first. Page controls sit under the rows when more than one page exists. The page is `?page=`. Page 1 omits the query. A page past the end snaps back to the last page.
+- Slack `/ollyofc-games` posts the same order, 10 games per page, into the channel. Previous and Next replace that message. The slash command Request URL is `https://ollyofc.vercel.app/api/slack/games`. The buttons use the app Interactivity Request URL `https://ollyofc.vercel.app/api/slack/actions`.
 - Each row shows date, time, location, and a status badge derived from the clock (`upcoming`, `active`, `completed`) unless the stored status is `cancelled`.
 - Staff: row menu can edit. Admin: row menu can delete. Delete asks for confirmation, then removes the game and strips career contributions first.
 - Create opens `GameFormDialog`. Required pieces are date, start time, location (one of the four grounds), and duration. Map URL must be an http(s) Google Maps link or it is dropped. Payment instructions are optional. Blank payment instructions mean the game has no payment UI.
