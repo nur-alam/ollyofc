@@ -2,11 +2,54 @@ import { env } from "../env";
 import { json } from "../fcm-http";
 import { slackSignatureMatches } from "./signature";
 
+const REQUEST_CONTEXT = Symbol.for("@vercel/request-context");
+
 export function slackMessage(text: string, responseType: "ephemeral" | "in_channel" = "ephemeral") {
   return json({ response_type: responseType, text });
 }
 
-/** Verifies a Slack slash-command POST. `null` means the caller should answer the command. */
+export function slackHookUrl(value: string | null) {
+  if (!value) {
+    return "";
+  }
+
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && url.hostname === "hooks.slack.com" ? url.toString() : "";
+  } catch {
+    return "";
+  }
+}
+
+/** Keep work running after the HTTP response. Slack must see HTTP 200 within 3 seconds. */
+export function defer(promise: Promise<unknown>) {
+  const context = (
+    globalThis as typeof globalThis & {
+      [REQUEST_CONTEXT]?: { get?: () => { waitUntil?: (promise: Promise<unknown>) => void } };
+    }
+  )[REQUEST_CONTEXT]?.get?.();
+
+  if (typeof context?.waitUntil !== "function") {
+    return false;
+  }
+
+  context.waitUntil(promise);
+  return true;
+}
+
+export async function postSlackResponse(responseUrl: string, body: unknown) {
+  const response = await fetch(responseUrl, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    throw new Error("Slack did not accept the reply");
+  }
+}
+
+/** Verifies a Slack slash-command POST. A `Response` is the reply to return immediately. */
 export async function readSlackCommand(request: Request): Promise<URLSearchParams | Response> {
   if (request.method !== "POST") {
     return json({ error: "Method not allowed" }, 405);
