@@ -4,7 +4,6 @@ import {
   defer,
   postSlackResponse,
   readSlackCommand,
-  slackAck,
   slackHookUrl,
   slackMessage,
   type SlackEdgeContext,
@@ -19,11 +18,14 @@ async function deliverMe(responseUrl: string, userId: string) {
     const result = await slackMeMessage(userId);
     await postSlackResponse(
       responseUrl,
-      result.ok ? result.message : { response_type: "ephemeral", text: result.text },
+      result.ok
+        ? { replace_original: true, ...result.message }
+        : { replace_original: true, response_type: "ephemeral", text: result.text },
     );
   } catch (error) {
     console.error(error);
     await postSlackResponse(responseUrl, {
+      replace_original: true,
       response_type: "ephemeral",
       text: "Your stats could not be loaded. Try again in a moment.",
     }).catch((postError) => {
@@ -49,7 +51,7 @@ export default async function handler(request: Request, context: SlackEdgeContex
       console.error("Slack profile had no waitUntil, so the reply may not finish");
     }
 
-    return slackAck();
+    return slackMessage("Loading your stats…");
   }
 
   try {

@@ -73,7 +73,7 @@ Times are Bangladesh local time (`src/lib/timezone.ts`). The match clock uses se
 
 Push notifications go out from `api/notify-*.ts`. Creating a game must still succeed if push fails. The first Google sign-in notifies opted-in admins and moderators, and the new profile stays saved if that push fails. See `docs/notes/push-noti.md` and `docs/notes/pwa.md`.
 
-`/ollyofc-leaderboard` in Slack posts to `POST /api/slack/leaderboard`. The route checks `SLACK_SIGNING_SECRET`, returns an empty HTTP 200 immediately, then reads production `users` and posts the same ranking as `/leaderboard` back to Slack. `/ollyofc-games` posts to `POST /api/slack/games` and pages 10 at a time through `POST /api/slack/actions`. `/ollyofc-squad` posts to `POST /api/slack/squad` and uses that same actions route. `/ollyofc-me` posts to `POST /api/slack/me` and returns that Slack member's profile stats. A later command is another file under `api/slack/`.
+`/ollyofc-leaderboard` in Slack posts to `POST /api/slack/leaderboard`. The route checks `SLACK_SIGNING_SECRET`, returns HTTP 200 immediately, then reads production `users` and posts the same ranking as `/leaderboard` back to Slack. `/ollyofc-games` posts to `POST /api/slack/games` and pages 10 at a time through `POST /api/slack/actions`. `/ollyofc-squad` posts to `POST /api/slack/squad` and uses that same actions route. `/ollyofc-me` posts to `POST /api/slack/me` and returns that Slack member's profile stats. A later command is another file under `api/slack/`.
 
 ## How to change the code
 
