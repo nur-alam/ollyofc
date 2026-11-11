@@ -56,6 +56,7 @@ The sidebar (staff, desktop) lists Dashboard, and for admins Visitors and Notifi
 
 - Filters: search, position (all or one of goalkeeper, defender, midfielder, forward), status (all, active, inactive).
 - No rows after filters: "No players match your filters."
+- Slack `/ollyofc-squad` posts the active players, sorted by name, 10 per page. Columns are player, position, and email. Previous and Next replace that message. The slash command Request URL is `https://ollyofc.vercel.app/api/slack/squad`. The buttons use the same Interactivity Request URL as `/ollyofc-games`. An empty squad uses the same empty copy.
 - Staff can add a player and edit name, email, position, active flag, and photo. Admin can assign a role and delete a user.
 - Seed players, when shown, are marked `isSeed` and exist only as a staff tool.
 
