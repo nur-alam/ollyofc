@@ -4,6 +4,10 @@ import { slackSignatureMatches } from "./signature";
 
 const REQUEST_CONTEXT = Symbol.for("@vercel/request-context");
 
+export type SlackEdgeContext = {
+  waitUntil?: (promise: Promise<unknown>) => void;
+};
+
 export function slackMessage(text: string, responseType: "ephemeral" | "in_channel" = "ephemeral") {
   return json({ response_type: responseType, text });
 }
@@ -21,19 +25,25 @@ export function slackHookUrl(value: string | null) {
   }
 }
 
-/** Keep work running after the HTTP response. Slack must see HTTP 200 within 3 seconds. */
-export function defer(promise: Promise<unknown>) {
+function symbolWaitUntil() {
   const context = (
     globalThis as typeof globalThis & {
-      [REQUEST_CONTEXT]?: { get?: () => { waitUntil?: (promise: Promise<unknown>) => void } };
+      [REQUEST_CONTEXT]?: { get?: () => SlackEdgeContext };
     }
   )[REQUEST_CONTEXT]?.get?.();
 
-  if (typeof context?.waitUntil !== "function") {
+  return context?.waitUntil;
+}
+
+/** Keep work running after the HTTP response. Slack must see HTTP 200 within 3 seconds. */
+export function defer(promise: Promise<unknown>, context?: SlackEdgeContext) {
+  const waitUntil = context?.waitUntil ?? symbolWaitUntil();
+
+  if (typeof waitUntil !== "function") {
     return false;
   }
 
-  context.waitUntil(promise);
+  waitUntil(promise);
   return true;
 }
 

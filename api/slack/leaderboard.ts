@@ -1,6 +1,13 @@
 import { json } from "../_lib/fcm-http";
 import { slackLeaderboardMessage } from "../_lib/slack/leaderboard";
-import { defer, postSlackResponse, readSlackCommand, slackHookUrl, slackMessage } from "../_lib/slack/request";
+import {
+  defer,
+  postSlackResponse,
+  readSlackCommand,
+  slackHookUrl,
+  slackMessage,
+  type SlackEdgeContext,
+} from "../_lib/slack/request";
 
 export const config = {
   runtime: "edge",
@@ -21,7 +28,7 @@ async function deliverLeaderboard(responseUrl: string) {
   }
 }
 
-export default async function handler(request: Request) {
+export default async function handler(request: Request, context: SlackEdgeContext) {
   const command = await readSlackCommand(request);
 
   if (command instanceof Response) {
@@ -30,7 +37,13 @@ export default async function handler(request: Request) {
 
   const responseUrl = slackHookUrl(command.get("response_url"));
 
-  if (responseUrl && defer(deliverLeaderboard(responseUrl))) {
+  if (responseUrl) {
+    const delivery = deliverLeaderboard(responseUrl);
+
+    if (!defer(delivery, context)) {
+      console.error("Slack leaderboard had no waitUntil, so the reply may not finish");
+    }
+
     return slackMessage("Loading the leaderboard…");
   }
 
