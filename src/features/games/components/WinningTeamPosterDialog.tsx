@@ -20,7 +20,7 @@ import {
   isParticipantOnTeam,
   type Game,
   type GameParticipant,
-  type GameTeamId,
+  type GameResultWinner,
 } from "@/types/game";
 
 type WinningTeamPosterDialogProps = {
@@ -40,15 +40,17 @@ export function WinningTeamPosterDialog({
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const score = getGameScore(game);
-  const winner = game.result?.winner ?? getResultWinner(score.a, score.b);
-  const winnerId: GameTeamId | null = winner === "a" || winner === "b" ? winner : null;
+  const winnerId: GameResultWinner =
+    game.result?.winner ?? getResultWinner(score.a, score.b);
   const teamNameA = getTeamName(game, "a");
   const teamNameB = getTeamName(game, "b");
-  const teamName = winnerId ? getTeamName(game, winnerId) : "";
-  const fileName = getPosterFileName(teamName || "result");
-  const shareText = winnerId
-    ? `${teamName} won ${score.a}–${score.b}`
-    : `${teamNameA} ${score.a}–${score.b} ${teamNameB}`;
+  const teamName = winnerId === "draw" ? "" : getTeamName(game, winnerId);
+  const fileName =
+    winnerId === "draw" ? getPosterFileName("draw", "draw") : getPosterFileName(teamName);
+  const shareText =
+    winnerId === "draw"
+      ? `Draw ${score.a}–${score.b}`
+      : `${teamName} won ${score.a}–${score.b}`;
   const usersById = useUserMap();
   const title = getGameDisplayTitle(game);
   const dateLabel = formatGameDate(game);
@@ -78,7 +80,7 @@ export function WinningTeamPosterDialog({
   const canShare = useMemo(() => (file ? canSharePosterFile(file) : false), [file]);
 
   useEffect(() => {
-    if (!open || !winnerId) {
+    if (!open) {
       return;
     }
 
@@ -193,7 +195,7 @@ export function WinningTeamPosterDialog({
           ) : (
             <img
               src={previewUrl}
-              alt={`${teamName} won ${score.a}–${score.b}`}
+              alt={shareText}
               className="aspect-square w-full object-cover"
             />
           )}

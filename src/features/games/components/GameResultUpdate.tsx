@@ -32,7 +32,6 @@ import {
   getGameScore,
   hasKickoffPassed,
   getOpponentTeamId,
-  getResultWinner,
   getTeamName,
   hasMatchEnded,
   isParticipantOnTeam,
@@ -78,8 +77,7 @@ export function GameResultUpdate({
   const tossing = isTossFlipping(game.toss, now);
   const tossed = isTossLanded(game.toss, now);
   const score = getGameScore(game);
-  const winner = game.result?.winner ?? getResultWinner(score.a, score.b);
-  const canShareResult = isStaff && hasMatchEnded(game, now) && winner !== "draw";
+  const canShareResult = isStaff && hasMatchEnded(game, now);
 
   const needsScorer = goalKind === "player";
   // Own goals name the player who conceded it, but leaving it unknown is fine.
