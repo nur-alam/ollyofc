@@ -23,7 +23,7 @@ export type WinningTeamPosterInput = {
   teamNameB: string;
   scoreA: number;
   scoreB: number;
-  winnerId: "a" | "b";
+  winnerId: "a" | "b" | "draw";
   playersA: WinningTeamPosterPlayer[];
   playersB: WinningTeamPosterPlayer[];
 };
@@ -47,7 +47,11 @@ const BURSTS: BurstSpec[] = [
   { x: 920, y: 990, color: FIREWORK_COLORS[1], radius: 70 },
 ];
 
-export function getPosterFileName(teamName: string) {
+export function getPosterFileName(teamName: string, outcome: "won" | "draw" = "won") {
+  if (outcome === "draw") {
+    return "ollyofc-draw.png";
+  }
+
   const slug = teamName
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
@@ -173,7 +177,13 @@ function drawBurst(ctx: CanvasRenderingContext2D, burst: BurstSpec) {
 
 function drawCopy(ctx: CanvasRenderingContext2D, input: WinningTeamPosterInput) {
   const maxWidth = POSTER_SIZE - 128;
-  const winnerName = input.winnerId === "a" ? input.teamNameA : input.teamNameB;
+  const isDraw = input.winnerId === "draw";
+  const headline = isDraw
+    ? "DRAW"
+    : input.winnerId === "a"
+      ? input.teamNameA
+      : input.teamNameB;
+  const subline = isDraw ? `${input.teamNameA}  ·  ${input.teamNameB}` : "WON";
 
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
@@ -194,13 +204,14 @@ function drawCopy(ctx: CanvasRenderingContext2D, input: WinningTeamPosterInput) 
 
   const teamTop = 90 + titleLines.length * 32 + 44;
   ctx.fillStyle = "#ffffff";
-  const teamSize = fitText(ctx, winnerName, maxWidth, 56, 32, 800);
+  const teamSize = fitText(ctx, headline, maxWidth, isDraw ? 72 : 56, 32, 800);
   ctx.font = `800 ${teamSize}px ${FONT}`;
-  ctx.fillText(winnerName, POSTER_SIZE / 2, teamTop);
+  ctx.fillText(headline, POSTER_SIZE / 2, teamTop);
 
   ctx.fillStyle = "#fbbf24";
-  ctx.font = `800 40px ${FONT}`;
-  ctx.fillText("WON", POSTER_SIZE / 2, teamTop + teamSize + 8);
+  const subSize = isDraw ? fitText(ctx, subline, maxWidth, 28, 16, 700) : 40;
+  ctx.font = `${isDraw ? 700 : 800} ${subSize}px ${FONT}`;
+  ctx.fillText(subline, POSTER_SIZE / 2, teamTop + teamSize + 8);
 }
 
 function drawScore(ctx: CanvasRenderingContext2D, input: WinningTeamPosterInput) {
@@ -209,8 +220,9 @@ function drawScore(ctx: CanvasRenderingContext2D, input: WinningTeamPosterInput)
   const leftX = POSTER_SIZE / 2 - 210;
   const rightX = POSTER_SIZE / 2 + 210;
 
-  drawScoreCircle(ctx, leftX, y, radius, input.scoreA, input.winnerId === "a");
-  drawScoreCircle(ctx, rightX, y, radius, input.scoreB, input.winnerId === "b");
+  const isDraw = input.winnerId === "draw";
+  drawScoreCircle(ctx, leftX, y, radius, input.scoreA, isDraw || input.winnerId === "a");
+  drawScoreCircle(ctx, rightX, y, radius, input.scoreB, isDraw || input.winnerId === "b");
 
   ctx.fillStyle = "rgba(255,255,255,0.7)";
   ctx.font = `700 36px ${FONT}`;
@@ -219,11 +231,11 @@ function drawScore(ctx: CanvasRenderingContext2D, input: WinningTeamPosterInput)
   ctx.fillText("–", POSTER_SIZE / 2, y);
 
   ctx.textBaseline = "top";
-  ctx.fillStyle = input.winnerId === "a" ? "#fbbf24" : "rgba(255,255,255,0.85)";
+  ctx.fillStyle = isDraw || input.winnerId === "a" ? "#fbbf24" : "rgba(255,255,255,0.85)";
   ctx.font = `700 22px ${FONT}`;
   ctx.fillText(truncateText(ctx, input.teamNameA, 360), leftX, y + radius + 14);
 
-  ctx.fillStyle = input.winnerId === "b" ? "#fbbf24" : "rgba(255,255,255,0.85)";
+  ctx.fillStyle = isDraw || input.winnerId === "b" ? "#fbbf24" : "rgba(255,255,255,0.85)";
   ctx.fillText(truncateText(ctx, input.teamNameB, 360), rightX, y + radius + 14);
 }
 
