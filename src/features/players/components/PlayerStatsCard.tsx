@@ -47,6 +47,9 @@ export function PlayerStatsCard({
               value={String(stats.defenderAssists)}
             />
           ) : null}
+          {stats.winBonus > 0 ? (
+            <StatTile label="Win bonus" value={String(stats.winBonus)} />
+          ) : null}
           <StatTile label="Wins" value={String(stats.wins)} />
           <StatTile label="Losses" value={String(stats.losses)} />
           <StatTile label="Draws" value={String(stats.draws)} />

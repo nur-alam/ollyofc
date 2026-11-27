@@ -54,19 +54,25 @@ A match that was scheduled before this shipped and is still `upcoming` gets the 
 
 ## Points
 
-Career totals live on `users/{id}.stats`: `games`, `goals`, `assists`, `defenderGoals`, `defenderAssists`, `wins`, `losses`, `draws`, and `awards` (a count map, not one number). The award total is the sum of that map, MVP included (`getAwardTotal`). Win rate is not stored. It is `wins / games`, and `0` when `games` is `0`.
+Career totals live on `users/{id}.stats`: `games`, `goals`, `assists`, `defenderGoals`, `defenderAssists`, `winBonus`, `wins`, `losses`, `draws`, and `awards` (a count map, not one number). The award total is the sum of that map, MVP included (`getAwardTotal`). Win rate is not stored. It is `wins / games`, and `0` when `games` is `0`.
 
 After each stats write, set `stats.points` from those updated totals:
 
-`points = (goals × 3) + (assists × 1.7) + (defenderGoals × 1) + (defenderAssists × 0.3) + (awardTotal × 2)`
+`points = (goals × 3) + (assists × 1.7) + (defenderGoals × 1) + (defenderAssists × 0.3) + (awardTotal × 2) + (winBonus × 0.5)`
 
-`defenderGoals` is already inside `goals`, so the extra 1 makes that goal 4. `defenderAssists` is already inside `assists`, so the extra 0.3 makes that assist 2.
+`defenderGoals` is already inside `goals`, so the extra 1 makes that goal 4. `defenderAssists` is already inside `assists`, so the extra 0.3 makes that assist 2. `winBonus` counts wins where that player had no goals, assists, or awards in the match.
 
-Compute it in tenths so `1.7` stays exact: `(goals × 30 + assists × 17 + defenderGoals × 10 + defenderAssists × 3 + awardTotal × 20) / 10`. Store that number (for example `25.8`). Format to one decimal only in the UI.
+Compute it in tenths so `1.7` stays exact: `(goals × 30 + assists × 17 + defenderGoals × 10 + defenderAssists × 3 + awardTotal × 20 + winBonus × 5) / 10`. Store that number (for example `25.8`). Format to one decimal only in the UI.
 
 Example: 5 goals, 4 assists, 2 awards → `15 + 6.8 + 4 = 25.8`. If 2 of those goals and 1 of those assists were made as a defender → `25.8 + 2 + 0.3 = 28.1`.
 
 Points are not a separate match contribution. Recompute them from the player’s new career totals on every sync that already changes `stats`: finish, reopen, add a player to a finished game, edit awards, delete, and Dashboard rebuild. A second sync with nothing changed leaves points unchanged.
+
+## Winning bonus
+
+On a game created with `scoringVersion: 3`, a player whose result is a win and who has no goals, assists, or awards in that match gets `winBonus: 1`, worth 0.5 points. The key is left off otherwise. A game with no version, and a game stamped `2`, adds nothing, including on reopen and rebuild.
+
+The bonus is computed inside `buildGameStatContributions`, so the same sync that already rewrites career stats also keeps it current. Adding a goal or an assist, giving any award (MVP, best defender, most saves, or a custom title), or changing the winner removes it. Taking that award or goal away puts it back. A player who played both sides is a winner when the match has a winner, so they can earn it when they have nothing else. A draw pays nobody. A guest is skipped. Each game contributes at most one, and a repeat sync with the same contribution writes nothing.
 
 ## Leaderboard
 

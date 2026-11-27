@@ -21,6 +21,11 @@ export type PlayerGameStat = {
    */
   defenderGoals?: number;
   defenderAssists?: number;
+  /**
+   * 1 when this win earned the 0.5 bonus because the player had no goals,
+   * assists, or awards. Left off when they did not earn it.
+   */
+  winBonus?: number;
   awards?: PlayerAwardCounts;
 };
 
@@ -32,13 +37,16 @@ export type PlayerStatTotals = {
   defenderGoals: number;
   /** Part of `assists` made as a defender. Worth 2 points each, not 1.7. */
   defenderAssists: number;
+  /** Wins where the player had no goals, assists, or awards. Worth 0.5 each. */
+  winBonus: number;
   wins: number;
   losses: number;
   draws: number;
   awards: PlayerAwardCounts;
   /**
    * Career points: (goals × 3) + (assists × 1.7) + (award total × 2), plus 1
-   * for each defender goal and 0.3 for each defender assist.
+   * for each defender goal, 0.3 for each defender assist, and 0.5 for each
+   * winning bonus.
    */
   points: number;
 };
@@ -49,6 +57,7 @@ export const EMPTY_STAT_TOTALS: PlayerStatTotals = {
   assists: 0,
   defenderGoals: 0,
   defenderAssists: 0,
+  winBonus: 0,
   wins: 0,
   losses: 0,
   draws: 0,
@@ -59,14 +68,16 @@ export const EMPTY_STAT_TOTALS: PlayerStatTotals = {
 /**
  * Career points from goals, assists, and the award total (MVP included).
  * Counted in tenths so 1.7 stays exact. A defender goal is 4 and a defender
- * assist is 2, so each adds 10 and 3 tenths on top of the base 30 and 17:
- * (goals × 30 + assists × 17 + defenderGoals × 10 + defenderAssists × 3 + awards × 20) / 10.
+ * assist is 2, so each adds 10 and 3 tenths on top of the base 30 and 17.
+ * A winning bonus is 5 tenths:
+ * (goals × 30 + assists × 17 + defenderGoals × 10 + defenderAssists × 3 + awards × 20 + winBonus × 5) / 10.
  */
 export function careerPoints(totals: {
   goals: number;
   assists: number;
   defenderGoals?: number;
   defenderAssists?: number;
+  winBonus?: number;
   awards?: PlayerAwardCounts;
 }) {
   const tenths =
@@ -74,7 +85,8 @@ export function careerPoints(totals: {
     totals.assists * 17 +
     (totals.defenderGoals ?? 0) * 10 +
     (totals.defenderAssists ?? 0) * 3 +
-    getAwardTotal(totals.awards) * 20;
+    getAwardTotal(totals.awards) * 20 +
+    (totals.winBonus ?? 0) * 5;
 
   return tenths / 10;
 }
@@ -206,6 +218,12 @@ export function parsePlayerGameStat(value: unknown): PlayerGameStat | null {
     stat.defenderAssists = defenderAssists;
   }
 
+  const winBonus = parseCount(data.winBonus);
+
+  if (winBonus > 0) {
+    stat.winBonus = winBonus;
+  }
+
   if (Object.keys(awards).length) {
     stat.awards = awards;
   }
@@ -241,6 +259,7 @@ export function parseStatTotals(value: unknown): PlayerStatTotals {
     assists: parseCount(data.assists),
     defenderGoals: parseCount(data.defenderGoals),
     defenderAssists: parseCount(data.defenderAssists),
+    winBonus: parseCount(data.winBonus),
     wins: parseCount(data.wins),
     losses: parseCount(data.losses),
     draws: parseCount(data.draws),
@@ -266,6 +285,7 @@ export function totalsFromContribution(
     assists: stat.assists,
     defenderGoals: stat.defenderGoals ?? 0,
     defenderAssists: stat.defenderAssists ?? 0,
+    winBonus: stat.winBonus ?? 0,
     wins: stat.result === "win" ? 1 : 0,
     losses: stat.result === "loss" ? 1 : 0,
     draws: stat.result === "draw" ? 1 : 0,
@@ -283,6 +303,7 @@ export function addStatTotals(
     assists: Math.max(0, left.assists + right.assists),
     defenderGoals: Math.max(0, left.defenderGoals + right.defenderGoals),
     defenderAssists: Math.max(0, left.defenderAssists + right.defenderAssists),
+    winBonus: Math.max(0, left.winBonus + right.winBonus),
     wins: Math.max(0, left.wins + right.wins),
     losses: Math.max(0, left.losses + right.losses),
     draws: Math.max(0, left.draws + right.draws),
@@ -304,6 +325,7 @@ export function applyStatDelta(
       assists: -previousTotals.assists,
       defenderGoals: -previousTotals.defenderGoals,
       defenderAssists: -previousTotals.defenderAssists,
+      winBonus: -previousTotals.winBonus,
       wins: -previousTotals.wins,
       losses: -previousTotals.losses,
       draws: -previousTotals.draws,

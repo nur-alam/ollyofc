@@ -44,6 +44,7 @@ A new Google sign-in always starts as `user`. An admin promotes someone by editi
 20. As a member of the Ollyo Slack workspace, I can type `/ollyofc-squad` and page through the active squad, 10 players at a time.
 21. As a member of the Ollyo Slack workspace, I can type `/ollyofc-me` and see my own match stats, the same numbers as on my profile. Only I see that reply.
 22. As staff, I can set the position a player has in one match until that match is finished. It starts as their profile position. A goal scored as a defender in that match is worth 4 points and an assist is worth 2. A later profile change does not move a finished match. Matches that started before this rule keep 3 and 1.7.
+23. As a player on a match created from now on, I get 0.5 points for a win when I have no goals, assists, or awards in that match. A goal, an assist, or any award replaces that 0.5. Matches that already exist keep their points.
 
 ## Success metrics
 
