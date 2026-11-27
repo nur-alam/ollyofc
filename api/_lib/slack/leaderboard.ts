@@ -40,9 +40,15 @@ function careerPoints(
   defenderGoals: number,
   defenderAssists: number,
   awards: number,
+  winBonus = 0,
 ) {
   return (
-    (goals * 30 + assists * 17 + defenderGoals * 10 + defenderAssists * 3 + awards * 20) /
+    (goals * 30 +
+      assists * 17 +
+      defenderGoals * 10 +
+      defenderAssists * 3 +
+      awards * 20 +
+      winBonus * 5) /
     10
   );
 }
@@ -61,6 +67,7 @@ function playerFromDocument(document: UserDocument): LeaderboardPlayer {
           statNumber(stats, "defenderGoals"),
           statNumber(stats, "defenderAssists"),
           awards,
+          statNumber(stats, "winBonus"),
         );
 
   return {

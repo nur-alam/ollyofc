@@ -268,5 +268,137 @@ describe("career totals", () => {
       careerPoints({ goals: 3, assists: 3, defenderGoals: 3, defenderAssists: 3 }),
     ).toBe(18);
     expect(careerPoints({ goals: 5, assists: 4, awards: { mvp: 2 } })).toBe(25.8);
+    expect(careerPoints({ goals: 0, assists: 0, winBonus: 1 })).toBe(0.5);
+  });
+});
+
+function quietPlayer(
+  userId: string,
+  teamId: "a" | "b",
+  extra: Partial<GameParticipant> = {},
+): GameParticipant {
+  return {
+    ...participant(userId, "defender"),
+    teamId,
+    ...extra,
+  };
+}
+
+function decidedGame(
+  scoringVersion: number | undefined,
+  winner: "a" | "b" | "draw",
+  matchGoals: GameGoal[] = [],
+): Game {
+  const game = finishedGame(matchGoals, scoringVersion);
+
+  return {
+    ...game,
+    result: {
+      ...game.result!,
+      winner,
+      a: winner === "b" ? 0 : 1,
+      b: winner === "b" ? 1 : winner === "draw" ? 1 : 0,
+      goals: matchGoals,
+    },
+  };
+}
+
+describe("winning bonus", () => {
+  const quiet = [
+    quietPlayer("blank", "a"),
+    quietPlayer("other", "b"),
+    quietPlayer("guest_1", "a", { kind: "guest" }),
+  ];
+
+  it("gives nothing on a game that already exists", () => {
+    const unstamped = buildGameStatContributions(decidedGame(undefined, "a"), quiet);
+    const stamped = buildGameStatContributions(decidedGame(2, "a"), quiet);
+
+    expect(unstamped.blank).not.toHaveProperty("winBonus");
+    expect(stamped.blank).not.toHaveProperty("winBonus");
+    expect(goalPoints(unstamped.blank)).toBe(0);
+    expect(goalPoints(stamped.blank)).toBe(0);
+  });
+
+  it("gives 0.5 to a winner with no goals, assists, or awards", () => {
+    const stats = buildGameStatContributions(decidedGame(3, "a"), quiet);
+
+    expect(stats.blank.winBonus).toBe(1);
+    expect(stats.blank.result).toBe("win");
+    expect(goalPoints(stats.blank)).toBe(0.5);
+    expect(stats.other).not.toHaveProperty("winBonus");
+    expect(stats.guest_1).toBeUndefined();
+  });
+
+  it("skips a draw and a player who already scored", () => {
+    const drawn = buildGameStatContributions(decidedGame(3, "draw"), quiet);
+    const scored = buildGameStatContributions(
+      decidedGame(3, "a", [playerGoal("g", "blank", "other")]),
+      quiet,
+    );
+
+    expect(drawn.blank).not.toHaveProperty("winBonus");
+    expect(scored.blank).not.toHaveProperty("winBonus");
+    expect(scored.other).not.toHaveProperty("winBonus");
+    expect(goalPoints(scored.blank)).toBe(4);
+  });
+
+  it("gives the bonus to a player who played both sides and nothing else", () => {
+    const both = buildGameStatContributions(decidedGame(3, "a"), [
+      quietPlayer("blank", "b", { playedBoth: true }),
+    ]);
+
+    expect(both.blank.result).toBe("win");
+    expect(both.blank.winBonus).toBe(1);
+  });
+
+  it("drops the bonus when an award, a goal, or the result arrives later", () => {
+    const bonus = buildGameStatContributions(decidedGame(3, "a"), quiet).blank;
+    const awardedGame = decidedGame(3, "a");
+    awardedGame.result = {
+      ...awardedGame.result!,
+      awards: [
+        {
+          id: "best",
+          kind: "custom",
+          title: "Best defender",
+          source: "manual",
+          players: [{ playerId: "blank", playerName: "blank" }],
+          createdBy: "admin",
+          createdAtMs: 1,
+        },
+      ],
+    };
+    const awarded = buildGameStatContributions(awardedGame, quiet).blank;
+    const scored = buildGameStatContributions(
+      decidedGame(3, "a", [playerGoal("g", "blank")]),
+      quiet,
+    ).blank;
+    const reversed = buildGameStatContributions(decidedGame(3, "b"), quiet).blank;
+    const start = { ...EMPTY_STAT_TOTALS, awards: {} };
+    const earned = applyStatDelta(start, undefined, bonus);
+
+    expect(earned.points).toBe(0.5);
+    expect(earned.winBonus).toBe(1);
+    expect(applyStatDelta(earned, bonus, bonus)).toEqual(earned);
+
+    const afterAward = applyStatDelta(earned, bonus, awarded);
+
+    expect(afterAward.winBonus).toBe(0);
+    expect(afterAward.points).toBe(2);
+    expect(awarded).not.toHaveProperty("winBonus");
+
+    const afterGoal = applyStatDelta(earned, bonus, scored);
+
+    expect(afterGoal.winBonus).toBe(0);
+    expect(afterGoal.goals).toBe(1);
+    expect(afterGoal.points).toBe(6);
+
+    const afterResult = applyStatDelta(earned, bonus, reversed);
+
+    expect(afterResult.winBonus).toBe(0);
+    expect(afterResult.wins).toBe(0);
+    expect(afterResult.losses).toBe(1);
+    expect(afterResult.points).toBe(0);
   });
 });

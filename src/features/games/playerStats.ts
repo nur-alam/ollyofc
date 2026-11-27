@@ -2,12 +2,14 @@ import {
   AWARD_STAT_KEYS,
   getExtraAwards,
   getGameMvp,
+  getAwardTotal,
   getGameScore,
   getResultWinner,
   isGuestParticipant,
   isGuestParticipantId,
   toAwardStatKey,
   usesPositionScoring,
+  usesWinBonus,
   type Game,
   type GameParticipant,
 } from "@/types/game";
@@ -137,6 +139,18 @@ export function buildGameStatContributions(
       stat.awards = awards;
     }
 
+    // One bonus per win, and only while every other source is still zero.
+    // The next sync drops it when a goal, an assist, or an award appears.
+    if (
+      usesWinBonus(game) &&
+      stat.result === "win" &&
+      stat.goals === 0 &&
+      stat.assists === 0 &&
+      getAwardTotal(awards) === 0
+    ) {
+      stat.winBonus = 1;
+    }
+
     contributions[participant.userId] = stat;
   }
 
@@ -156,6 +170,7 @@ export function isSamePlayerGameStat(
     left.assists === right.assists &&
     (left.defenderGoals ?? 0) === (right.defenderGoals ?? 0) &&
     (left.defenderAssists ?? 0) === (right.defenderAssists ?? 0) &&
+    (left.winBonus ?? 0) === (right.winBonus ?? 0) &&
     left.result === right.result &&
     left.teamId === right.teamId &&
     isSameAwardCounts(left.awards, right.awards)

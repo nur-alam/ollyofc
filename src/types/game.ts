@@ -391,6 +391,15 @@ export function usesPointsMvp(game: Pick<Game, "scoringVersion">) {
 }
 
 /**
+ * A player on the winning side with no goals, assists, or awards earns 0.5.
+ * Same stamp as points MVP: a game created with `scoringVersion` 3. A game
+ * already finished, and a game stamped `2`, never gets it.
+ */
+export function usesWinBonus(game: Pick<Game, "scoringVersion">) {
+  return (game.scoringVersion ?? 0) >= POINTS_MVP_VERSION;
+}
+
+/**
  * Staff can pick a match position until the match is finished. A match that
  * started before position scoring is left out, because the pick would not
  * change its points.

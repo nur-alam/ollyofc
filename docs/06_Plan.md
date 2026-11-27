@@ -42,6 +42,7 @@ When you finish a step, check its box in this file in the same change. New work 
 - [x] `startGame` and `setGamePlayStatus` stamp `scoringVersion: 2` and save each profile position onto the participant when a game leaves `upcoming`. `setParticipantMatchPosition` lets staff pick a position for one match until it is finished.
 - [x] `/ollyofc-me` shows defender goals and defender assists when above zero. Both Slack fallbacks use the new formula.
 - [x] Auto MVP ranks by match points only on a game created with `scoringVersion: 3`. A game with no version, and a game already stamped `2`, keeps goals, then assists. Leaving `upcoming` does not raise `2` to `3`. The MVP award is not part of the points.
+- [x] Winning bonus. On a game created with `scoringVersion: 3`, a win with no goals, assists, or awards is 0.5 (`winBonus`). A goal, an assist, any award, or a result change removes it on the next sync. Games already stamped `2` or with no version add 0.
 
 ## Phase 3: UI Integration
 
@@ -64,6 +65,7 @@ When you finish a step, check its box in this file in the same change. New work 
 - [x] The Scorer, Own goal by, and Assist lists show the match position after each name on a match that uses defender scoring.
 - [x] The leaderboard info popover explains defender points. The profile stats card shows "Defender goals" and "Defender assists" when above zero.
 - [x] The awards card says match points on a game created with `scoringVersion` 3, and goals, then assists on a game stamped `2` or with no version.
+- [x] The leaderboard info popover explains the 0.5 win bonus. The profile stats card shows "Win bonus" when it is above zero.
 
 ## Phase 4: Edge-case tests
 
@@ -93,6 +95,7 @@ The runner is Vitest. `pnpm test` runs every `src/**/*.test.ts` in Node, from `v
 - [ ] The Dashboard rebuild leaves the points of every game without `scoringVersion` unchanged.
 - [ ] A staff-picked match position is not overwritten by the profile at kickoff.
 - [x] An unstamped finished game and a game stamped `scoringVersion: 2` give MVP to the goal leaders. A game stamped `3` gives it to the highest match points, with a defender goal at 4 and a defender assist at 2. Equal points share it.
+- [x] A game stamped `3` gives 0.5 to a winner with no goals, assists, or awards, including a player who played both sides. A goal, an award, or a changed winner removes it. A game stamped `2` or with no version gives nothing.
 
 ## Phase 5: Tournaments
 
