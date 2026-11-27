@@ -15,6 +15,8 @@ export type SlackProfile = {
   /** Part of goals and assists made as a defender. They score 4 and 2. */
   defenderGoals: number;
   defenderAssists: number;
+  /** Wins with no goals, assists, or awards. Worth 0.5 each. */
+  winBonus: number;
   wins: number;
   losses: number;
   draws: number;
@@ -88,9 +90,15 @@ function careerPoints(
   defenderGoals: number,
   defenderAssists: number,
   awards: number,
+  winBonus = 0,
 ) {
   return (
-    (goals * 30 + assists * 17 + defenderGoals * 10 + defenderAssists * 3 + awards * 20) /
+    (goals * 30 +
+      assists * 17 +
+      defenderGoals * 10 +
+      defenderAssists * 3 +
+      awards * 20 +
+      winBonus * 5) /
     10
   );
 }
@@ -136,10 +144,18 @@ function profileFromDocument(document: UserDocument): SlackProfile | null {
   const assists = statNumber(stats, "assists");
   const defenderGoals = statNumber(stats, "defenderGoals");
   const defenderAssists = statNumber(stats, "defenderAssists");
+  const winBonus = statNumber(stats, "winBonus");
   const points =
     stats && "points" in stats
       ? statNumber(stats, "points")
-      : careerPoints(goals, assists, defenderGoals, defenderAssists, awardTotal(awards));
+      : careerPoints(
+          goals,
+          assists,
+          defenderGoals,
+          defenderAssists,
+          awardTotal(awards),
+          winBonus,
+        );
 
   return {
     id,
@@ -152,6 +168,7 @@ function profileFromDocument(document: UserDocument): SlackProfile | null {
     assists,
     defenderGoals,
     defenderAssists,
+    winBonus,
     wins: statNumber(stats, "wins"),
     losses: statNumber(stats, "losses"),
     draws: statNumber(stats, "draws"),
@@ -196,6 +213,7 @@ export function profileMessage(profile: SlackProfile) {
     ...(profile.defenderAssists > 0
       ? [statTile("Defender assists", String(profile.defenderAssists))]
       : []),
+    ...(profile.winBonus > 0 ? [statTile("Win bonus", String(profile.winBonus))] : []),
     statTile("Wins", String(profile.wins)),
     statTile("Losses", String(profile.losses)),
     statTile("Draws", String(profile.draws)),
