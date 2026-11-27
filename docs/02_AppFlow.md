@@ -65,14 +65,14 @@ The sidebar (staff, desktop) lists Dashboard, and for admins Visitors and Notifi
 - Loading: one table cell, "Loading leaderboard...".
 - Ready: rows with `stats.games > 0` only. Sort is points, then award total, then win rate (`wins / games`). Ties share a rank (`1, 2, 2, 4`).
 - Columns: rank, player, games, goals, assists, awards, win rate, points. Points render to one decimal.
-- Info control explains the formula. It does not change data.
+- Info control explains the formula, including 4 points for a goal and 2 for an assist made as a defender, and that this uses the match position and applies to matches played after the rule started. It does not change data.
 - Empty board: "Nobody has played a finished game yet."
 - Slack `/ollyofc-leaderboard` posts that same board into the channel where it was typed, as a table with a header row. Columns are rank, player, games, goals, assists, awards, win rate, and points. The message links to `/leaderboard`. An empty board uses the same empty copy. A failed load is visible only to the person who ran the command, and it does not change Firestore.
 
 ### Player `/player/:playerId`
 
 - Unknown id: heading "Player not found".
-- Known id: photo, name, position, and career totals. Guests are not a route here. The id is a user id.
+- Known id: photo, name, position, and career totals. "Defender goals" and "Defender assists" tiles appear after Assists when they are above zero. Guests are not a route here. The id is a user id.
 
 ### Games `/games`
 
@@ -104,6 +104,7 @@ Actions by state:
 | Staff edit guest name or position | Yes | Yes | Yes | No |
 | Build, rebuild, clear teams, swap | Yes | Yes, swap until finish | No | No |
 | Mark played both sides | Yes, after the player has a team | Yes, until finish | No | No |
+| Staff set a player's match position | Yes, after the player has a team | Yes, when the match kicked off under defender scoring | No | No |
 | Toss | Yes, 5 second animation | No | No | No |
 | Kick off | Staff, sets `startedAtMs` | Already started | No | No |
 | Record a goal | Only after the scheduled end if nobody kicked off | Yes | No | No |
@@ -111,7 +112,7 @@ Actions by state:
 | Reopen to active | No | No | Admin | No |
 | Edit match details | Staff | Staff | Staff | Staff |
 | Delete | Admin | Admin | Admin | Admin |
-| Awards | After a result exists. MVP stays auto until an admin locks it. | Same | Admin may edit awards without reopening. That re-syncs career awards. | No |
+| Awards | After a result exists. A game created with `scoringVersion` 3 ranks auto MVP by match points. It stays auto until an admin locks it. | A live match stamped `2` or with no version still ranks by goals, then assists. | Admin may edit awards without reopening. That re-syncs career awards. A finished match stamped `2` keeps goals, then assists. | No |
 | Payment UI | Hidden until the match has ended | Hidden until the match has ended | Shown when `paymentInfo` is set | Hidden |
 | Winning-team poster | After a winner exists | After a winner exists | Yes | No |
 
@@ -121,6 +122,14 @@ Goal kinds:
 - Team goal: credits the team when the scorer is unknown. No career goal.
 - Own goal: credits the opponent. `ownGoalById` is stored and never counted as that player's goal.
 - Played both sides: staff open the row menu after the swap arrow and choose Both sides. The player stays on that team and also appears on the other, with a "Played both sides" badge. One side in that menu clears the mark. Scorer, assist, and own-goal lists for either team include them. Each goal still counts once, for the team selected when it is recorded. A full move, rebuild, or clear removes the mark.
+
+Match position:
+
+- Each player has a position for that match. Before kickoff it shows their profile position and follows a profile change.
+- Staff open the same row menu as Played both sides and pick Goalkeeper, Defender, Midfielder, or Forward. The current one has a check. A picked position stops following the profile.
+- At kickoff, or at the first finish of a match nobody kicked off, the position is saved on the match. After that a profile change does not show on that match.
+- The Scorer, Own goal by, and Assist lists show the match position after the name, for example "Rahim Khan · Defender". A match that kicked off before defender scoring shows names only, and its row menu has no position list.
+- A finished match locks the position. An admin reopens the match to change it.
 
 Payment buttons on a participant:
 
@@ -137,7 +146,7 @@ Map: a location name opens `GameMapDialog` with a Google Maps embed. A bad map U
 - Signed-out users never see it. They hit `/login`.
 - Save name and position. Photo upload accepts jpeg, png, or webp under 2 MB.
 - Push toggle: asks notification permission, stores an FCM token, or removes it. If the browser has no push, the control explains that instead of failing the rest of the form.
-- Slack `/ollyofc-me` shows the person who typed it their own match stats. The title is their name plus "match stats". The numbers use the same order as the profile card: games, points, goals, assists, wins, losses, draws, awards, MVP, any extra awards, win rate, loss rate, and goals per game. The reply is visible only to them. Slack's email must match the Google email on `users`. The slash command Request URL is `https://ollyofc.vercel.app/api/slack/me`.
+- Slack `/ollyofc-me` shows the person who typed it their own match stats. The title is their name plus "match stats". The numbers use the same order as the profile card: games, points, goals, assists, defender goals and defender assists when they are above zero, wins, losses, draws, awards, MVP, any extra awards, win rate, loss rate, and goals per game. The reply is visible only to them. Slack's email must match the Google email on `users`. The slash command Request URL is `https://ollyofc.vercel.app/api/slack/me`.
 
 ### Dashboard `/dashboard`
 

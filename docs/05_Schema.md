@@ -34,11 +34,13 @@ Path: `users/{userId}`. Primary key `userId` is the Firebase Auth uid.
 | stats.games | number | Finished matches only. |
 | stats.goals | number | Player goals. Own goals excluded. |
 | stats.assists | number | |
+| stats.defenderGoals | number | Part of `stats.goals` scored as a defender. Missing on older docs and read as 0. |
+| stats.defenderAssists | number | Part of `stats.assists` made as a defender. Missing on older docs and read as 0. |
 | stats.wins | number | |
 | stats.losses | number | |
 | stats.draws | number | |
 | stats.awards | map of string to number | Keys such as `mvp`, `mostSaves`, `bestDefender`, or a camelCase custom title. |
-| stats.points | number | `(goals × 30 + assists × 17 + awardTotal × 20) / 10`. |
+| stats.points | number | `(goals × 30 + assists × 17 + defenderGoals × 10 + defenderAssists × 3 + awardTotal × 20) / 10`. A defender goal is 4 and a defender assist is 2. |
 | statGames | map of gameId to contribution | Legacy. Older docs may still have it. A stats write may delete it. |
 | createdAt | timestamp | |
 | updatedAt | timestamp | |
@@ -104,6 +106,9 @@ Path: `games/{gameId}`. Primary key is the Firestore auto id.
 | result.updatedBy | string | Foreign key to `users`. |
 | startedAt | timestamp | Optional. Set at kickoff. |
 | startedAtMs | number | Optional. Clock start. |
+| scoringVersion | number | Optional. `2` is written when a game that has no version leaves `upcoming`, and means defender scoring with MVP still ranked by goals, then assists. `3` is written when a game is created, and means defender scoring with MVP ranked by match points. Leaving `upcoming` never raises `2` to `3`. Reopen and rebuild never add it. |
+| statsApplied.players | map of userId to contribution | What this game last added to each player's `stats`: `teamId`, `result`, `goals`, `assists`, `awards`, and `defenderGoals` and `defenderAssists` when above 0. |
+| statsApplied.at | timestamp | |
 | kickoffReminderSentForMs | number | Optional. Dedupes the one-hour reminder. |
 | createdBy | string | Foreign key to `users`. |
 | createdAt | timestamp | |
@@ -133,7 +138,7 @@ Award element:
 | kind | `mvp` \| `custom` | |
 | title | string | `MVP`, `Most saves`, `Best defender`, or free text. |
 | players | array of `{ playerId, playerName }` | |
-| source | `auto` \| `manual` | Manual MVP is locked. |
+| source | `auto` \| `manual` | Manual MVP is locked. Auto MVP ranks by goals, then assists unless the game was created with `scoringVersion` 3, which ranks by match points from goals and assists. Award points are not part of that ranking. |
 | createdBy | string | |
 | createdAtMs | number | |
 
@@ -154,7 +159,8 @@ Primary key `participantId` is the user uid, or `guest_` plus a generated id.
 | kind | `user` \| `guest` | |
 | displayName | string | |
 | photoURL | string | Optional. |
-| position | string | |
+| position | string | Position in this match. Copied from the profile at join, copied again when the game leaves `upcoming`, and not synced after that. Defender scoring reads this field, not `users.position`. |
+| positionManual | bool | Optional. Staff picked `position` for this match. It no longer follows the profile. |
 | teamId | `a` \| `b` | Optional until teams are dealt. |
 | playedBoth | bool | Optional. Missing means one team. `teamId` stays their original side, and they are also listed on the other team. |
 | joinedBy | string | Foreign key to `users`. |
@@ -247,5 +253,7 @@ No composite index is declared. Do not add a query that needs one unless `firest
 - `stats` changes only when a game is completed, reopened, repaired by adding a player to a finished game, when awards change, when a game is deleted, or when an admin rebuilds.
 - `stats.points` is recomputed from the new totals in the same write.
 - An own goal never increments `stats.goals` for `ownGoalById`.
+- `stats.defenderGoals` and `stats.defenderAssists` grow only from a game with `scoringVersion` 2 or higher, and only for a participant whose `position` on that game is `defender`. A game without `scoringVersion` adds 0 to both, on every sync and rebuild.
+- `scoringVersion` `2` is written when a game with no version leaves `upcoming`. `3` is written when a game is created. Do not backfill either onto older games, and do not raise `2` to `3`.
 - `playedBoth` does not add a second game. On finish that player gets a win when the match has a winner, and a draw when the match is a draw.
 - `paymentVerifierId` on game A is not consulted for game B.

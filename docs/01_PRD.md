@@ -34,7 +34,7 @@ A new Google sign-in always starts as `user`. An admin promotes someone by editi
 10. As staff, I can still edit match details after the game is completed. Scoring, toss, kickoff, join, leave, swaps, and rebuilds stop. An admin can delete the game or reopen it.
 11. As an admin, finishing a game writes career stats. Reopen, adding a player to a finished game, award edits, delete, and the dashboard rebuild re-sync those totals. Live goals do not move career totals.
 12. As a visitor, I can read the leaderboard ranked by points, then award total, then win rate. Only players with at least one finished game appear.
-13. As an admin, I can lock MVP and add extra awards. MVP ranks by goals, then assists, until it is locked.
+13. As an admin, I can lock MVP and add extra awards. On a match already saved, including one stamped `scoringVersion: 2`, MVP ranks by goals, then assists, until it is locked. On a match created with `scoringVersion: 3`, it ranks by match points from goals and assists.
 14. As an admin, I can notify all opted-in devices, a chosen set of users, or people about the leaderboard, and I can attach a game link. Creating a game still succeeds if the push fails.
 15. As a signed-in player, I can opt in to push and get a kickoff reminder about one hour before today’s games that have not started.
 16. As staff, I get a push when someone registers with Google for the first time. Their account is still created if that push fails.
@@ -43,12 +43,14 @@ A new Google sign-in always starts as `user`. An admin promotes someone by editi
 19. As a member of the Ollyo Slack workspace, I can type `/ollyofc-games` and page through the same game list, 10 games at a time, upcoming first.
 20. As a member of the Ollyo Slack workspace, I can type `/ollyofc-squad` and page through the active squad, 10 players at a time.
 21. As a member of the Ollyo Slack workspace, I can type `/ollyofc-me` and see my own match stats, the same numbers as on my profile. Only I see that reply.
+22. As staff, I can set the position a player has in one match until that match is finished. It starts as their profile position. A goal scored as a defender in that match is worth 4 points and an assist is worth 2. A later profile change does not move a finished match. Matches that started before this rule keep 3 and 1.7.
 
 ## Success metrics
 
 - A signed-out visitor can tell what the next, live, or last match is from `/` without asking in chat.
 - A joined player can submit one transaction id, and only an admin or that game’s verifier can mark it paid or cancelled.
-- Career points on the leaderboard match `(goals × 3) + (assists × 1.7) + (award total × 2)` after every finish, reopen, award edit, delete, and rebuild.
+- Career points on the leaderboard match `(goals × 3) + (assists × 1.7) + (award total × 2)`, plus 1 for each goal and 0.3 for each assist made as a defender, after every finish, reopen, award edit, delete, and rebuild.
+- A rebuild does not change the points of a match that started before defender scoring.
 - Own goals never increase the conceding player’s goal count. Guests never appear in career totals.
 - A failed push request does not roll back game creation or a new registration.
 - Staff tools are unreachable for role `user` and for signed-out visitors. `/notification` and `/visitors` are admin only.

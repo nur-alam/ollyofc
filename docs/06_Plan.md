@@ -1,6 +1,6 @@
 # Ollyo FC — Implementation plan
 
-Work is ordered by dependency. Phases 1–3 are shipped and checked. Do not rebuild them. Phase 4 is open because the repo has no automated test suite.
+Work is ordered by dependency. Phases 1–3 are shipped and checked. Do not rebuild them. Phase 4 is open. Vitest is installed and most of its cases are not written yet.
 
 When you finish a step, check its box in this file in the same change. New work is appended as an unchecked box under the phase it depends on. Do not renumber checked steps.
 
@@ -16,6 +16,7 @@ When you finish a step, check its box in this file in the same change. New work 
 - [x] Vercel `/__/auth/*` proxy so PWA Google sign-in stays on the site host.
 - [x] Zustand session, `ProtectedRoute`, and `RoleGuard`.
 - [x] Optional `playedBoth` on a participant. Missing means one team. `teamId` stays their original side.
+- [x] Optional `scoringVersion` on a game, optional `positionManual` on a participant, and `stats.defenderGoals` and `stats.defenderAssists` on a user. A game with no `scoringVersion` keeps the old points. `firestore.rules` did not change.
 
 ## Phase 2: Core API
 
@@ -37,6 +38,10 @@ When you finish a step, check its box in this file in the same change. New work 
 - [x] `POST /api/slack/me` answers `/ollyofc-me` with the caller's profile match stats. `users.info` matches the Slack email to `users.email`. The reply is ephemeral.
 - [x] The leaderboard slash command keeps that read alive with the edge handler `waitUntil`. The private request-context symbol is not set on this runtime, so Slack was waiting on the users read and timing out.
 - [x] `setParticipantPlayedBoth`. A full move, rebuild, or clear removes the mark. Finish gives that player a win unless the match is a draw.
+- [x] Defender scoring. A goal as a defender is 4 points and an assist is 2: `(goals × 30 + assists × 17 + defenderGoals × 10 + defenderAssists × 3 + awardTotal × 20) / 10`. It reads the position saved on the match, and only on a game stamped `scoringVersion: 2`.
+- [x] `startGame` and `setGamePlayStatus` stamp `scoringVersion: 2` and save each profile position onto the participant when a game leaves `upcoming`. `setParticipantMatchPosition` lets staff pick a position for one match until it is finished.
+- [x] `/ollyofc-me` shows defender goals and defender assists when above zero. Both Slack fallbacks use the new formula.
+- [x] Auto MVP ranks by match points only on a game created with `scoringVersion: 3`. A game with no version, and a game already stamped `2`, keeps goals, then assists. Leaving `upcoming` does not raise `2` to `3`. The MVP award is not part of the points.
 
 ## Phase 3: UI Integration
 
@@ -55,16 +60,21 @@ When you finish a step, check its box in this file in the same change. New work 
 - [x] Visitors page shows an all-time count of `visitorSessions`. Each browser is counted once, and deleting day history does not change the count.
 - [x] Games list pages 10 at a time with the shadcn pagination control. Upcoming games stay first. The page lives in `?page=`.
 - [x] Page query, clamp, and controls live in `usePagination` and `ListPagination` so another list can reuse them.
+- [x] The player row menu lists the four positions for that match, with a check on the current one. Team cards and the joined list show the match position.
+- [x] The Scorer, Own goal by, and Assist lists show the match position after each name on a match that uses defender scoring.
+- [x] The leaderboard info popover explains defender points. The profile stats card shows "Defender goals" and "Defender assists" when above zero.
+- [x] The awards card says match points on a game created with `scoringVersion` 3, and goals, then assists on a game stamped `2` or with no version.
 
 ## Phase 4: Edge-case tests
 
-No test runner is installed. Add one only when the first test in this phase is started, then keep these cases in that runner.
+The runner is Vitest. `pnpm test` runs every `src/**/*.test.ts` in Node, from `vitest.config.ts`. A test file sits next to the code it checks. The tests so far cover pure functions and do not open Firestore. A case that needs Firestore, the rules, or a page stays unchecked until it has its own test.
 
+- [x] Vitest runner, `pnpm test`, and the first tests: `src/features/games/playerStats.test.ts` and `src/types/game.test.ts`.
 - [ ] Player cannot leave inside 60 minutes of kickoff.
 - [ ] Player cannot set their own payment to `paid` or `cancelled`.
 - [ ] A verifier for game A cannot mark game B paid.
 - [ ] Guest join does not write `users.stats`.
-- [ ] Own goal does not increment the conceding player's `stats.goals`.
+- [x] Own goal does not increment the conceding player's `stats.goals`.
 - [ ] Live goal write does not change `stats.points`. Finish does.
 - [ ] Reopen removes that game's contribution. Finish again writes it back.
 - [ ] Second stats sync with no diff does not change `stats`.
@@ -77,6 +87,12 @@ No test runner is installed. Add one only when the first test in this phase is s
 - [ ] Delete game subtracts career stats before the game document is gone.
 - [ ] Registration notify sends nothing when the user document is older than 5 minutes, and a failed push does not delete the new profile.
 - [ ] `/api/slack/leaderboard` returns HTTP 200 with an ephemeral explanation when the Slack signature is bad or `SLACK_SIGNING_SECRET` is unset, and does not call `response_url`. A valid `/ollyofc-leaderboard` ranks like `/leaderboard`.
+- [x] A game with no `scoringVersion` scores a defender's goal at 3 and assist at 1.7, including after reopen and finish.
+- [x] A game with `scoringVersion: 2` scores a defender's goal at 4 and assist at 2, and a midfielder's at 3 and 1.7.
+- [ ] A profile position change after finish does not change that match's points. The Dashboard rebuild keeps them too.
+- [ ] The Dashboard rebuild leaves the points of every game without `scoringVersion` unchanged.
+- [ ] A staff-picked match position is not overwritten by the profile at kickoff.
+- [x] An unstamped finished game and a game stamped `scoringVersion: 2` give MVP to the goal leaders. A game stamped `3` gives it to the highest match points, with a defender goal at 4 and a defender assist at 2. Equal points share it.
 
 ## Phase 5: Tournaments
 

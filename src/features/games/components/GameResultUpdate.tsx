@@ -22,14 +22,18 @@ import {
 } from "@/features/games/game.service";
 import { useNow } from "@/features/games/game.hooks";
 import { useAuthStore } from "@/features/auth/auth.store";
+import { useUserMap } from "@/features/players/player.hooks";
+import { POSITION_LABELS, parsePosition } from "@/types/player";
 import { isStaffRole } from "@/types/user";
 import {
   GAME_GOAL_KIND_LABELS,
   GAME_GOAL_KINDS,
   GAME_TEAM_IDS,
   canRecordGameGoals,
+  canSetMatchPosition,
   canUpdateGameResult,
   getGameScore,
+  getMatchPosition,
   hasKickoffPassed,
   getOpponentTeamId,
   getTeamName,
@@ -103,6 +107,30 @@ export function GameResultUpdate({
   const selectedAssister = assisters.find(
     (participant) => participant.userId === assistId,
   );
+
+  const usersById = useUserMap();
+  // A match that started before position scoring gives a defender the same
+  // points as anyone else, so its picker shows names only.
+  const showPositions = canSetMatchPosition(game);
+
+  /** Name plus match position, so staff can see who scores as a defender. */
+  const playerLabel = (participant: GameParticipant) => {
+    const name = formatParticipantName(participant);
+
+    if (!showPositions) {
+      return name;
+    }
+
+    const position = parsePosition(
+      getMatchPosition(
+        game,
+        participant,
+        usersById.get(participant.userId)?.position,
+      ),
+    );
+
+    return position ? `${name} · ${POSITION_LABELS[position]}` : name;
+  };
 
   const handleToss = async () => {
     setSaving(true);
@@ -324,14 +352,14 @@ export function GameResultUpdate({
           >
             <SelectTrigger className="w-full" disabled={!allowsPlayer}>
               <SelectValue placeholder={allowsPlayer ? playerPlaceholder : "Not needed"}>
-                {selectedScorer ? formatParticipantName(selectedScorer) : undefined}
+                {selectedScorer ? playerLabel(selectedScorer) : undefined}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="unset">{playerPlaceholder}</SelectItem>
               {scorers.map((participant) => (
                 <SelectItem key={participant.userId} value={participant.userId}>
-                  {formatParticipantName(participant)}
+                  {playerLabel(participant)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -347,14 +375,14 @@ export function GameResultUpdate({
           >
             <SelectTrigger className="w-full" disabled={!needsScorer || !selectedScorer}>
               <SelectValue placeholder="No assist">
-                {selectedAssister ? formatParticipantName(selectedAssister) : undefined}
+                {selectedAssister ? playerLabel(selectedAssister) : undefined}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="unset">No assist</SelectItem>
               {assisters.map((participant) => (
                 <SelectItem key={participant.userId} value={participant.userId}>
-                  {formatParticipantName(participant)}
+                  {playerLabel(participant)}
                 </SelectItem>
               ))}
             </SelectContent>

@@ -1,6 +1,7 @@
 import type { Timestamp } from "firebase/firestore";
 
 import { getServerNow } from "@/lib/clock";
+import { parsePosition } from "@/types/player";
 import {
   bangladeshDateTimeToUtc,
   formatBangladeshClock,
@@ -217,6 +218,11 @@ export type Game = {
   result?: GameResult;
   startedAt?: Timestamp;
   startedAtMs?: number;
+  /**
+   * Stamped when the match leaves `upcoming`. Missing on games that were
+   * played before position scoring, and those keep the old points formula.
+   */
+  scoringVersion?: number;
   kickoffReminderSentForMs?: number;
   createdBy: string;
   createdAt?: Timestamp;
@@ -230,7 +236,10 @@ export type GameParticipant = {
   kind: GameParticipantKind;
   displayName: string;
   photoURL?: string;
+  /** Position played in this match. It can differ from the profile position. */
   position: string;
+  /** Staff picked the position for this match, so it stops following the profile. */
+  positionManual?: boolean;
   teamId?: GameTeamId;
   /** Also played the other side. Still stored on `teamId`, and listed on both teams. */
   playedBoth?: boolean;
@@ -361,6 +370,115 @@ export function isParticipantOnTeam(
   }
 
   return participant.teamId === teamId || participant.playedBoth === true;
+}
+
+/** Games stamped with this version score a defender's goals and assists by match position. */
+export const POSITION_SCORING_VERSION = 2;
+
+/**
+ * Games created from this version on rank auto MVP by match points.
+ * A game already stamped `2` keeps goals, then assists.
+ */
+export const POINTS_MVP_VERSION = 3;
+
+export function usesPositionScoring(game: Pick<Game, "scoringVersion">) {
+  return (game.scoringVersion ?? 0) >= POSITION_SCORING_VERSION;
+}
+
+/** Auto MVP uses match points only on a game created with `scoringVersion` 3. */
+export function usesPointsMvp(game: Pick<Game, "scoringVersion">) {
+  return (game.scoringVersion ?? 0) >= POINTS_MVP_VERSION;
+}
+
+/**
+ * Staff can pick a match position until the match is finished. A match that
+ * started before position scoring is left out, because the pick would not
+ * change its points.
+ */
+export function canSetMatchPosition(game: Pick<Game, "status" | "scoringVersion">) {
+  if (game.status === "completed" || game.status === "cancelled") {
+    return false;
+  }
+
+  return game.status !== "active" || usesPositionScoring(game);
+}
+
+/**
+ * The position a player has in this match. Before kickoff it follows the
+ * profile, unless staff picked one for the match. From kickoff on, a match
+ * with position scoring reads only what is saved on the participant, so a
+ * later profile change cannot move its points.
+ */
+export function getMatchPosition(
+  game: Pick<Game, "status" | "scoringVersion">,
+  participant: Pick<GameParticipant, "position" | "positionManual" | "kind" | "userId">,
+  profilePosition: string | undefined,
+) {
+  if (participant.positionManual || isGuestParticipant(participant)) {
+    return participant.position;
+  }
+
+  const savedOnMatch =
+    usesPositionScoring(game) &&
+    game.status !== "upcoming" &&
+    game.status !== "draft";
+
+  if (savedOnMatch) {
+    return participant.position;
+  }
+
+  return profilePosition || participant.position;
+}
+
+export type MvpRanking = {
+  byPoints: boolean;
+  defenderIds: ReadonlySet<string>;
+};
+
+/**
+ * Who counts as a defender for this match's MVP. Points follow the same
+ * position `getMatchPosition` shows, so a profile change before kickoff moves
+ * both the label and the ranking together.
+ */
+export function mvpRankingFor(
+  game: Pick<Game, "status" | "scoringVersion">,
+  participants: Pick<
+    GameParticipant,
+    "userId" | "position" | "positionManual" | "kind"
+  >[] = [],
+  profilePositionById?: ReadonlyMap<string, string | undefined>,
+): MvpRanking {
+  const byPoints = usesPointsMvp(game);
+  const defenderIds = new Set<string>();
+
+  if (byPoints) {
+    for (const participant of participants) {
+      const position = getMatchPosition(
+        game,
+        participant,
+        profilePositionById?.get(participant.userId),
+      );
+
+      if (parsePosition(position) === "defender") {
+        defenderIds.add(participant.userId);
+      }
+    }
+  }
+
+  return { byPoints, defenderIds };
+}
+
+/** Goal and assist points in tenths, with no awards. A defender goal is 40 and a defender assist is 20. */
+export function matchPointTenths(input: {
+  goals: number;
+  assists: number;
+  defender: boolean;
+}) {
+  return (
+    input.goals * 30 +
+    input.assists * 17 +
+    (input.defender ? input.goals * 10 + input.assists * 3 : 0)
+  );
 }
 
 export function getGoalKind(goal: GameGoal): GameGoalKind {
@@ -738,14 +856,30 @@ export function getPlayerGoalCounts(goals: GameGoal[]) {
 }
 
 /**
- * Rank MVP by goals first, then assists. Anyone matching the leader on both
- * shares the award.
+ * Rank MVP by goals first, then assists. On a points match, rank by match
+ * points instead. Anyone matching the leader shares the award. The MVP award
+ * itself is not part of the points.
  */
-export function getComputedMvpTallies(goals: GameGoal[]): PlayerGoalTally[] {
+export function getComputedMvpTallies(
+  goals: GameGoal[],
+  ranking?: MvpRanking,
+): PlayerGoalTally[] {
   const tallies = getPlayerGoalCounts(goals);
 
   if (!tallies.length) {
     return [];
+  }
+
+  if (ranking?.byPoints) {
+    const tenthsOf = (tally: PlayerGoalTally) =>
+      matchPointTenths({
+        goals: tally.count,
+        assists: tally.assists,
+        defender: ranking.defenderIds.has(tally.scorerId),
+      });
+    const topPoints = Math.max(...tallies.map(tenthsOf));
+
+    return tallies.filter((tally) => tenthsOf(tally) === topPoints);
   }
 
   const topGoals = tallies[0].count;
@@ -761,8 +895,16 @@ export type GameMvpDisplay = {
   tallies: PlayerGoalTally[];
 };
 
-export function getGameMvp(game: Pick<Game, "result">): GameMvpDisplay {
+export function getGameMvp(
+  game: Pick<Game, "result" | "status" | "scoringVersion">,
+  participants: Pick<
+    GameParticipant,
+    "userId" | "position" | "positionManual" | "kind"
+  >[] = [],
+  profilePositionById?: ReadonlyMap<string, string | undefined>,
+): GameMvpDisplay {
   const goals = game.result?.goals ?? [];
+  const ranking = mvpRankingFor(game, participants, profilePositionById);
   const talliesById = new Map(
     getPlayerGoalCounts(goals).map((tally) => [tally.scorerId, tally]),
   );
@@ -779,7 +921,7 @@ export function getGameMvp(game: Pick<Game, "result">): GameMvpDisplay {
     };
   }
 
-  const tallies = getComputedMvpTallies(goals);
+  const tallies = getComputedMvpTallies(goals, ranking);
 
   return {
     players: tallies.map((tally) => ({

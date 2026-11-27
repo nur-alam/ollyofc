@@ -16,6 +16,7 @@ Office football team management — React + TypeScript, Firebase, and shadcn/ui.
 - `pnpm dev` — start the dev server
 - `pnpm build` — typecheck and build for production
 - `pnpm typecheck` — run TypeScript checks only
+- `pnpm test` — run the Vitest tests once
 - `pnpm preview` — preview the production build
 
 ## Firebase setup (Phase 1)

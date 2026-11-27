@@ -38,6 +38,15 @@ export function PlayerStatsCard({
           <StatTile label="Points" value={formatCareerPoints(stats.points)} />
           <StatTile label="Goals" value={String(stats.goals)} />
           <StatTile label="Assists" value={String(stats.assists)} />
+          {stats.defenderGoals > 0 ? (
+            <StatTile label="Defender goals" value={String(stats.defenderGoals)} />
+          ) : null}
+          {stats.defenderAssists > 0 ? (
+            <StatTile
+              label="Defender assists"
+              value={String(stats.defenderAssists)}
+            />
+          ) : null}
           <StatTile label="Wins" value={String(stats.wins)} />
           <StatTile label="Losses" value={String(stats.losses)} />
           <StatTile label="Draws" value={String(stats.draws)} />

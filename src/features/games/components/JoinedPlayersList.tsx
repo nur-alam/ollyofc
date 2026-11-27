@@ -11,6 +11,7 @@ import { useUserMap } from "@/features/players/player.hooks";
 import { cn } from "@/lib/utils";
 import {
   getGameTeamNames,
+  getMatchPosition,
   canSwapGameTeams,
   isGuestParticipant,
   type Game,
@@ -123,7 +124,7 @@ export function JoinedPlayersList({
             <p className="text-xs text-muted-foreground">
               {guest && !participant.position
                 ? "Guest"
-                : formatPosition(user?.position || participant.position)}
+                : formatPosition(getMatchPosition(game, participant, user?.position))}
             </p>
           </div>
           {canAct ? (

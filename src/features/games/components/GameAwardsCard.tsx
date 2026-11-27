@@ -24,6 +24,7 @@ import {
   formatParticipantName,
   getExtraAwards,
   getGameMvp,
+  usesPointsMvp,
   type Game,
   type GameAward,
   type GameAwardPlayer,
@@ -217,7 +218,17 @@ export function GameAwardsCard({
 }) {
   const usersById = useUserMap();
   const isAdmin = useAuthStore((state) => state.profile?.role === "admin");
-  const mvp = getGameMvp(game);
+  const pointsMvp = usesPointsMvp(game);
+  const profilePositions = useMemo(() => {
+    const positions = new Map<string, string | undefined>();
+
+    for (const participant of participants) {
+      positions.set(participant.userId, usersById.get(participant.userId)?.position);
+    }
+
+    return positions;
+  }, [participants, usersById]);
+  const mvp = getGameMvp(game, participants, profilePositions);
   const awards = getExtraAwards(game.result?.awards);
   const tallyById = useMemo(
     () => new Map(mvp.tallies.map((tally) => [tally.scorerId, tally])),
@@ -309,7 +320,11 @@ export function GameAwardsCard({
     try {
       await clearGameMvp(game.id, updatedBy);
       setMvpOpen(false);
-      toast.success("MVP is ranked from goals, then assists");
+      toast.success(
+        pointsMvp
+          ? "MVP is ranked by match points"
+          : "MVP is ranked from goals, then assists",
+      );
     } catch (error) {
       toast.error(getErrorMessage(error, "Could not reset the MVP."));
     } finally {
@@ -497,15 +512,21 @@ export function GameAwardsCard({
         </div>
       ) : (
         <p className="mt-2 text-sm text-muted-foreground">
-          MVP is ranked by goals, then assists. Add a manual award such as most
-          saves or best defender.
+          {pointsMvp
+            ? "MVP is ranked by match points. A goal is 3, an assist is 1.7, and a defender's goal is 4 and assist is 2."
+            : "MVP is ranked by goals, then assists."}{" "}
+          Add a manual award such as most saves or best defender.
         </p>
       )}
 
       {mvpOpen && canEditMvp ? (
         <OverlayDialog
           title="Match MVP"
-          description="Pick one or more players. Leave it on auto to rank by goals first, then assists. Tied players share the award."
+          description={
+            pointsMvp
+              ? "Pick one or more players. Leave it on auto to rank by match points. Tied players share the award."
+              : "Pick one or more players. Leave it on auto to rank by goals first, then assists. Tied players share the award."
+          }
           saving={saving}
           onClose={() => setMvpOpen(false)}
           footer={

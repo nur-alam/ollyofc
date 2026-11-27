@@ -6,21 +6,29 @@ Anyone can see the card. Staff (admin and moderator) can add extra awards after 
 
 ## MVP
 
-MVP starts automatic. It is ranked from the match’s player goals, then assists. Own goals and team goals do not count. The auto pick is written into `result.awards` as `{ kind: "mvp", source: "auto" }` whenever the result is saved.
+MVP starts automatic. Own goals and team goals do not count. The auto pick is written into `result.awards` as `{ kind: "mvp", source: "auto" }` whenever the result is saved.
 
-How auto ranking works
+A match stamped `scoringVersion: 2` or with no version ranks by goals, then assists. That includes a finished match that is reopened. A match created with `scoringVersion: 3` ranks by the match points from goals and assists. The MVP award’s own 2 points are not part of that ranking.
+
+How auto ranking works on an older match
 
 1. Highest goal count wins.
 2. If two or more players are tied on goals, highest assists among those players wins.
 3. If they are still tied on assists as well, they all share the award. The card title becomes **MVPs**.
 
-Examples: 2 goals beats 1 goal and 5 assists. Two players with 2 goals and 1 assist both get MVP. A 0–0 with no assists has no auto MVP.
+Example: 1 goal beats 2 assists. Two players with 2 goals and 1 assist both get MVP. A 0–0 with no assists has no auto MVP.
+
+How auto ranking works on a new match
+
+Match points use the same values as career points, without awards: a goal is 3, an assist is 1.7, a goal as a defender is 4, and an assist as a defender is 2. The position is the one saved for that match. Highest points wins. Players on the same points share the award.
+
+Example: 2 assists (3.4) beat 1 goal (3). A defender’s 1 goal (4) beats those 2 assists. A defender with 1 goal and 1 assist (6) ties a forward with 2 goals (6), and they share MVP.
 
 The ranking updates as goals are added or removed, until admin locks it.
 
 Admin can **Set MVP** or **Edit MVP** and pick one or more players from the joined list. Saving that selection sets `source: "manual"` on the MVP award. Later goals will not change it. The card shows a **Manual** badge.
 
-**Use auto ranking** clears the lock. MVP goes back to goals, then assists.
+**Use auto ranking** clears the lock. MVP goes back to that match’s rule: goals, then assists, or match points.
 
 A 0–0 (or any game with no scorer/assister) still lets admin pick an MVP by hand.
 

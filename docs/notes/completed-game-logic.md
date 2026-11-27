@@ -16,6 +16,7 @@ Finish / toss / kick off.
 Join or leave as a player.
 Remove players from the roster.
 Swap players between teams.
+Change a player's match position.
 Rebuild teams (canEdit only while upcoming).
 Live clock / “game is in play” actions.
 Still allowed
