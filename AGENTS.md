@@ -11,6 +11,7 @@ pnpm install
 pnpm dev          # Vite. Uses the ollyofcdev Firestore database.
 pnpm prod         # Vite in production mode. Uses the (default) Firestore database.
 pnpm typecheck    # tsc --noEmit
+pnpm test         # Vitest. Runs src/**/*.test.ts once, in Node. No Firestore.
 pnpm build        # typecheck, then production build (default Firestore database)
 pnpm preview
 ```
@@ -63,9 +64,11 @@ Game status is `draft | upcoming | active | completed | cancelled`. `completed` 
 
 Career stats are written only when a game is completed, then re-synced on reopen, add-player-to-finished-game, award edits, delete, and the dashboard rebuild. Live goals do not move career totals. Guests do not get career stats. Own goals never count as that player's goals. See `docs/logic/player-stats-docs.md`.
 
-Points live on `users/{id}.stats.points`: `(goals × 3) + (assists × 1.7) + (award total × 2)`. Compute in tenths so 1.7 stays exact: `(goals × 30 + assists × 17 + awardTotal × 20) / 10`. Format to one decimal only in the UI. `careerPoints` in `src/types/user.ts` is the source of that formula.
+Points live on `users/{id}.stats.points`: `(goals × 3) + (assists × 1.7) + (award total × 2)`. A goal scored as a defender is 4 and an assist is 2, counted in `stats.defenderGoals` and `stats.defenderAssists`. Compute in tenths so 1.7 stays exact: `(goals × 30 + assists × 17 + defenderGoals × 10 + defenderAssists × 3 + awardTotal × 20) / 10`. Format to one decimal only in the UI. `careerPoints` in `src/types/user.ts` is the source of that formula.
 
-Match awards are `result.awards`. MVP (`kind: "mvp"`) ranks by goals, then assists, until an admin locks it. Extra awards are `kind: "custom"`. See `docs/logic/awards.md`.
+Defender scoring reads the position saved on the match (`participants/{uid}.position`), never the profile position. That position follows the profile until the game leaves `upcoming`, staff can pick one per match, and it locks at finish. Only games stamped `scoringVersion` 2 or higher use the rule. A game that leaves `upcoming` with no version is stamped `2`. A game created from now on is stamped `3`. Do not backfill it. Older games keep their points through reopen and rebuild.
+
+Match awards are `result.awards`. MVP (`kind: "mvp"`) ranks by goals, then assists, until an admin locks it. A game created with `scoringVersion: 3` ranks MVP by match points from goals and assists instead. A game with no version, and a game stamped `2`, keeps the old ranking, including after reopen. Extra awards are `kind: "custom"`. See `docs/notes/awards.md`.
 
 Payment is manual. Staff can put bKash or bank instructions on a game and assign a payment verifier for that game only. A joined player submits a transaction ID, which stays pending until the admin or that game’s verifier marks it paid or cancelled. Those two can also mark a player paid when the player never tapped Pay. See `docs/payment.md`.
 
@@ -82,5 +85,6 @@ Push notifications go out from `api/notify-*.ts`. Creating a game must still suc
 - Put Firestore access in the feature `*.service.ts`, and UI state in hooks or the component.
 - Toasts use `react-hot-toast`.
 - After a TypeScript change, run `pnpm typecheck`.
+- After a change to stats, points, or match-position logic, run `pnpm test`. Tests sit next to the code as `*.test.ts`. Keep them on pure functions. Do not import a `*.service.ts` file or `src/lib/firebase` from a test.
 - After a UI change, run `pnpm dev` and check the affected page in the browser, including empty and signed-out states when those paths exist.
 - Do not commit, push, or open a pull request unless asked. When asked, follow `.claude/skills/git-commits-prs/SKILL.md` (same skill under `.cursor/skills/`). Commits are authored as nur-alam without changing git config.

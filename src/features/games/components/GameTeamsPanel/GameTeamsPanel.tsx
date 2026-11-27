@@ -24,6 +24,7 @@ import {
   getErrorMessage,
   moveParticipantTeam,
   renameGameTeam,
+  setParticipantMatchPosition,
   setParticipantPlayedBoth,
   saveGeneratedTeams,
   startTeamBuild,
@@ -39,8 +40,10 @@ import {
   getGameScore,
   canEditGameGuests,
   canMarkGamePayment,
+  canSetMatchPosition,
   canSwapGameTeams,
   getGameTeamNames,
+  getMatchPosition,
   getTeamName,
   hasGameTeams,
   isGuestParticipant,
@@ -49,6 +52,7 @@ import {
   type GameParticipant,
   type GameTeamId,
 } from "@/types/game";
+import type { PlayerPosition } from "@/types/player";
 import { isStaffRole } from "@/types/user";
 
 const MIN_PLAYERS_TO_BUILD = 2;
@@ -91,18 +95,19 @@ export function GameTeamsPanel({
         const user = usersById.get(participant.userId);
         return {
           ...participant,
-          position: user?.position || participant.position,
+          position: getMatchPosition(game, participant, user?.position),
           photoURL:
             user?.photoURL?.trim() || participant.photoURL?.trim() || "",
         };
       }),
-    [participants, usersById],
+    [game, participants, usersById],
   );
 
   const teamsReady = hasGameTeams(game);
   const paymentOpen = canMarkGamePayment(game, new Date(nowMs));
   const showPaymentTab = paymentOpen && tab === "payment";
   const canSwap = isStaff && teamsReady && canSwapGameTeams(game);
+  const canSetPosition = canSwap && canSetMatchPosition(game);
   const canEditGuest = isStaff && canEditGameGuests(game);
   const score = getGameScore(game);
   const winningTeam: GameTeamId | null =
@@ -295,6 +300,25 @@ export function GameTeamsPanel({
     } catch (error) {
       setActionError(
         getErrorMessage(error, "Could not update who played both sides."),
+      );
+    } finally {
+      setMovingId("");
+    }
+  };
+
+  const handleMatchPosition = async (userId: string, position: PlayerPosition) => {
+    if (!canSetPosition) {
+      return;
+    }
+
+    setMovingId(userId);
+    setActionError("");
+
+    try {
+      await setParticipantMatchPosition(game.id, userId, position);
+    } catch (error) {
+      setActionError(
+        getErrorMessage(error, "Could not change this player's position."),
       );
     } finally {
       setMovingId("");
@@ -595,6 +619,12 @@ export function GameTeamsPanel({
                                   !participant.playedBoth,
                                 )
                               }
+                              onSelectPosition={
+                                canSetPosition
+                                  ? (position) =>
+                                      handleMatchPosition(participant.userId, position)
+                                  : undefined
+                              }
                             />
                           </div>
                         )}
@@ -631,6 +661,12 @@ export function GameTeamsPanel({
                                   participant.userId,
                                   !participant.playedBoth,
                                 )
+                              }
+                              onSelectPosition={
+                                canSetPosition
+                                  ? (position) =>
+                                      handleMatchPosition(participant.userId, position)
+                                  : undefined
                               }
                             />
                           </div>

@@ -33,8 +33,18 @@ function awardTotal(value: FirestoreValue | undefined) {
   return Object.values(fields).reduce((sum, entry) => sum + Math.max(0, statNumber({ entry }, "entry")), 0);
 }
 
-function careerPoints(goals: number, assists: number, awards: number) {
-  return (goals * 30 + assists * 17 + awards * 20) / 10;
+/** A defender goal is 4 and a defender assist is 2, so each adds 10 and 3 tenths. */
+function careerPoints(
+  goals: number,
+  assists: number,
+  defenderGoals: number,
+  defenderAssists: number,
+  awards: number,
+) {
+  return (
+    (goals * 30 + assists * 17 + defenderGoals * 10 + defenderAssists * 3 + awards * 20) /
+    10
+  );
 }
 
 function playerFromDocument(document: UserDocument): LeaderboardPlayer {
@@ -45,7 +55,13 @@ function playerFromDocument(document: UserDocument): LeaderboardPlayer {
   const points =
     stats && "points" in stats
       ? statNumber(stats, "points")
-      : careerPoints(goals, assists, awards);
+      : careerPoints(
+          goals,
+          assists,
+          statNumber(stats, "defenderGoals"),
+          statNumber(stats, "defenderAssists"),
+          awards,
+        );
 
   return {
     displayName: document.fields?.displayName?.stringValue?.trim() || "Player",

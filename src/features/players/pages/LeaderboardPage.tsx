@@ -75,12 +75,20 @@ function PointsInfo() {
           <li>1 goal = 3 points</li>
           <li>1 assist = 1.7 points</li>
           <li>1 award = 2 points</li>
+          <li>1 goal as a defender = 4 points</li>
+          <li>1 assist as a defender = 2 points</li>
         </ul>
         <p className="text-sm">
-          Total points = (Goals × 3) + (Assists × 1.7) + (Awards × 2)
+          Total points = (Goals × 3) + (Assists × 1.7) + (Awards × 2), with
+          defender goals at 4 and defender assists at 2.
         </p>
         <p className="text-sm text-muted-foreground">
           5 goals, 4 assists, and 2 awards = 15 + 6.8 + 4 = 25.8 points.
+        </p>
+        <p className="text-sm text-muted-foreground">
+          Defender points use the position a player had in that match, not
+          their profile. They apply to matches played after this rule started.
+          Earlier matches keep 3 and 1.7.
         </p>
         <div className="space-y-1 text-sm">
           <p className="font-medium">Ranking</p>

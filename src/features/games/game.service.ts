@@ -23,7 +23,7 @@ import { getServerNowMs, syncServerClock } from "@/lib/clock";
 import { getErrorMessage } from "@/lib/errors";
 import { db } from "@/lib/firebase";
 import { bangladeshDateTimeToUtc } from "@/lib/timezone";
-import { parsePosition } from "@/types/player";
+import { parsePosition, type PlayerPosition } from "@/types/player";
 import type {
   Game,
   GameAward,
@@ -44,11 +44,15 @@ import type {
 import {
   canPlayerLeaveGame,
   canRecordGameGoals,
+  canSetMatchPosition,
   compareParticipantsByJoinOrder,
   DEFAULT_TEAM_NAMES,
   GAME_LOCATIONS,
   getComputedMvpTallies,
   getExtraAwards,
+  mvpRankingFor,
+  usesPointsMvp,
+  usesPositionScoring,
   getGameStartAt,
   getResultWinner,
   hasMatchEnded,
@@ -61,7 +65,10 @@ import {
   isTossLanded,
   MVP_AWARD_ID,
   MVP_AWARD_TITLE,
+  type MvpRanking,
   normalizeGameMapUrl,
+  POINTS_MVP_VERSION,
+  POSITION_SCORING_VERSION,
 } from "@/types/game";
 import {
   buildGameStatContributions,
@@ -440,6 +447,7 @@ function withCurrentAwards(
   goals: GameGoal[],
   awards: GameAward[] | undefined,
   updatedBy: string,
+  ranking?: MvpRanking,
 ): GameAward[] {
   const extras = getExtraAwards(awards);
   const stored = getStoredMvpAward(awards);
@@ -457,7 +465,7 @@ function withCurrentAwards(
     ];
   }
 
-  const tallies = getComputedMvpTallies(goals);
+  const tallies = getComputedMvpTallies(goals, ranking);
 
   if (!tallies.length) {
     return extras;
@@ -512,10 +520,11 @@ function buildResult(
   goals: GameGoal[],
   updatedBy: string,
   extras?: Pick<GameResult, "awards">,
+  ranking?: MvpRanking,
 ): Omit<GameResult, "updatedAt"> {
   const a = goals.filter((goal) => goal.teamId === "a").length;
   const b = goals.filter((goal) => goal.teamId === "b").length;
-  const awards = withCurrentAwards(goals, extras?.awards, updatedBy);
+  const awards = withCurrentAwards(goals, extras?.awards, updatedBy, ranking);
   const result: Omit<GameResult, "updatedAt"> = {
     a,
     b,
@@ -530,6 +539,51 @@ function buildResult(
   }
 
   return result;
+}
+
+async function loadMvpRanking(
+  game: Pick<Game, "id" | "status" | "scoringVersion">,
+): Promise<MvpRanking> {
+  if (!usesPointsMvp(game)) {
+    return { byPoints: false, defenderIds: new Set() };
+  }
+
+  const snapshot = await getDocs(collection(db, "games", game.id, "participants"));
+  const participants = snapshot.docs.map((item) => mapParticipant(item.id, item.data()));
+  const profilePositionById = new Map<string, string | undefined>();
+  const readsProfile =
+    !usesPositionScoring(game) || game.status === "upcoming" || game.status === "draft";
+
+  if (readsProfile) {
+    const following = participants.filter(
+      (participant) => !participant.positionManual && !isGuestParticipant(participant),
+    );
+    const profiles = await Promise.all(
+      following.map((participant) => getDoc(doc(db, "users", participant.userId))),
+    );
+
+    following.forEach((participant, index) => {
+      const profile = profiles[index];
+      const data = profile.exists() ? profile.data() : undefined;
+      const position = data?.position ?? data?.Position;
+
+      profilePositionById.set(
+        participant.userId,
+        typeof position === "string" ? position : undefined,
+      );
+    });
+  }
+
+  return mvpRankingFor(game, participants, profilePositionById);
+}
+
+async function resultFor(
+  game: Pick<Game, "id" | "status" | "scoringVersion">,
+  goals: GameGoal[],
+  updatedBy: string,
+  extras?: Pick<GameResult, "awards">,
+) {
+  return buildResult(goals, updatedBy, extras, await loadMvpRanking(game));
 }
 
 export function mapGame(id: string, data: DocumentData): Game {
@@ -566,6 +620,10 @@ export function mapGame(id: string, data: DocumentData): Game {
     result: mapResult(data.result),
     startedAt: data.startedAt,
     startedAtMs: typeof data.startedAtMs === "number" ? data.startedAtMs : undefined,
+    scoringVersion:
+      typeof data.scoringVersion === "number" && Number.isFinite(data.scoringVersion)
+        ? data.scoringVersion
+        : undefined,
     createdBy: typeof data.createdBy === "string" ? data.createdBy : "",
     createdAt: data.createdAt,
     updatedAt: data.updatedAt,
@@ -634,6 +692,7 @@ export async function createGame(
     notes: input.notes?.trim() || "",
     paymentInfo: input.paymentInfo?.trim() || "",
     teamCount: 2,
+    scoringVersion: POINTS_MVP_VERSION,
     createdBy,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -668,6 +727,7 @@ export function mapParticipant(id: string, data: DocumentData): GameParticipant 
     displayName: typeof data.displayName === "string" ? data.displayName : "Player",
     photoURL: typeof data.photoURL === "string" ? data.photoURL : undefined,
     position: typeof data.position === "string" ? data.position : "",
+    positionManual: data.positionManual === true ? true : undefined,
     teamId: mapTeamId(data.teamId),
     playedBoth: data.playedBoth === true ? true : undefined,
     joinedBy: typeof data.joinedBy === "string" ? data.joinedBy : "",
@@ -688,6 +748,40 @@ export function mapParticipant(id: string, data: DocumentData): GameParticipant 
     paidAt: data.paidAt instanceof Timestamp ? data.paidAt : undefined,
     paidBy: typeof data.paidBy === "string" && data.paidBy ? data.paidBy : undefined,
   };
+}
+
+/**
+ * Saves each player's profile position onto the match as it leaves `upcoming`.
+ * Scoring reads that saved position from then on, so a later profile change
+ * cannot move this match's points. Guests and positions staff picked for this
+ * match are left alone. The caller commits the batch with the status change.
+ */
+async function freezeMatchPositions(
+  batch: ReturnType<typeof writeBatch>,
+  gameId: string,
+): Promise<void> {
+  const participants = await getDocs(collection(db, "games", gameId, "participants"));
+  const following = participants.docs.flatMap((item) => {
+    const participant = mapParticipant(item.id, item.data());
+
+    return participant.positionManual || isGuestParticipant(participant)
+      ? []
+      : [{ ref: item.ref, participant }];
+  });
+  const profiles = await Promise.all(
+    following.map(({ participant }) => getDoc(doc(db, "users", participant.userId))),
+  );
+
+  following.forEach(({ ref, participant }, index) => {
+    const profile = profiles[index];
+    const data = profile.exists() ? profile.data() : undefined;
+    const position = parsePosition(data?.position ?? data?.Position);
+
+    // A profile with no position keeps whatever was saved when the player joined.
+    if (position && position !== participant.position) {
+      batch.update(ref, { position });
+    }
+  });
 }
 
 /**
@@ -1012,7 +1106,8 @@ export async function updateGuestInGame(
   batch.update(participantRef, updates);
 
   if (game?.result && nameChanged) {
-    const result = buildResult(
+    const result = await resultFor(
+      game,
       nextGoals,
       game.result.updatedBy,
       renameResultPlayers(game.result, guestId, displayName),
@@ -1180,6 +1275,32 @@ export async function setParticipantPlayedBoth(
   await syncGameStats(gameId);
 }
 
+/**
+ * Staff pick the position a player has in this match. It stops following the
+ * profile, and it decides whether their goals and assists score as a defender.
+ */
+export async function setParticipantMatchPosition(
+  gameId: string,
+  userId: string,
+  position: PlayerPosition,
+): Promise<void> {
+  const game = await getGameById(gameId);
+
+  if (!game) {
+    throw new Error("Game not found.");
+  }
+
+  if (!canSetMatchPosition(game)) {
+    throw new Error("Positions cannot be changed on this match.");
+  }
+
+  await updateDoc(doc(db, "games", gameId, "participants", userId), {
+    position,
+    positionManual: true,
+  });
+  await syncGameStats(gameId);
+}
+
 export async function startTeamBuild(
   gameId: string,
   dealOrder: TeamDealStep[],
@@ -1266,7 +1387,8 @@ export async function startGame(gameId: string, updatedBy: string): Promise<void
     throw new Error("Finish the coin toss before starting the game.");
   }
 
-  const result = buildResult(
+  const result = await resultFor(
+    game,
     game.result?.goals ?? [],
     updatedBy,
     extrasFromResult(game.result),
@@ -1278,11 +1400,25 @@ export async function startGame(gameId: string, updatedBy: string): Promise<void
   // A kick off after the scheduled window records the match that already happened.
   // It does not start a new live clock.
   const startedAtMs = nowMs >= scheduledEndMs ? scheduledStartMs : nowMs;
+  const leavingUpcoming = game.status === "upcoming";
+  const batch = writeBatch(db);
 
-  await updateDoc(doc(db, "games", gameId), {
+  if (leavingUpcoming) {
+    await freezeMatchPositions(batch, gameId);
+  }
+
+  batch.update(doc(db, "games", gameId), {
     status: "active",
     startedAt: serverTimestamp(),
     startedAtMs,
+    ...(leavingUpcoming
+      ? {
+          scoringVersion: Math.max(
+            game.scoringVersion ?? POSITION_SCORING_VERSION,
+            POSITION_SCORING_VERSION,
+          ),
+        }
+      : {}),
     result: {
       ...result,
       updatedAt: serverTimestamp(),
@@ -1292,6 +1428,7 @@ export async function startGame(gameId: string, updatedBy: string): Promise<void
     updatedAt: serverTimestamp(),
   });
 
+  await batch.commit();
   await syncGameStats(gameId);
 }
 
@@ -1318,7 +1455,8 @@ export async function setGamePlayStatus(
     return;
   }
 
-  const result = buildResult(
+  const result = await resultFor(
+    game,
     game.result?.goals ?? [],
     updatedBy,
     extrasFromResult(game.result),
@@ -1329,13 +1467,29 @@ export async function setGamePlayStatus(
     status === "active" &&
     game.status === "upcoming" &&
     !(typeof game.startedAtMs === "number" && game.startedAtMs > 0);
+  // A match that was already live or finished keeps the rule it started with,
+  // so reopening an older match never moves it onto position scoring.
+  const leavingUpcoming = game.status === "upcoming";
+  const batch = writeBatch(db);
 
-  await updateDoc(doc(db, "games", gameId), {
+  if (leavingUpcoming) {
+    await freezeMatchPositions(batch, gameId);
+  }
+
+  batch.update(doc(db, "games", gameId), {
     status,
     ...(openingLate
       ? {
           startedAt: Timestamp.fromMillis(startedAtMs),
           startedAtMs,
+        }
+      : {}),
+    ...(leavingUpcoming
+      ? {
+          scoringVersion: Math.max(
+            game.scoringVersion ?? POSITION_SCORING_VERSION,
+            POSITION_SCORING_VERSION,
+          ),
         }
       : {}),
     result: {
@@ -1347,6 +1501,7 @@ export async function setGamePlayStatus(
     updatedAt: serverTimestamp(),
   });
 
+  await batch.commit();
   await syncGameStats(gameId);
 }
 
@@ -1415,7 +1570,7 @@ export async function addGameGoal(
   const goals = [...(game.result?.goals ?? []), goal];
   await writeGameResult(
     gameId,
-    buildResult(goals, input.createdBy, extrasFromResult(game.result)),
+    await resultFor(game, goals, input.createdBy, extrasFromResult(game.result)),
   );
 
   await syncGameStats(gameId);
@@ -1434,7 +1589,8 @@ export async function removeGameGoal(
 
   await writeGameResult(
     gameId,
-    buildResult(
+    await resultFor(
+      game,
       (game.result?.goals ?? []).filter((goal) => goal.id !== goalId),
       updatedBy,
       extrasFromResult(game.result),
@@ -1482,7 +1638,7 @@ export async function setGameMvp(
 
   await writeGameResult(
     gameId,
-    buildResult(game.result?.goals ?? [], updatedBy, {
+    await resultFor(game, game.result?.goals ?? [], updatedBy, {
       awards: [mvpAward, ...getExtraAwards(game.result?.awards)],
     }),
   );
@@ -1502,7 +1658,7 @@ export async function clearGameMvp(gameId: string, updatedBy: string): Promise<v
 
   await writeGameResult(
     gameId,
-    buildResult(game.result?.goals ?? [], updatedBy, {
+    await resultFor(game, game.result?.goals ?? [], updatedBy, {
       awards: getExtraAwards(game.result?.awards),
     }),
   );
@@ -1549,7 +1705,7 @@ export async function addGameAward(
 
   await writeGameResult(
     gameId,
-    buildResult(game.result?.goals ?? [], input.createdBy, {
+    await resultFor(game, game.result?.goals ?? [], input.createdBy, {
       awards: [...(game.result?.awards ?? []), award],
     }),
   );
@@ -1607,7 +1763,7 @@ export async function updateGameAward(
 
   await writeGameResult(
     gameId,
-    buildResult(game.result?.goals ?? [], input.updatedBy, {
+    await resultFor(game, game.result?.goals ?? [], input.updatedBy, {
       awards: nextAwards,
     }),
   );
@@ -1637,7 +1793,7 @@ export async function removeGameAward(
 
   await writeGameResult(
     gameId,
-    buildResult(game.result?.goals ?? [], updatedBy, {
+    await resultFor(game, game.result?.goals ?? [], updatedBy, {
       awards: (game.result?.awards ?? []).filter((award) => award.id !== awardId),
     }),
   );

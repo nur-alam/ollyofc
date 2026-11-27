@@ -12,6 +12,9 @@ export type SlackProfile = {
   points: number;
   goals: number;
   assists: number;
+  /** Part of goals and assists made as a defender. They score 4 and 2. */
+  defenderGoals: number;
+  defenderAssists: number;
   wins: number;
   losses: number;
   draws: number;
@@ -79,8 +82,17 @@ function awardTotal(awards: Record<string, number>) {
   return Object.values(awards).reduce((sum, count) => sum + Math.max(0, count), 0);
 }
 
-function careerPoints(goals: number, assists: number, awards: number) {
-  return (goals * 30 + assists * 17 + awards * 20) / 10;
+function careerPoints(
+  goals: number,
+  assists: number,
+  defenderGoals: number,
+  defenderAssists: number,
+  awards: number,
+) {
+  return (
+    (goals * 30 + assists * 17 + defenderGoals * 10 + defenderAssists * 3 + awards * 20) /
+    10
+  );
 }
 
 function awardLabel(key: string) {
@@ -122,10 +134,12 @@ function profileFromDocument(document: UserDocument): SlackProfile | null {
   const awards = awardCounts(stats?.awards);
   const goals = statNumber(stats, "goals");
   const assists = statNumber(stats, "assists");
+  const defenderGoals = statNumber(stats, "defenderGoals");
+  const defenderAssists = statNumber(stats, "defenderAssists");
   const points =
     stats && "points" in stats
       ? statNumber(stats, "points")
-      : careerPoints(goals, assists, awardTotal(awards));
+      : careerPoints(goals, assists, defenderGoals, defenderAssists, awardTotal(awards));
 
   return {
     id,
@@ -136,6 +150,8 @@ function profileFromDocument(document: UserDocument): SlackProfile | null {
     points,
     goals,
     assists,
+    defenderGoals,
+    defenderAssists,
     wins: statNumber(stats, "wins"),
     losses: statNumber(stats, "losses"),
     draws: statNumber(stats, "draws"),
@@ -174,6 +190,12 @@ export function profileMessage(profile: SlackProfile) {
     statTile("Points", points),
     statTile("Goals", String(profile.goals)),
     statTile("Assists", String(profile.assists)),
+    ...(profile.defenderGoals > 0
+      ? [statTile("Defender goals", String(profile.defenderGoals))]
+      : []),
+    ...(profile.defenderAssists > 0
+      ? [statTile("Defender assists", String(profile.defenderAssists))]
+      : []),
     statTile("Wins", String(profile.wins)),
     statTile("Losses", String(profile.losses)),
     statTile("Draws", String(profile.draws)),

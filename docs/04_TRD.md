@@ -31,6 +31,7 @@ Locked to the versions installed in `pnpm-lock.yaml` on this repo. Ranges in `pa
 | `vite-plugin-pwa` | 1.3.0 | Service worker |
 | `workbox-window` | 7.4.1 | PWA registration |
 | Sass | 1.102.0 | Shell SCSS |
+| Vitest | 5.1.2 | `pnpm test` is `vitest run`. Runs `src/**/*.test.ts` in Node from `vitest.config.ts`, without the app's Vite plugins. |
 
 `jwks-rsa` is pinned so its `jose` dependency stays `5.10.0`.
 
@@ -144,8 +145,11 @@ pnpm install
 pnpm dev
 pnpm prod
 pnpm typecheck
+pnpm test
 pnpm build
 pnpm preview
 ```
+
+`pnpm typecheck` also checks the test files, because they live under `src`. `pnpm build` does not run the tests. A test must not import a `*.service.ts` file or `src/lib/firebase`, so a test run never opens a Firestore database.
 
 After a rules change: `firebase deploy --only firestore:rules`.

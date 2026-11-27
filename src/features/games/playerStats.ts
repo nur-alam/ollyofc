@@ -7,9 +7,11 @@ import {
   isGuestParticipant,
   isGuestParticipantId,
   toAwardStatKey,
+  usesPositionScoring,
   type Game,
   type GameParticipant,
 } from "@/types/game";
+import { parsePosition } from "@/types/player";
 import {
   EMPTY_STAT_TOTALS,
   isSameAwardCounts,
@@ -69,6 +71,8 @@ export function buildGameStatContributions(
   const goals = game.result?.goals ?? [];
   const contributions: Record<string, PlayerGameStat> = {};
   const awardsByUser = new Map<string, PlayerAwardCounts>();
+  // Games played before position scoring never get defender counts, so their points stay as they were.
+  const positionScoring = usesPositionScoring(game);
 
   const bumpAward = (playerId: string, key: string) => {
     if (!playerId || isGuestParticipantId(playerId)) {
@@ -80,7 +84,7 @@ export function buildGameStatContributions(
     awardsByUser.set(playerId, current);
   };
 
-  for (const player of getGameMvp(game).players) {
+  for (const player of getGameMvp(game, participants).players) {
     bumpAward(player.playerId, AWARD_STAT_KEYS.mvp);
   }
 
@@ -101,6 +105,18 @@ export function buildGameStatContributions(
       goals: goals.filter((goal) => goal.scorerId === participant.userId).length,
       assists: goals.filter((goal) => goal.assistId === participant.userId).length,
     };
+
+    // The match position decides this, not the profile. Keys are left off at zero
+    // so a contribution saved before this rule still compares equal.
+    if (positionScoring && parsePosition(participant.position) === "defender") {
+      if (stat.goals > 0) {
+        stat.defenderGoals = stat.goals;
+      }
+
+      if (stat.assists > 0) {
+        stat.defenderAssists = stat.assists;
+      }
+    }
 
     if (participant.teamId) {
       stat.teamId = participant.teamId;
@@ -138,6 +154,8 @@ export function isSamePlayerGameStat(
   return (
     left.goals === right.goals &&
     left.assists === right.assists &&
+    (left.defenderGoals ?? 0) === (right.defenderGoals ?? 0) &&
+    (left.defenderAssists ?? 0) === (right.defenderAssists ?? 0) &&
     left.result === right.result &&
     left.teamId === right.teamId &&
     isSameAwardCounts(left.awards, right.awards)
